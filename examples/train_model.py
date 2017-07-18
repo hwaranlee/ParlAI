@@ -32,6 +32,7 @@ import copy
 import importlib
 import math
 import os
+import spacy
 
 def run_eval(agent, opt, datatype, still_training=False, max_exs=-1):
     ''' Eval on validation/test data. '''

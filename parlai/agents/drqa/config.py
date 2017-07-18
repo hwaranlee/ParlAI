@@ -80,7 +80,11 @@ def add_cmdline_args(parser):
                         help='Whether to use tf features')
     agent.add_argument('--use_time', type=int, default=0,
                         help='Time features marking how recent word was said')
-
+    agent.add_argument('--use_pos', type='bool', default=False,
+                        help='Whether to use pos features')
+    agent.add_argument('--use_ner', type='bool', default=False,
+                        help='Whether to use ner features')
+    
 def set_defaults(opt):
     # Embeddings options
     if opt.get('embedding_file'):
@@ -110,6 +114,7 @@ def override_args(opt, override_opt):
     args = set(['embedding_file', 'embedding_dim', 'hidden_size', 'doc_layers',
                 'question_layers', 'rnn_type', 'optimizer', 'concat_rnn_layers',
                 'question_merge', 'use_qemb', 'use_in_question', 'use_tf',
+                'use_pos', 'use_ner',
                 'vocab_size', 'num_features', 'use_time'])
     for k, v in override_opt.items():
         if k in args:
