@@ -7,11 +7,13 @@
 
 from parlai.core.dict import DictionaryAgent
 from parlai.core.worlds import DialogPartnerWorld
-from parlai.core.params import ParlaiParser, str2class
+from parlai.core.params import ParlaiParser #, str2class
 from parlai.core.worlds import create_task
 import copy
 import importlib
 import os
+
+import pdb
 
 def build_dict(opt):
     if not opt.get('dict_file'):
@@ -50,6 +52,7 @@ def build_dict(opt):
 
 def main():
     # Get command line arguments
+    pdb.set_trace()
     argparser = ParlaiParser()
     DictionaryAgent.add_cmdline_args(argparser)
     opt = argparser.parse_args()

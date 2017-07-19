@@ -95,6 +95,7 @@ def main():
                         type='bool', default=True,
                         help='build dictionary first before training agent')
     opt = parser.parse_args()
+    
     # Possibly build a dictionary (not all models do this).
     if opt['dict_build_first'] and 'dict_file' in opt:
         if opt['dict_file'] is None and opt.get('model_file'):
