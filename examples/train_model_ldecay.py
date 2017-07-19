@@ -23,6 +23,10 @@ TODO List:
 - More logging (e.g. to files), make things prettier.
 '''
 
+### This script is for trianing SQuAD with PQMN
+### by KAIST, CNSL
+### with Learning rate decay
+
 from parlai.core.agents import create_agent
 from parlai.core.worlds import create_task
 from parlai.core.params import ParlaiParser
@@ -33,6 +37,9 @@ import importlib
 import math
 import os
 import spacy
+import logging, sys
+
+import pdb
 
 def run_eval(agent, opt, datatype, still_training=False, max_exs=-1):
     ''' Eval on validation/test data. '''
@@ -77,18 +84,24 @@ def main():
     train.add_argument('-d', '--display-examples',
                         type='bool', default=False)
     train.add_argument('-e', '--num-epochs', type=float, default=-1)
+    
     train.add_argument('-ttim', '--max-train-time',
                         type=float, default=-1)
     train.add_argument('-ltim', '--log-every-n-secs',
                         type=float, default=2)
+    train.add_argument('-lparl', '--log-every-n-parleys',
+                        type=float, default=100)
     train.add_argument('-vtim', '--validation-every-n-secs',
                         type=float, default=-1)
+    train.add_argument('-vparl', '--validation-every-n-parleys',
+                        type=float, default=-1)
+        
     train.add_argument('-vme', '--validation-max-exs',
                         type=int, default=-1,
                         help='max examples to use during validation (default ' +
                              '-1 uses all)')
     train.add_argument('-vp', '--validation-patience',
-                        type=int, default=5,
+                        type=int, default=8,
                         help=('number of iterations of validation where result '
                               + 'does not improve before we stop training'))
     train.add_argument('-dbf', '--dict-build-first',
@@ -96,12 +109,26 @@ def main():
                         help='build dictionary first before training agent')
     opt = parser.parse_args()
     
+    # Set logging
+    logger = logging.getLogger('DrQA')
+    logger.setLevel(logging.INFO)
+    fmt = logging.Formatter('%(asctime)s: %(message)s', '%m/%d/%Y %I:%M:%S %p')
+    console = logging.StreamHandler()
+    console.setFormatter(fmt)
+    logger.addHandler(console)
+    if 'log_file' in opt:
+        logfile = logging.FileHandler(opt['log_file'], 'w')
+        logfile.setFormatter(fmt)
+        logger.addHandler(logfile)
+    logger.info('[ COMMAND: %s ]' % ' '.join(sys.argv))
+    
     # Possibly build a dictionary (not all models do this).
     if opt['dict_build_first'] and 'dict_file' in opt:
         if opt['dict_file'] is None and opt.get('model_file'):
             opt['dict_file'] = opt['model_file'] + '.dict'
-        print("[ building dictionary first... ]")
+        logger.info("[ building dictionary first... ]")
         build_dict.build_dict(opt)
+        
     # Create model and assign it to the specified task
     agent = create_agent(opt)
     world = create_task(opt, agent)
@@ -109,9 +136,9 @@ def main():
     train_time = Timer()
     validate_time = Timer()
     log_time = Timer()
-    print('[ training... ]')
+    logger.info('[ training... ]')
     parleys = 0
-    total_exs = 0
+    total_exs = 0   
     max_exs = opt['num_epochs'] * len(world)
     max_parleys = math.ceil(max_exs / opt['batchsize'])
     best_accuracy = 0
@@ -122,14 +149,15 @@ def main():
         parleys += 1
 
         if opt['num_epochs'] > 0 and parleys >= max_parleys:
-            print('[ num_epochs completed: {} ]'.format(opt['num_epochs']))
+            logger.info('[ num_epochs completed: {} ]'.format(opt['num_epochs']))
             break
         if opt['max_train_time'] > 0 and train_time.time() > opt['max_train_time']:
-            print('[ max_train_time elapsed: {} ]'.format(train_time.time()))
+            logger.info('[ max_train_time elapsed: {} ]'.format(train_time.time()))
             break
-        if opt['log_every_n_secs'] > 0 and log_time.time() > opt['log_every_n_secs']:
+#        if opt['log_every_n_secs'] > 0 and log_time.time() > opt['log_every_n_secs']:
+        if opt['log_every_n_parleys'] > 0 and parleys % opt['log_every_n_parleys'] == 0:
             if opt['display_examples']:
-                print(world.display() + '\n~~')
+                logger.info(world.display() + '\n~~')
 
             logs = []
             # time elapsed
@@ -165,29 +193,38 @@ def main():
             # join log string and add full metrics report to end of log
             log = '[ {} ] {}'.format(' '.join(logs), train_report)
 
-            print(log)
+            # print(log)
+            logger.info(log)
             log_time.reset()
-
-        if (opt['validation_every_n_secs'] > 0 and
-                validate_time.time() > opt['validation_every_n_secs']):
-            valid_report = run_eval(agent, opt, 'valid', True, opt['validation_max_exs'])
-            if valid_report['accuracy'] > best_accuracy:
-                best_accuracy = valid_report['accuracy']
-                impatience = 0
-                print('[ new best accuracy: ' + str(best_accuracy) +  ' ]')
-                world.save_agents()
-                saved = True
-                if best_accuracy == 1:
-                    print('[ task solved! stopping. ]')
+            
+#            if (opt['validation_every_n_secs'] > 0 and
+#                    validate_time.time() > opt['validation_every_n_secs']):
+            if (opt['validation_every_n_parleys'] > 0 and
+                    parleys % opt['validation_every_n_parleys'] == 0):                
+                valid_report = run_eval(agent, opt, 'valid', True, opt['validation_max_exs'])
+                if valid_report['accuracy'] > best_accuracy:
+                    best_accuracy = valid_report['accuracy']
+                    impatience = 0
+                    logger.info('[ new best accuracy: ' + str(best_accuracy) +  ' ]')
+                    world.save_agents()
+                    saved = True
+                    if best_accuracy == 1:
+                        logger.info('[ task solved! stopping. ]')
+                        break
+                else:
+                    # doc_reader.model.opt['learning_rate'] *= 0.5
+                    opt['learning_rate'] *= 0.5
+                    agent.model.set_lrate(opt['learning_rate'])
+                    logger.info('[ Decrease learning_rate %.2e]' % opt['learning_rate'] )
+                    impatience += 1
+                    logger.info('[ did not beat best accuracy: {} impatience: {} ]'.format(
+                            round(best_accuracy, 4), impatience))
+            
+                validate_time.reset()
+                if opt['validation_patience'] > 0 and impatience >= opt['validation_patience']:
+                    logger.info('[ ran out of patience! stopping training. ]')
                     break
-            else:
-                impatience += 1
-                print('[ did not beat best accuracy: {} impatience: {} ]'.format(
-                        round(best_accuracy, 4), impatience))
-            validate_time.reset()
-            if opt['validation_patience'] > 0 and impatience >= opt['validation_patience']:
-                print('[ ran out of patience! stopping training. ]')
-                break
+                        
     world.shutdown()
     if not saved:
         world.save_agents()
@@ -196,7 +233,7 @@ def main():
         agent = create_agent(opt)
 
     run_eval(agent, opt, 'valid')
-    run_eval(agent, opt, 'test')
+    #run_eval(agent, opt, 'test')
 
 
 if __name__ == '__main__':

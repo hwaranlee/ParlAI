@@ -6,7 +6,6 @@
 """Provides an argument parser and a set of default command line options for
 using the ParlAI package.
 """
-
 import argparse
 import importlib
 import os
@@ -187,7 +186,7 @@ class ParlaiParser(argparse.ArgumentParser):
         """
         self.args = super().parse_args(args=args)
         self.opt = vars(self.args)
-
+		
         # custom post-parsing
         self.opt['parlai_home'] = self.parlai_home
 
@@ -216,6 +215,7 @@ class ParlaiParser(argparse.ArgumentParser):
                 if key in values:
                     if count == 0:
                         print('[ ' + group.title + ': ] ')
+
                     count += 1
                     print('[  ' + key + ': ' + values[key] + ' ]')
 
