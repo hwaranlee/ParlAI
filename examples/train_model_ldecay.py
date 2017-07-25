@@ -127,11 +127,35 @@ def main():
         if opt['dict_file'] is None and opt.get('model_file'):
             opt['dict_file'] = opt['model_file'] + '.dict'
         logger.info("[ building dictionary first... ]")
+        #pdb.set_trace()
         build_dict.build_dict(opt)
-        
+
+    # Build character dictionary
+    if opt['add_char2word'] and opt['dict_build_first'] and 'dict_char_file' in opt:
+        if opt['dict_char_file'] is None and opt.get('model_file'):
+            opt['dict_char_file'] = opt['model_file'] + '.dict.char'
+        logger.info("[ building character dictionary first... ]")
+        # len(batch[0]_pdb.set_trace()
+        build_dict.build_dict_char(opt)
+
+    # TDNN setting (if using char)
+    if opt['add_char2word']:
+        opt['kernels'] = ''.join(opt['kernels'])
+        if isinstance(opt['kernels'], str):
+               opt['kernels'] = eval(opt['kernels']) # convert string list of tuple --> list of tuple
+        opt['embedding_dim_TDNN']=0
+        for i, n in enumerate(opt['kernels']):
+            opt['embedding_dim_TDNN'] += n[1]
+
+        logger.info('TDNN embedding dim = %d' % (opt['embedding_dim_TDNN']))
+
+
     # Create model and assign it to the specified task
+    #pdb.set_trace()
+
     agent = create_agent(opt)
     world = create_task(opt, agent)
+
 
     train_time = Timer()
     validate_time = Timer()

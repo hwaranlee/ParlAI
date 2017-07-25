@@ -178,6 +178,9 @@ class ParlaiParser(argparse.ArgumentParser):
             if hasattr(agent, 'dictionary_class'):
                 s = class2str(agent.dictionary_class())
                 model_args.set_defaults(dict_class=s)
+            if hasattr(agent, 'dictionary_char_class'):
+                s = class2str(agent.dictionary_char_class())
+                model_args.set_defaults(dict_char_class=s)
 
     def parse_args(self, args=None, namespace=None, print_args=True):
         """Parses the provided arguments and returns a dictionary of the ``args``.

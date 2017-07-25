@@ -3,11 +3,13 @@ from torch.nn import Parameter
 import torch.nn as nn
 import torch.nn.functional as F
 
+#import pdb
 
 class TDNN(nn.Module):
     def __init__(self, opt):
         super(TDNN, self).__init__()
         self.opt = opt
+        #pdb.set_trace()
         self.kernels = [Parameter(t.Tensor(out_dim, opt['embedding_dim_char'], kW).uniform_(-1, 1))
                         for kW, out_dim in opt['kernels']]
         self._add_to_parameters(self.kernels, 'TDNN_kernel')

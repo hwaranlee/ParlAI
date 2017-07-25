@@ -5,9 +5,11 @@
 # of patent rights can be found in the PATENTS file in the same directory.
 """Generates a dictionary file from the training data."""
 
-from parlai.core.dict import DictionaryAgent
+#from parlai.core.dict import DictionaryAgent
+from parlai.core.dict import DictionaryAgent, DictionaryCharAgent
+
 from parlai.core.worlds import DialogPartnerWorld
-from parlai.core.params import ParlaiParser #, str2class
+from parlai.core.params import ParlaiParser, str2class
 from parlai.core.worlds import create_task
 import copy
 import importlib
@@ -48,6 +50,43 @@ def build_dict(opt):
         world_dict.parley()
     print('[ dictionary built. ]')
     dictionary.save(opt['dict_file'], sort=True)
+    # print('[ num words =  %d ]' % len(dictionary))
+
+
+def build_dict_char(opt):
+    if not opt.get('dict_char_file'):
+        print('Tried to build dictionary but `--dict-char-file` is not set. Set ' +
+              'this param so the dictionary can be saved.')
+        return
+    print('[ setting up dictionary. ]')
+    if os.path.isfile(opt['dict_char_file']):
+        # Dictionary already built
+        print("[ dictionary already built .]")
+        return
+    if opt.get('dict_char_class'):
+        # Custom dictionary class
+        dictionary = str2class(opt['dict_char_class'])(opt)
+    else:
+        # Default dictionary class
+        dictionary = DictionaryCharAgent(opt)  # TODO
+    ordered_opt = copy.deepcopy(opt)
+    cnt = 0
+    # we use train set to build dictionary
+    ordered_opt['datatype'] = 'train:ordered'
+    ordered_opt['numthreads'] = 1
+    ordered_opt['batchsize'] = 1
+    world_dict_char = create_task(ordered_opt, dictionary)
+    # pass examples to dictionary
+    for _ in world_dict_char:
+        cnt += 1
+        if cnt > opt['dict_char_maxexs'] and opt['dict_char_maxexs'] > 0:
+            print('Processed {} exs, moving on.'.format(opt['dict_char_maxexs']))
+            # don't wait too long...
+            break
+        world_dict_char.parley()
+    print('[ dictionary built. ]')
+    #dictionary.save(opt['dict_char_file'], sort=True)
+    dictionary.save(opt['dict_char_file'], sort_and_keep100=True)
     # print('[ num words =  %d ]' % len(dictionary))
 
 def main():

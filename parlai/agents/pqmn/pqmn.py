@@ -33,10 +33,13 @@ except ModuleNotFoundError:
     )
 
 from parlai.core.agents import Agent
-from parlai.core.dict import DictionaryAgent
+#from parlai.core.dict import DictionaryAgent
+from parlai.core.dict import DictionaryAgent, DictionaryCharAgent
 from . import config
 from .utils import build_feature_dict, vectorize, batchify, normalize_text
 from .model import DocReaderModel
+
+import pdb
 
 # ------------------------------------------------------------------------------
 # Dictionary.
@@ -94,6 +97,42 @@ class SimpleDictionaryAgent(DictionaryAgent):
                 self.ind2tok[index] = token
 
 
+class SimpleCharDictionaryAgent(DictionaryCharAgent):
+    """Override DictionaryAgent to use spaCy tokenizer."""
+
+    @staticmethod
+    def add_cmdline_args(argparser):
+        DictionaryCharAgent.add_cmdline_args(argparser)
+
+    def __init__(self, *args, **kwargs):
+        super(SimpleCharDictionaryAgent, self).__init__(*args, **kwargs)
+
+        # Initialize
+        self.embedding_chars = None
+
+    def tokenize(self, text, **kwargs):
+        # String into word seq list
+        #tokens = NLP.tokenizer(text)
+        #return [t.text for t in tokens]
+
+        # String into char seq list (with lower case)
+        return list(text)
+
+
+    def add_to_dict(self, tokens):
+        """Builds dictionary from the list of provided tokens.
+        Only adds words contained in self.embedding_words, if not None.
+        """
+        for token in tokens:
+            if (self.embedding_chars is not None and
+                token not in self.embedding_chars):
+                continue
+            self.freq[token] += 1
+            if token not in self.tok2ind:
+                index = len(self.tok2ind)
+                self.tok2ind[token] = index
+                self.ind2tok[index] = token
+
 # ------------------------------------------------------------------------------
 # PQMN
 # ------------------------------------------------------------------------------
@@ -105,10 +144,15 @@ class PqmnAgent(Agent):
     def add_cmdline_args(argparser):
         config.add_cmdline_args(argparser)
         PqmnAgent.dictionary_class().add_cmdline_args(argparser)
+        PqmnAgent.dictionary_char_class().add_cmdline_args(argparser)
 
     @staticmethod
     def dictionary_class():
         return SimpleDictionaryAgent
+
+    @staticmethod
+    def dictionary_char_class():
+        return SimpleCharDictionaryAgent
 
     def __init__(self, opt, shared=None):
         if opt['numthreads'] >1:
@@ -117,6 +161,9 @@ class PqmnAgent(Agent):
         # Load dict.
         if not shared:
             word_dict = PqmnAgent.dictionary_class()(opt)
+
+        if not shared:
+            char_dict = PqmnAgent.dictionary_char_class()(opt)
         # All agents keep track of the episode (for multiple questions)
         self.episode_done = True
 
@@ -129,6 +176,7 @@ class PqmnAgent(Agent):
         self.is_shared = False
         self.id = self.__class__.__name__
         self.word_dict = word_dict
+        self.char_dict = char_dict
         self.opt = copy.deepcopy(opt)
         config.set_defaults(self.opt)
 
@@ -190,7 +238,8 @@ class PqmnAgent(Agent):
         if ex is None:
             return reply
         batch = batchify(
-            [ex], null=self.word_dict[self.word_dict.null_token], cuda=self.opt['cuda']
+            [ex], null=self.word_dict[self.word_dict.null_token], max_word_len=self.opt['max_word_len'],
+            NULLWORD_Idx_in_char=99, cuda=self.opt['cuda'], use_char=self.opt['add_char2word'], sent_predict=self.opt['ans_sent_predict']
         )
 
         # Either train or predict
@@ -223,7 +272,8 @@ class PqmnAgent(Agent):
 
         # Else, use what we have (hopefully everything).
         batch = batchify(
-            examples, null=self.word_dict[self.word_dict.null_token], cuda=self.opt['cuda']
+            examples, null=self.word_dict[self.word_dict.null_token], max_word_len=self.opt['max_word_len'],
+            NULLWORD_Idx_in_char=99, cuda=self.opt['cuda'], use_char=self.opt['add_char2word'], sent_predict=self.opt['ans_sent_predict']
         )
 
         # Either train or predict
@@ -278,7 +328,8 @@ class PqmnAgent(Agent):
                 return
 
         # Vectorize.
-        inputs = vectorize(self.opt, inputs, self.word_dict, self.feature_dict)
+        #inputs = vectorize(self.opt, inputs, self.word_dict, self.feature_dict)
+        inputs = vectorize(self.opt, inputs, self.word_dict, self.char_dict, self.feature_dict)
 
         # Return inputs with original text + spans (keep for prediction)
         return inputs + (document, self.word_dict.span_tokenize(document))
