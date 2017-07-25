@@ -29,6 +29,16 @@ class DocReaderModel(object):
         self.updates = 0
         self.train_loss = AverageMeter()
 
+        self.input_idx_bdy=5
+        self.target_idx_start=5
+        if opt['add_char2word']:
+            self.input_idx_bdy += 2  # x1_c, x2_c
+            self.target_idx_start += 2
+
+        if opt['ans_sent_predict']:
+            self.input_idx_bdy += 1  # x1_sent_mask
+            self.target_idx_start += 3
+
         # Building network.
         self.network = RnnDocReader(opt)
         if state_dict:
@@ -84,7 +94,7 @@ class DocReaderModel(object):
         # Train mode
         self.network.train()
 
-        # Transfer to GPU
+        """
         if self.opt['cuda']:
             inputs = [Variable(e.cuda(async=True)) for e in ex[:5]]
             target_s = Variable(ex[5].cuda(async=True))
@@ -93,6 +103,17 @@ class DocReaderModel(object):
             inputs = [Variable(e) for e in ex[:5]]
             target_s = Variable(ex[5])
             target_e = Variable(ex[6])
+"""
+
+        # Transfer to GPU
+        if self.opt['cuda']:
+            inputs = [Variable(e.cuda(async=True)) for e in ex[:self.input_idx_bdy]]
+            target_s = Variable(ex[self.target_idx_start].cuda(async=True))
+            target_e = Variable(ex[self.target_idx_start+1].cuda(async=True))
+        else:
+            inputs = [Variable(e) for e in ex[:self.input_idx_bdy]]
+            target_s = Variable(ex[self.target_idx_start])
+            target_e = Variable(ex[self.target_idx_start+1])
 
         # Run forward
         score_s, score_e = self.network(*inputs)

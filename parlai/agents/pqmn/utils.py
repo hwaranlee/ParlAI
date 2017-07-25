@@ -8,6 +8,8 @@ import time
 import unicodedata
 from collections import Counter
 import spacy
+import numpy as np
+import pdb
 
 NLP = spacy.load('en')
 pos_list = [
@@ -65,7 +67,7 @@ def build_feature_dict(opt):
     if opt['use_ner']:
         feature_dict['ner_type'] = len(feature_dict)
     if opt['use_pos']:
-        feature_dict['pos_type'] = len(feature_dict)        
+        feature_dict['pos_type'] = len(feature_dict)
     if opt['use_time'] > 0:
         for i in range(opt['use_time'] - 1):
             feature_dict['time=T%d' % (i + 1)] = len(feature_dict)
@@ -177,7 +179,7 @@ def vectorize(opt, ex, word_dict, char_dict, feature_dict):
 
 
 #def batchify(batch, null=0, cuda=False):
-def batchify(batch, null=0, max_word_len=25, NULLWORD_Idx_in_char=99, cuda=False, use_char=False, sent_predict=False):
+def batchify(batch, null=0, max_word_len=15, NULLWORD_Idx_in_char=99, cuda=False, use_char=False, sent_predict=False):
     """Collate inputs into batches."""
 
     NUM_INPUTS = 3 # doc(word) + feature + ques(word)
@@ -282,6 +284,9 @@ def batchify(batch, null=0, max_word_len=25, NULLWORD_Idx_in_char=99, cuda=False
             x1_sent_mask = x1_sent_mask.pin_memory()
 
     # Maybe return without targets
+
+
+
     #pdb.set_trace()
     if len(batch[0]) == NUM_INPUTS + NUM_EXTRA:
         #return x1, x1_f, x1_mask, x2, x2_mask, text, spans

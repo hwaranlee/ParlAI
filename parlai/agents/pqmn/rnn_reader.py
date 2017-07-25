@@ -17,7 +17,7 @@ class RnnDocReader(nn.Module):
     """Network for the Document Reader module of DrQA."""
     RNN_TYPES = {'lstm': nn.LSTM, 'gru': nn.GRU, 'rnn': nn.RNN}
 
-    def __init__(self, opt, padding_idx=0):
+    def __init__(self, opt, padding_idx=0, padding_idx_char=0):
         super(RnnDocReader, self).__init__()
         # Store config
         self.opt = opt
@@ -86,8 +86,12 @@ class RnnDocReader(nn.Module):
         )
 
         # RNN question encoder
+        q_input_size = opt['embedding_dim']
+        if opt['add_char2word']:
+            q_input_size += opt['embedding_dim_TDNN']
+
         self.question_rnn = layers.StackedBRNN(
-            input_size=opt['embedding_dim'],
+            input_size=q_input_size,
             hidden_size=opt['hidden_size'],
             num_layers=opt['question_layers'],
             dropout_rate=opt['dropout_rnn'],
