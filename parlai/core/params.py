@@ -215,7 +215,6 @@ class ParlaiParser(argparse.ArgumentParser):
                 if key in values:
                     if count == 0:
                         print('[ ' + group.title + ': ] ')
-
                     count += 1
                     print('[  ' + key + ': ' + values[key] + ' ]')
 
