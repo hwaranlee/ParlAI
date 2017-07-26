@@ -223,8 +223,7 @@ def main():
             
 #            if (opt['validation_every_n_secs'] > 0 and
 #                    validate_time.time() > opt['validation_every_n_secs']):
-            if (opt['validation_every_n_parleys'] > 0 and
-                    parleys % opt['validation_every_n_parleys'] == 0):                
+            if (opt['validation_every_n_parleys'] > 0 and parleys % opt['validation_every_n_parleys'] == 0):
                 valid_report = run_eval(agent, opt, 'valid', True, opt['validation_max_exs'])
                 if valid_report['accuracy'] > best_accuracy:
                     best_accuracy = valid_report['accuracy']

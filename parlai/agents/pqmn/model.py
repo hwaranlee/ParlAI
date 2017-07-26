@@ -143,11 +143,9 @@ class DocReaderModel(object):
 
         # Transfer to GPU
         if self.opt['cuda']:
-            inputs = [Variable(e.cuda(async=True), volatile=True)
-                      for e in ex[:5]]
+            inputs = [Variable(e.cuda(async=True)) for e in ex[:self.input_idx_bdy]]
         else:
-            inputs = [Variable(e, volatile=True) for e in ex[:5]]
-
+            inputs = [Variable(e) for e in ex[:self.input_idx_bdy]]
         # Run forward
         score_s, score_e = self.network(*inputs)
 

@@ -38,8 +38,13 @@ if [ $train -eq 0 ]; then # eval
 fi
 
 if [ $debug -eq 0 ]; then # eval
-    script=${script}' --embedding_file $emb' #validation option
+    script=${script}' --embedding_file $emb' #validation option 
 fi
+
+if [ $debug -eq 1 ]; then # eval
+    script=${script}' -vparl 1' #validation option 
+fi
+
 
 #script=${script}' -m drqa -t squad -mf '${exp_dir}/exp-${exp}
 script=${script}' -m pqmn -t squad -mf '${exp_dir}/exp-${exp}
