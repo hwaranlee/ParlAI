@@ -57,8 +57,15 @@ class DocReaderModel(object):
         elif opt['optimizer'] == 'adamax':
             self.optimizer = optim.Adamax(parameters,
                                           weight_decay=opt['weight_decay'])
+        elif opt['optimizer'] == 'adam':
+            self.optimizer = optim.Adam(parameters,
+                    weight_decay=self.opt['weight_decay'],
+                    lr=self.opt['learning_rate'])
         else:
             raise RuntimeError('Unsupported optimizer: %s' % opt['optimizer'])
+
+    def set_lrate(lrate):
+        self.optimizer.param_groups[0]['lr']=lrate
 
     def set_embeddings(self):
         # Read word embeddings.
