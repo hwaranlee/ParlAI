@@ -15,6 +15,7 @@ from .rnn_reader import RnnDocReader
 
 logger = logging.getLogger('DrQA')
 
+import pdb
 
 class DocReaderModel(object):
     """High level model that handles intializing the underlying network
@@ -64,7 +65,7 @@ class DocReaderModel(object):
         else:
             raise RuntimeError('Unsupported optimizer: %s' % opt['optimizer'])
 
-    def set_lrate(lrate):
+    def set_lrate(self, lrate):
         self.optimizer.param_groups[0]['lr']=lrate
 
     def set_embeddings(self):

@@ -90,11 +90,11 @@ def main():
     train.add_argument('-ltim', '--log-every-n-secs',
                         type=float, default=2)
     train.add_argument('-lparl', '--log-every-n-parleys',
-                        type=float, default=100)
+                        type=int, default=100)
     train.add_argument('-vtim', '--validation-every-n-secs',
                         type=float, default=-1)
     train.add_argument('-vparl', '--validation-every-n-parleys',
-                        type=float, default=-1)
+                        type=int, default=-1)
         
     train.add_argument('-vme', '--validation-max-exs',
                         type=int, default=-1,
@@ -221,32 +221,35 @@ def main():
             logger.info(log)
             log_time.reset()
             
-#            if (opt['validation_every_n_secs'] > 0 and
+#       if (opt['validation_every_n_secs'] > 0 and
 #                    validate_time.time() > opt['validation_every_n_secs']):
-            if (opt['validation_every_n_parleys'] > 0 and parleys % opt['validation_every_n_parleys'] == 0):
-                valid_report = run_eval(agent, opt, 'valid', True, opt['validation_max_exs'])
-                if valid_report['accuracy'] > best_accuracy:
-                    best_accuracy = valid_report['accuracy']
-                    impatience = 0
-                    logger.info('[ new best accuracy: ' + str(best_accuracy) +  ' ]')
-                    world.save_agents()
-                    saved = True
-                    if best_accuracy == 1:
-                        logger.info('[ task solved! stopping. ]')
-                        break
-                else:
-                    # doc_reader.model.opt['learning_rate'] *= 0.5
-                    opt['learning_rate'] *= 0.5
-                    agent.model.set_lrate(opt['learning_rate'])
-                    logger.info('[ Decrease learning_rate %.2e]' % opt['learning_rate'] )
-                    impatience += 1
-                    logger.info('[ did not beat best accuracy: {} impatience: {} ]'.format(
-                            round(best_accuracy, 4), impatience))
-            
-                validate_time.reset()
-                if opt['validation_patience'] > 0 and impatience >= opt['validation_patience']:
-                    logger.info('[ ran out of patience! stopping training. ]')
+        if (opt['validation_every_n_parleys'] > 0 and parleys % opt['validation_every_n_parleys'] == 0):
+#        if True :
+            valid_report = run_eval(agent, opt, 'valid', True, opt['validation_max_exs'])
+            # if False :
+            if valid_report['accuracy'] > best_accuracy:
+                best_accuracy = valid_report['accuracy']
+                impatience = 0
+                logger.info('[ new best accuracy: ' + str(best_accuracy) +  ' ]')
+                world.save_agents()
+                saved = True
+                if best_accuracy == 1:
+                    logger.info('[ task solved! stopping. ]')
                     break
+#            if True:
+            else:
+                # doc_reader.model.opt['learning_rate'] *= 0.5
+                opt['learning_rate'] *= 0.5
+                agent.model.set_lrate(opt['learning_rate'])
+                logger.info('[ Decrease learning_rate %.2e]' % opt['learning_rate'] )
+                impatience += 1
+                logger.info('[ did not beat best accuracy: {} impatience: {} ]'.format(
+                        round(best_accuracy, 4), impatience))
+        
+            validate_time.reset()
+            if opt['validation_patience'] > 0 and impatience >= opt['validation_patience']:
+                logger.info('[ ran out of patience! stopping training. ]')
+                break
                         
     world.shutdown()
     if not saved:

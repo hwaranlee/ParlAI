@@ -1,5 +1,4 @@
 #!/bin/bash
-
 exp_dir='exp-squad'
 emb='data/glove.840B.300d.txt'
 exp=
@@ -35,9 +34,7 @@ if [ $train -eq 0 ]; then # eval
 	script=${script}' --datatype valid'
 fi
 
-#if [ $debug -eq 0 ]; then
-    script=${script}' --embedding_file '$emb #validation option
-#fi
+script=${script}' --embedding_file '$emb #validation option
 
 #script=${script}' -m drqa -t squad -mf '${exp_dir}/exp-${exp}
 script=${script}' -m pqmn -t squad -mf '${exp_dir}/exp-${exp}
