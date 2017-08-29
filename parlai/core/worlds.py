@@ -54,12 +54,6 @@ from parlai.tasks.tasks import ids_to_tasks
 def validate(observation):
     """Make sure the observation table is valid, or raise an error."""
     if observation is not None and type(observation) == dict:
-        if ('text_candidates' in observation and
-            'text' in observation and
-            observation['text'] != observation['text_candidates'][0]):
-            raise RuntimeError('If text and text_candidates fields are both ' +
-                               'filled, top text candidate should be the same' +
-                               ' as text.')
         return observation
     else:
         raise RuntimeError('Must return dictionary from act().')
@@ -477,8 +471,12 @@ class MultiWorld(World):
         num_tasks = 0
         total = 0
         for i in range(len(self.worlds)):
+            wid = self.worlds[i].getID()
             mt = self.worlds[i].report()
-            m['tasks'][self.worlds[i].getID()] = mt
+            while wid in m['tasks']:
+                # prevent name cloberring if using multiple tasks with same ID
+                wid += '_'
+            m['tasks'][wid] = mt
             total += mt['total']
             if 'accuracy' in mt:
                 sum_accuracy += mt['accuracy']
@@ -826,7 +824,7 @@ def create_task(opt, user_agents):
     # Single threaded or hogwild task creation (the latter creates multiple threads).
     # Check datatype for train, because we need to do single-threaded for
     # valid and test in order to guarantee exactly one epoch of training.
-    if opt.get('numthreads', 1) == 1 or opt['datatype'] != 'train':
+    if opt.get('numthreads', 1) == 1 or 'train' not in opt['datatype']:
         if ',' not in opt['task']:
             # Single task
             world = create_task_world(opt, user_agents)
