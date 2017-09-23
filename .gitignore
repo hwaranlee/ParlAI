@@ -112,3 +112,5 @@ tmp/
 *.pickle
 # Heroku things
 heroku-cli-*
+
+.idea
