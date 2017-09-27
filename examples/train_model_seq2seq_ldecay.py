@@ -68,7 +68,14 @@ def run_eval(agent, opt, datatype, max_exs=-1, write_log=False, valid_world=None
             # note this max_exs is approximate--some batches won't always be
             # full depending on the structure of the data
             break
-    valid_report = valid_world.report()
+    
+    #valid_report = valid_world.report()
+    if hasattr(agent, 'report'):
+        valid_report = agent.report()
+        agent.reset_metrics()
+    else:
+        valid_report = world.report()
+        world.reset_metrics()
     
     metrics = datatype + ':' + str(valid_report)
     logger.info(metrics)
@@ -114,10 +121,12 @@ def main():
     train.add_argument('-dbf', '--dict-build-first',
                         type='bool', default=True,
                         help='build dictionary first before training agent')
+    train.add_argument('-logger', '--log-file', default='',
+                       help='log file name')
     opt = parser.parse_args()
     
     # Set logging
-    logger = logging.getLogger('DrQA')
+    logger = logging.getLogger('Seq2seq')
     logger.setLevel(logging.INFO)
     fmt = logging.Formatter('%(asctime)s: %(message)s', '%m/%d/%Y %I:%M:%S %p')
     console = logging.StreamHandler()
@@ -153,7 +162,7 @@ def main():
     impatience = 0
     saved = False
     valid_world = None
-    best_accuracy = 0
+    best_loss = 0
     
     while True:
         world.parley()
@@ -185,6 +194,8 @@ def main():
                 train_report = world.report()
                 world.reset_metrics()
 
+            """
+
             if hasattr(train_report, 'get') and train_report.get('total'):
                 total_exs += train_report['total']
                 logs.append('total_exs:{}'.format(total_exs))
@@ -202,7 +213,8 @@ def main():
                     time_left = other_time_left
             if time_left is not None:
                 logs.append('time_left:{}s'.format(math.floor(time_left)))
-
+            """
+            
             # join log string and add full metrics report to end of log
             log = '[ {} ] {}'.format(' '.join(logs), train_report)
 
@@ -212,27 +224,28 @@ def main():
 #        instead of every_n_secs, use n_parleys
 #       if (opt['validation_every_n_secs'] > 0 and
 #                    validate_time.time() > opt['validation_every_n_secs']):
+
         if (opt['validation_every_n_parleys'] > 0 and parleys % opt['validation_every_n_parleys'] == 0):
         #if True :
             valid_report, valid_world = run_eval(agent, opt, 'valid', opt['validation_max_exs'], logger=logger)
             #if False :
-            if valid_report[opt['validation_metric']] > best_accuracy:
-                best_accuracy = valid_report[opt['validation_metric']]
+            if valid_report[opt['validation_metric']] < best_loss: #best_accuracy=nll
+                best_loss = valid_report[opt['validation_metric']]
                 impatience = 0
-                logger.info('[ new best accuracy: ' + str(best_accuracy) +  ' ]')
+                logger.info('[ new best loss(nll): ' + str(best_loss) +  ' ]')
                 world.save_agents()
                 saved = True
-                if best_accuracy == 1:
+                if best_loss == 1:
                     logger.info('[ task solved! stopping. ]')
                     break
             #if True:
             else:
                 opt['learning_rate'] *= 0.5
-                agent.model.set_lrate(opt['learning_rate'])
+                agent.set_lrate(opt['learning_rate'])
                 logger.info('[ Decrease learning_rate %.2e]' % opt['learning_rate'] )
                 impatience += 1
                 logger.info('[ did not beat best accuracy: {} impatience: {} ]'.format(
-                        round(best_accuracy, 4), impatience))
+                        round(best_loss, 4), impatience))
         
             validate_time.reset()
             if opt['validation_patience'] > 0 and impatience >= opt['validation_patience']:

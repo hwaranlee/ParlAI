@@ -30,6 +30,7 @@ from parlai.core.utils import Timer
 import build_dict
 import math
 
+import pdb
 def run_eval(agent, opt, datatype, max_exs=-1, write_log=False, valid_world=None):
     """Eval on validation/test data.
     - Agent is the agent to use for the evaluation.
@@ -145,7 +146,8 @@ def main():
             # time elapsed
             logs.append('time:{}s'.format(math.floor(train_time.time())))
             logs.append('parleys:{}'.format(parleys))
-
+                
+            pdb.set_trace()
             # get report and update total examples seen so far
             if hasattr(agent, 'report'):
                 train_report = agent.report()

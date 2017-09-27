@@ -54,9 +54,11 @@ case "$exp" in
 		;;
 	h15) python $script --dropout_rnn 0.3 --dropout_emb 0.3 --qp_bottleneck True --qp_birnn True --pp_bottleneck True --pp_gate True --pp_identity False
 		;;
-	h15-temp) python $script --dropout_rnn 0.3 --dropout_emb 0.3 --qp_bottleneck True --qp_birnn True --pp_bottleneck True --pp_gate True --pp_identity False
-		;;
 	h15_pos_ner) python $script --dropout_rnn 0.3 --dropout_emb 0.3 --use_pos true --use_ner true --qp_bottleneck True --qp_birnn True --pp_bottleneck True --pp_gate True --pp_identity False
+		;;
+	h15_wd) python $script --dropout_rnn 0.3 --dropout_emb 0.3 --qp_bottleneck True --qp_birnn True --pp_bottleneck True --pp_gate True --pp_identity False --weight_decay 0.00002
+		;;
+	h15_pos_ner_wd) python $script --dropout_rnn 0.3 --dropout_emb 0.3 --use_pos true --use_ner true --qp_bottleneck True --qp_birnn True --pp_bottleneck True --pp_gate True --pp_identity False --weight_decay 0.00002
 		;;
 	
 esac
