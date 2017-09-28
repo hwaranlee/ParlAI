@@ -10,7 +10,7 @@ from .image_featurizers import ImageLoader
 import random
 import sys
 import time
-
+import pdb
 
 class DialogTeacher(Teacher):
     """A base teacher class for doing dialog with fixed chat logs.

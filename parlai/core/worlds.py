@@ -50,6 +50,7 @@ from multiprocessing import Process, Value, Condition, Semaphore
 from parlai.core.agents import _create_task_agents, create_agents_from_shared
 from parlai.tasks.tasks import ids_to_tasks
 
+import pdb
 
 def validate(observation):
     """Make sure the observation table is valid, or raise an error."""
@@ -591,11 +592,9 @@ class BatchWorld(World):
         # Assumes DialogPartnerWorld, MultiAgentWorld, or MultiWorlds of them.
         num_agents = len(self.world.get_agents())
         batch_observations = self.batch_observations
-
         for w in self.worlds:
             if hasattr(w, 'parley_init'):
                 w.parley_init()
-
         for index in range(num_agents):
             # The agent acts.
             batch_act = self.batch_act(index, batch_observations[index])

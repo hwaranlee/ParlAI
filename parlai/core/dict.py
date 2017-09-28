@@ -12,6 +12,7 @@ import numpy as np
 import nltk
 import os
 import re
+import pdb
 
 
 def escape(s):
@@ -70,10 +71,10 @@ class DictionaryAgent(Agent):
     default_lang = 'english'
     default_maxngram = -1
     default_minfreq = 0
-    default_null = '__NULL__'
-    default_end = '__END__'
-    default_unk = '__UNK__'
-    default_start = '__START__'
+    default_null = '__NULL__'   #0
+    default_end = '__END__'     #1
+    default_unk = '__UNK__'     #2
+    default_start = '__START__' #3
 
     @staticmethod
     def add_cmdline_args(argparser):
@@ -273,7 +274,7 @@ class DictionaryAgent(Agent):
                 # queue up removals since can't mutate dict during iteration
                 to_remove.append(token)
                 # other dicts can be modified as we go
-                idx = self.tok2idx.pop(token)
+                idx = self.tok2ind.pop(token)
                 del self.ind2tok[idx]
         for token in to_remove:
             del self.freq[token]

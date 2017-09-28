@@ -8,6 +8,7 @@
 import parlai.core.build_data as build_data
 import gzip
 import os
+import pdb
 
 
 def create_fb_format(inpath, outpath):
@@ -51,7 +52,13 @@ def create_fb_format(inpath, outpath):
                     handle = ftest
                 if (conv_id % 10) == 1:
                     handle = fvalid
-                handle.write(dialog + '\n')
+                
+                dialog.lower()
+                for symbol in ['- ', '* ', '%% ', '{ y : i} ', '{ y: ib} ', '{ y : i } ', '``', '"']:
+                    dialog=dialog.replace(symbol, '')
+                    
+                handle.write(dialog + '\n') ## Make lowercased data
+                
 
     ftrain.close()
     fvalid.close()
@@ -70,9 +77,9 @@ def build(opt):
         build_data.make_dir(dpath)
 
         # Download the data.
-        url = ('http://opus.lingfil.uu.se/download.php?f=OpenSubtitles/en.tar.gz')
-        build_data.download(url, dpath, 'OpenSubtitles.tar.gz')
-        build_data.untar(dpath, 'OpenSubtitles.tar.gz')
+        #url = ('http://opus.lingfil.uu.se/download.php?f=OpenSubtitles/en.tar.gz')
+        #build_data.download(url, dpath, 'OpenSubtitles.tar.gz')
+        #build_data.untar(dpath, 'OpenSubtitles.tar.gz')
 
         create_fb_format(os.path.join(dpath, 'OpenSubtitles', 'en'), dpath)
 

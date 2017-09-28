@@ -60,6 +60,7 @@ def run_eval(agent, opt, datatype, max_exs=-1, write_log=False, valid_world=None
     cnt = 0
     for _ in valid_world:
         valid_world.parley()
+        
         if cnt == 0 and opt['display_examples']:
             logger.info(valid_world.display() + '\n~~')
             logger.info(valid_world.report())
@@ -123,6 +124,7 @@ def main():
                         help='build dictionary first before training agent')
     train.add_argument('-logger', '--log-file', default='',
                        help='log file name')
+
     opt = parser.parse_args()
     
     # Set logging
@@ -158,11 +160,10 @@ def main():
     total_exs = 0
     max_exs = opt['num_epochs'] * len(world)
     max_parleys = math.ceil(max_exs / opt['batchsize'])
-    best_valid = 0
     impatience = 0
     saved = False
     valid_world = None
-    best_loss = 0
+    best_loss = 1000000
     
     while True:
         world.parley()
@@ -175,8 +176,7 @@ def main():
             logger.info('[ max_train_time elapsed: {} ]'.format(train_time.time()))
             break
         
-#        instead of every_n_secs, use n_parleys
-#        if opt['log_every_n_secs'] > 0 and log_time.time() > opt['log_every_n_secs']:
+        # instead of every_n_secs, use n_parleys
         if opt['log_every_n_parleys'] > 0 and parleys % opt['log_every_n_parleys'] == 0:
             if opt['display_examples']:
                 logger.info(world.display() + '\n~~')
@@ -193,37 +193,12 @@ def main():
             else:
                 train_report = world.report()
                 world.reset_metrics()
-
-            """
-
-            if hasattr(train_report, 'get') and train_report.get('total'):
-                total_exs += train_report['total']
-                logs.append('total_exs:{}'.format(total_exs))
-
-            # check if we should log amount of time remaining
-            time_left = None
-            if opt['num_epochs'] > 0:
-                exs_per_sec = train_time.time() / total_exs
-                time_left = (max_exs - total_exs) * exs_per_sec
-            if opt['max_train_time'] > 0:
-                other_time_left = opt['max_train_time'] - train_time.time()
-                if time_left is not None:
-                    time_left = min(time_left, other_time_left)
-                else:
-                    time_left = other_time_left
-            if time_left is not None:
-                logs.append('time_left:{}s'.format(math.floor(time_left)))
-            """
             
             # join log string and add full metrics report to end of log
             log = '[ {} ] {}'.format(' '.join(logs), train_report)
 
             logger.info(log)
             log_time.reset()
-
-#        instead of every_n_secs, use n_parleys
-#       if (opt['validation_every_n_secs'] > 0 and
-#                    validate_time.time() > opt['validation_every_n_secs']):
 
         if (opt['validation_every_n_parleys'] > 0 and parleys % opt['validation_every_n_parleys'] == 0):
         #if True :
