@@ -54,7 +54,9 @@ def create_fb_format(inpath, outpath):
                     handle = fvalid
                 
                 dialog.lower()
-                for symbol in ['- ', '* ', '%% ', '{ y : i} ', '{ y: ib} ', '{ y : i } ', '``', '"']:
+                for symbol in ['- ', '* ', '%% ', '{ y : i} ', '{ y: ib} ', '{ y : i } ', '{ Y : i}','{ Y : i }',
+                               '{ y}', '{ y : ib}',
+                                 '``', '"']:
                     dialog=dialog.replace(symbol, '')
                     
                 handle.write(dialog + '\n') ## Make lowercased data

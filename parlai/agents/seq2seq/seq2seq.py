@@ -142,8 +142,8 @@ class Seq2seqAgent(Agent):
             self.cand_lengths = torch.LongTensor(1)
 
             # set up modules
-            # self.criterion = nn.NLLLoss(size_average = False), ignore_index = 0) ## TODO: NULL error??
-            self.criterion = nn.NLLLoss()
+            self.criterion = nn.NLLLoss(size_average = False, ignore_index = 0) ## TODO: NULL error??
+            #self.criterion = nn.NLLLoss()
 
             # lookup table stores word embeddings
             self.lt = nn.Embedding(len(self.dict), emb,
@@ -233,7 +233,7 @@ class Seq2seqAgent(Agent):
 
     def v2t(self, vec):
         """Convert token indices to string of tokens."""
-        return self.dict.vec2txt([vec.cpu()[0]])
+        return self.dict.vec2txt(vec)
 
     def cuda(self):
         """Push parameters to the GPU."""
@@ -364,12 +364,14 @@ class Seq2seqAgent(Agent):
             self.zeros.resize_(self.num_layers, batchsize, self.hidden_size).fill_(0) #num_layers*(directions)
         hidden = Variable(self.zeros.fill_(0))
         
+        nonzero = ys.data.nonzero().size(0)
+        
         for i in range(ys.size(1)):
             output = self._apply_attention(xes, encoder_output, hidden) if self.use_attention else xes
             output, hidden = self.decoder(output, hidden) 
             preds, scores = self.hidden_to_idx(output, dropout=True)
             y = ys.select(1, i)
-            loss += self.criterion(scores, y) #averaged 
+            loss += self.criterion(scores, y) #not averaged
             # use the true token as the next input instead of predicted
             # this produces a biased prediction but better training
             #xes = self.lt2dec(self.lt(y).unsqueeze(0))
@@ -378,12 +380,12 @@ class Seq2seqAgent(Agent):
             # TODO: overhead!
             for b in range(batchsize):
                 # convert the output scores to tokens
-                token = self.v2t(preds.data[b])
+                token = self.v2t([preds.data[b]])
                 output_lines[b].append(token)
 
         loss.backward()
         self.update_params()
-        self.loss = loss.data[0] #/ys.size(1)/batchsize ## TODO consider NULL
+        self.loss = loss.data[0]/nonzero # consider non-NULL
         self.ndata += batchsize
 
         return output_lines
@@ -406,18 +408,18 @@ class Seq2seqAgent(Agent):
             # keep producing tokens until we hit END or max length for each
             # example in the batch
             output = self._apply_attention(xes, encoder_output, hidden) if self.use_attention else xes
-
+            
             output, hidden = self.decoder(output, hidden)
             preds, scores = self.hidden_to_idx(output, dropout=False)
 
             #xes = self.lt2dec(self.lt(preds.unsqueeze(0)))
-            xes = self.lt(preds).transpose(0,1)
+            xes = self.lt(preds).unsqueeze(0)
             
             max_len += 1
             for b in range(batchsize):
                 if not done[b]:
                     # only add more tokens for examples that aren't done yet
-                    token = self.v2t(preds.data[b])
+                    token = self.v2t([preds.data[b]])
                     if token == self.END:
                         # if we produced END, we're done
                         done[b] = True
@@ -500,7 +502,7 @@ class Seq2seqAgent(Agent):
 
         # list of output tokens for each example in the batch
         output_lines = None
-
+        
         if is_training:
             output_lines = self._decode_and_train(batchsize, xes, ys,
                                                   encoder_output, hidden)
@@ -519,11 +521,10 @@ class Seq2seqAgent(Agent):
     def display_predict(self, xs, ys, output_lines):
         if random.random() < 0.01:
             # sometimes output a prediction for debugging
-            
-            print('\n    input:', self.dict.vec2txt(xs.data[0]).replace(self.dict.null_token, ''),
+            print('\n    input:', self.dict.vec2txt(xs[0].data.cpu()).replace(self.dict.null_token+' ', ''),
                   '\n    pred :', ' '.join(output_lines[0]), '\n')
             if ys is not None:
-                print('    label:', self.dict.vec2txt(ys.data[0]).replace(self.dict.null_token, ''), '\n')
+                print('    label:', self.dict.vec2txt(ys[0].data.cpu()).replace(self.dict.null_token+' ', ''), '\n')
 
     def batchify(self, observations):
         """Convert a list of observations into input & target tensors."""
