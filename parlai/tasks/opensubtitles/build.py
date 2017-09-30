@@ -53,7 +53,7 @@ def create_fb_format(inpath, outpath):
                 if (conv_id % 10) == 1:
                     handle = fvalid
                 
-                dialog.lower()
+                dialgo = dialog.lower()
                 for symbol in ['- ', '* ', '%% ', '{ y : i} ', '{ y: ib} ', '{ y : i } ', '{ Y : i}','{ Y : i }',
                                '{ y}', '{ y : ib}',
                                  '``', '"']:

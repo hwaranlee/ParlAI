@@ -147,8 +147,8 @@ class Seq2seqAgent(Agent):
 
             # lookup table stores word embeddings
             self.lt = nn.Embedding(len(self.dict), emb,
-                                   padding_idx=self.NULL_IDX,
-                                   scale_grad_by_freq=True)
+                                   padding_idx=self.NULL_IDX)
+                                   #scale_grad_by_freq=True)
             #self.lt2enc = nn.Linear(emb, hsz)
             #self.lt2dec = nn.Linear(emb, hsz)
             # encoder captures the input text
@@ -187,8 +187,12 @@ class Seq2seqAgent(Agent):
                 #'lt2dec': optim_class(self.lt2dec.parameters(), lr=lr),
                 'encoder': optim_class(self.encoder.parameters(), lr=lr),
                 'decoder': optim_class(self.decoder.parameters(), lr=lr),
-                'h2o': optim_class(self.h2o.parameters(), lr=lr),
+                'h2o': optim_class(self.h2o.parameters(), lr=lr),                
             }
+            if self.attention > 0:
+                self.optims.update({'attn': optim_class(self.attn.parameters(), lr=lr), 
+                                    'attn_combine': optim_class(self.attn_combine.parameters(), lr=lr)})
+
 
             if hasattr(self, 'states'):
                 # set loaded states if applicable
@@ -196,6 +200,21 @@ class Seq2seqAgent(Agent):
 
             if self.use_cuda:
                 self.cuda()
+            
+            # initialization
+            getattr(self, 'lt').weight.data.uniform_(-0.1, 0.1)
+            for module in {'encoder', 'decoder'}:
+                for weight in getattr(self, module).parameters():
+                    weight.data.normal_(0, 0.01)
+                for bias in getattr(self, module).parameters():
+                    bias.data.normal_(0, 0.01)
+                    
+            for module in {'h2o', 'attn', 'attn_combine'}:
+                if hasattr(self, module):
+                    getattr(self, module).weight.data.normal_(0, 0.01)
+                    getattr(self, module).bias.data.fill_(0)
+            
+            
             
             self.loss = 0
             self.ndata = 0
