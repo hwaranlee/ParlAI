@@ -205,16 +205,14 @@ class Seq2seqAgent(Agent):
             getattr(self, 'lt').weight.data.uniform_(-0.1, 0.1)
             for module in {'encoder', 'decoder'}:
                 for weight in getattr(self, module).parameters():
-                    weight.data.normal_(0, 0.01)
+                    weight.data.normal_(0, 0.05)
                 for bias in getattr(self, module).parameters():
-                    bias.data.normal_(0, 0.01)
+                    bias.data.fill_(0)
                     
             for module in {'h2o', 'attn', 'attn_combine'}:
                 if hasattr(self, module):
                     getattr(self, module).weight.data.normal_(0, 0.01)
                     getattr(self, module).bias.data.fill_(0)
-            
-            
             
             self.loss = 0
             self.ndata = 0
