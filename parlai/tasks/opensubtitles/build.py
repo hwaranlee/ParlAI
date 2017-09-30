@@ -53,11 +53,10 @@ def create_fb_format(inpath, outpath):
                 if (conv_id % 10) == 1:
                     handle = fvalid
                 
-                dialgo = dialog.lower()
-                for symbol in ['- ', '* ', '%% ', '{ y : i} ', '{ y: ib} ', '{ y : i } ', '{ Y : i}','{ Y : i }',
+                for symbol in ['- ', '* ', '%% ', '{ y : i} ', '{ y: ib} ', '{ y : i } ', '{ Y : i}',
                                '{ y}', '{ y : ib}',
                                  '``', '"']:
-                    dialog=dialog.replace(symbol, '')
+                    dialog=dialog.lower().replace(symbol, '')
                     
                 handle.write(dialog + '\n') ## Make lowercased data
                 
