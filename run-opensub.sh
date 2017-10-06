@@ -3,14 +3,16 @@ exp_dir='exp-opensub'
 #emb='data/glove.840B.300d.txt'
 exp=
 gpuid= 
-model='seq2seq'
+model='seq2seq_v2'
 emb=300
 hs=1024
 lr=0.001
+attn=True
+attType='concat'
 
 train=1 # train=1, eval=0
 OPTIND=1
-while getopts "e:g:t:m:h:b:l:" opt; do
+while getopts "e:g:t:m:h:b:l:a:" opt; do
 	case "$opt" in
 		e) exp=$OPTARG ;;
 		g) gpuid=$OPTARG ;;
@@ -19,11 +21,15 @@ while getopts "e:g:t:m:h:b:l:" opt; do
 		b) embsize=$OPTARG ;;
 		h) hs=$OPTARG ;;
 		l) lr=$OPTARG ;;
+		a) attn=$OPTARG ;;
 	esac
 done
 shift $((OPTIND -1))
 
 exp=emb${emb}-hs${hs}-lr${lr}
+if [ $attn ]; then
+	exp=$exp'-a_'${attType}
+fi
 
 
 ### '-' options are defined in parlai/core/params.py 
@@ -65,7 +71,7 @@ script=${script}' -m '${model}' -t opensubtitles -mf '${exp_dir}/exp-${exp}/exp-
 
 script=${script}' --gpu '${gpuid}
 
-python ${script} -hs ${hs} -emb ${emb} -att 0
+python ${script} -hs ${hs} -emb ${emb} -att ${attn} -attType ${attType}
 
 
 case "$exp" in
