@@ -610,7 +610,6 @@ class Seq2seqV2Agent(Agent):
         """Convert a list of observations into input & target tensors."""
         # valid examples
         exs = [ex for ex in observations if 'text' in ex]
-        pdb.set_trace()
         # the indices of the valid (non-empty) tensors
         valid_inds = [i for i, ex in enumerate(observations) if 'text' in ex]
 
