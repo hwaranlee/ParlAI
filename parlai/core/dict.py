@@ -244,7 +244,7 @@ class DictionaryAgent(Agent):
         """Uses nltk Treebank Word Tokenizer for tokenizing words within
         sentences.
         """
-        word_tokens = self.word_tok.tokenize(text)
+        word_tokens = self.word_tok.tokenize(text) ## Just space split?
 
         if not building and self.max_ngram_size > 1:
             # search for ngrams during parse-time

@@ -53,7 +53,7 @@ class Seq2seqV2Agent(Agent):
                            help='learning rate')
         agent.add_argument('-dr', '--dropout', type=float, default=0.1,
                            help='dropout rate')
-        agent.add_argument('-att', '--attention', default=False,
+        agent.add_argument('-att', '--attention', default=False, type='bool',
                            help='if True, use attention')
         agent.add_argument('-attType', '--attn-type', default='general',
                            choices=['general', 'concat', 'dot'],
@@ -155,7 +155,7 @@ class Seq2seqV2Agent(Agent):
                                    #scale_grad_by_freq=True)
             # encoder captures the input text
             enc_class = Seq2seqV2Agent.ENC_OPTS[opt['encoder']]
-            self.encoder = enc_class(emb, hsz, opt['numlayers'], bidirectional=opt['bi_encoder'])
+            self.encoder = enc_class(emb, hsz, opt['numlayers'], bidirectional=opt['bi_encoder'], dropout = opt['dropout'])
             # decoder produces our output states
             
             #if opt['decoder'] == 'shared':
@@ -165,10 +165,10 @@ class Seq2seqV2Agent(Agent):
                 dec_isz += hsz
             
             if opt['decoder'] == 'same':
-                self.decoder = enc_class(dec_isz, hsz, opt['numlayers'])
+                self.decoder = enc_class(dec_isz, hsz, opt['numlayers'], dropout = opt['dropout'])
             else:
                 dec_class = Seq2seqV2Agent.ENC_OPTS[opt['decoder']]
-                self.decoder = dec_class(dec_isz, hsz, opt['numlayers'])
+                self.decoder = dec_class(dec_isz, hsz, opt['numlayers'], dropout = opt['dropout'])
             
             # linear layer helps us produce outputs from final decoder state
             self.h2o = nn.Linear(hsz, len(self.dict))
@@ -194,33 +194,32 @@ class Seq2seqV2Agent(Agent):
 
             # initialization
             """
-            getattr(self, 'lt').weight.data.uniform_(-0.1, 0.1)
-            for module in {'encoder', 'decoder'}:
-                for weight in getattr(self, module).parameters():
-                    weight.data.normal_(0, 0.05)
-                for bias in getattr(self, module).parameters():
-                    bias.data.fill_(0)
-                    
-            for module in {'h2o', 'attn', 'attn_combine'}:
-                if hasattr(self, module):
-                    getattr(self, module).weight.data.normal_(0, 0.01)
-                    getattr(self, module).bias.data.fill_(0)
+                getattr(self, 'lt').weight.data.uniform_(-0.1, 0.1)
+                for module in {'encoder', 'decoder'}:
+                    for weight in getattr(self, module).parameters():
+                        weight.data.normal_(0, 0.05)
+                    #for bias in getattr(self, module).parameters():
+                    #    bias.data.fill_(0)
+                        
+                for module in {'h2o', 'attn'}:
+                    if hasattr(self, module):
+                        getattr(self, module).weight.data.normal_(0, 0.01)
+                        #getattr(self, module).bias.data.fill_(0)
             """
             
             
             # set up optims for each module
-            lr = opt['learning_rate']
+            self.lr = opt['learning_rate']
 
             optim_class = Seq2seqV2Agent.OPTIM_OPTS[opt['optimizer']]
             self.optims = {
-                'lt': optim_class(self.lt.parameters(), lr=lr),
-                'encoder': optim_class(self.encoder.parameters(), lr=lr),
-                'decoder': optim_class(self.decoder.parameters(), lr=lr),
-                'h2o': optim_class(self.h2o.parameters(), lr=lr),                
+                'lt': optim_class(self.lt.parameters(), lr=self.lr),
+                'encoder': optim_class(self.encoder.parameters(), lr=self.lr),
+                'decoder': optim_class(self.decoder.parameters(), lr=self.lr),
+                'h2o': optim_class(self.h2o.parameters(), lr=self.lr),                
             }
             if self.attention and self.attn is not None:
-                self.optims.update({'attn': optim_class(self.attn.parameters(), lr=lr)})
-
+                self.optims.update({'attn': optim_class(self.attn.parameters(), lr=self.lr)})
 
             if hasattr(self, 'states'):
                 # set loaded states if applicable
@@ -231,13 +230,18 @@ class Seq2seqV2Agent(Agent):
 
             self.loss = 0
             self.ndata = 0
-        self.episode_concat = opt['episode_concat']
+            self.loss_valid = 0
+            self.ndata_valid = 0
             
+        self.episode_concat = opt['episode_concat']
+        self.training = True
+        self.generating = False
         self.reset()
-
+    
     def set_lrate(self,lr):
+        self.lr = lr
         for key in self.optims:
-            self.optims[key].param_groups[0]['lr'] = lr
+            self.optims[key].param_groups[0]['lr'] = self.lr
     
     def override_opt(self, new_opt):
         """Set overridable opts from loaded opt file.
@@ -292,9 +296,9 @@ class Seq2seqV2Agent(Agent):
         if hidden.size(0) > 1:
             raise RuntimeError('bad dimensions of tensor:', hidden)
         hidden = hidden.squeeze(0)
-        scores = self.h2o(hidden)
         if dropout:
-            scores = self.dropout(scores)
+            hidden = self.dropout(hidden) # dropout over the last hidden
+        scores = self.h2o(hidden)
         scores = F.log_softmax(scores)
         _max_score, idx = scores.max(1)
         return idx, scores
@@ -335,8 +339,8 @@ class Seq2seqV2Agent(Agent):
 
         # first encode context
         xes = self.lt(xs).transpose(0, 1)
-        if dropout:
-            xes = self.dropout(xes)
+        #if dropout:
+        #    xes = self.dropout(xes)
         
         # initial hidden 
         if self.zeros.size(1) != batchsize:
@@ -386,7 +390,6 @@ class Seq2seqV2Agent(Agent):
         elif self.att_type == 'dot':
             attn_weights = F.tanh(torch.bmm(encoder_output, last_hidden.unsqueeze(2)).squeeze())
         elif self.att_type == 'general':
-            ## TODO: denom increasing --> Nan
             attn_weights = F.tanh(torch.bmm(encoder_output, self.attn(last_hidden).unsqueeze(2)).squeeze())
             
         #attn_weights = F.softmax(attn_weights.view(batch_size, enc_length))
@@ -415,6 +418,7 @@ class Seq2seqV2Agent(Agent):
             self.zeros_dec.resize_(self.num_layers, batchsize, self.hidden_size).fill_(0)
         hidden = Variable(self.zeros_dec.fill_(0))
         
+        
         if not self.use_attention:
             last_state = torch.gather(encoder_output, 1, xlen_t.view(-1,1,1).expand(encoder_output.size(0),1,encoder_output.size(2)))
             if self.opt['bi_encoder']:
@@ -426,9 +430,8 @@ class Seq2seqV2Agent(Agent):
             else:                
                 output = torch.cat((xes, last_state.unsqueeze(0)), 2)
             
-            output, hidden = self.decoder(output, hidden)
-           
-            preds, scores = self.hidden_to_idx(output, dropout=True)
+            output, hidden = self.decoder(output, hidden)           
+            preds, scores = self.hidden_to_idx(output, dropout=self.training)
             y = ys.select(1, i)
             loss += self.criterion(scores, y) #not averaged
             # use the true token as the next input instead of predicted
@@ -440,13 +443,15 @@ class Seq2seqV2Agent(Agent):
                 # convert the output scores to tokens
                 token = self.v2t([preds.data[b]])
                 output_lines[b].append(token)
+        
+        if self.training:
+            self.loss = loss.data[0]/sum(ylen) # consider non-NULL
+            self.ndata += batchsize
+        else:
+            self.loss_valid = loss.data[0]/sum(ylen) # consider non-NULL
+            self.ndata_valid += batchsize            
 
-        loss.backward()
-        self.update_params()
-        self.loss = loss.data[0]/sum(ylen) # consider non-NULL
-        self.ndata += batchsize
-
-        return output_lines
+        return loss, output_lines
 
     def _decode_only(self, batchsize, xes, xlen_t, xs, encoder_output):
         # just produce a prediction without training the model
@@ -470,7 +475,7 @@ class Seq2seqV2Agent(Agent):
         while(total_done < batchsize) and max_len < self.longest_label:
             # keep producing tokens until we hit END or max length for each
             if self.use_attention:
-                output = self._apply_attention(xes, encoder_output, hidden[-1], xlen_t, xs)
+                output = self._apply_attention(xes, encoder_output, hidden[-1], xs)
             else:                
                 output = torch.cat((xes, last_state.unsqueeze(0)), 2)            
             
@@ -556,7 +561,7 @@ class Seq2seqV2Agent(Agent):
         """
         batchsize = len(xs)
         text_cand_inds = None
-        is_training = ys is not None
+        target_exist = ys is not None
         
         xlen_t = torch.LongTensor(xlen)-1
         if self.use_cuda:
@@ -564,7 +569,7 @@ class Seq2seqV2Agent(Agent):
         xlen_t = Variable(xlen_t)
                 
         # Encoding 
-        encoder_output = self._encode(xs, xlen, dropout=is_training)
+        encoder_output = self._encode(xs, xlen, dropout=self.training)
 
         # next we use START as an input to kick off our decoder
         x = Variable(self.START_TENSOR)
@@ -574,18 +579,21 @@ class Seq2seqV2Agent(Agent):
         # list of output tokens for each example in the batch
         output_lines = None
         
-        # Decoding
-        if is_training:
-            output_lines = self._decode_and_train(batchsize, xes, xlen_t, xs, ys, ylen,
+        # Decoding        
+        if target_exist:
+            loss, output_lines = self._decode_and_train(batchsize, xes, xlen_t, xs, ys, ylen,
                                                   encoder_output)
+            if self.training: 
+                loss.backward()
+                self.update_params()
 
-        else:
+        elif not target_exists or self.generating:
+            assert(not self.training)
             if cands is not None:
                 text_cand_inds = self._score_candidates(cands, xe,
                                                         encoder_output)
 
-            output_lines = self._decode_only(batchsize, xes, xs, xlen_t,
-                                             encoder_output)
+            output_lines = self._decode_only(batchsize, xes, xlen_t, xs, encoder_output)
                         
         self.display_predict(xs, ys, output_lines)
         return output_lines, text_cand_inds
@@ -602,6 +610,7 @@ class Seq2seqV2Agent(Agent):
         """Convert a list of observations into input & target tensors."""
         # valid examples
         exs = [ex for ex in observations if 'text' in ex]
+        pdb.set_trace()
         # the indices of the valid (non-empty) tensors
         valid_inds = [i for i, ex in enumerate(observations) if 'text' in ex]
 
@@ -618,7 +627,7 @@ class Seq2seqV2Agent(Agent):
                 max_x_len = min(max_x_len, 50)
                 parsed = [x[-max_x_len:] for x in parsed]
         
-            # sorting for unpack
+            # sorting for unpack in encoder
             parsed_x = sorted(parsed, key=lambda p: len(p), reverse=True)            
             xlen = [len(x) for x in parsed_x]            
             xs = torch.LongTensor(batchsize, max_x_len).fill_(0)
@@ -644,10 +653,15 @@ class Seq2seqV2Agent(Agent):
         # set up the target tensors
         ys = None
         ylen = None
-        if batchsize > 0 and any(['labels' in ex for ex in exs]):
+        
+        if batchsize > 0 and (any(['labels' in ex for ex in exs]) or any(['eval_labels' in ex for ex in exs])):
             # randomly select one of the labels to update on, if multiple
             # append END to each label
-            labels = [random.choice(ex.get('labels', [''])) + ' ' + self.END for ex in exs]
+            if any(['labels' in ex for ex in exs]):
+                labels = [random.choice(ex.get('labels', [''])) + ' ' + self.END for ex in exs]
+            else:
+                labels = [random.choice(ex.get('eval_labels', [''])) + ' ' + self.END for ex in exs]
+                
             parsed_y = [self.parse(y) for y in labels]
             max_y_len = max(len(y) for y in parsed_y)
             if self.truncate:
@@ -793,9 +807,38 @@ class Seq2seqV2Agent(Agent):
 
     def report(self):
         m={}
-        m['nll'] = self.loss
-        m['ppl'] = math.exp(self.loss)
-        m['ndata'] = self.ndata
+        if self.training:
+            m['nll'] = self.loss
+            m['ppl'] = math.exp(self.loss)
+            m['ndata'] = self.ndata
+        else:
+            m['nll'] = self.loss_valid
+            m['ppl'] = math.exp(self.loss_valid)
+            m['ndata'] = self.ndata_valid
+                        
+        m['lr'] = self.lr
+        self.print_weight_state()
+        
         return m
     
+    def print_weight_state(self):
+        self._print_grad_weight(getattr(self, 'lt').weight, 'lookup')
+        for module in {'encoder', 'decoder'}:
+            layer = getattr(self, module)
+            for weights in layer._all_weights:  
+                for weight_name in weights:
+                    self._print_grad_weight(getattr(layer, weight_name), module + ' '+ weight_name)
+        self._print_grad_weight(getattr(self, 'h2o').weight, 'h2o')
+        if self.use_attention:
+           self._print_grad_weight(getattr(self, 'attn').weight, 'attn')
+                
+    def _print_grad_weight(self, weight, module_name):
+        if weight.dim() == 2:
+            nparam=weight.size(0) * weight.size(1)
+            norm_w = weight.norm(2).pow(2)
+            norm_dw = weight.grad.norm(2).pow(2)
+            print('{:30}'.format(module_name) + ' {:5} x{:5}'.format(weight.size(0), weight.size(1))
+                   + ' : w {0:.2e} | '.format((norm_w/nparam).sqrt().data[0]) + 'dw {0:.2e}'.format((norm_dw/nparam).sqrt().data[0]))
+
+        
     

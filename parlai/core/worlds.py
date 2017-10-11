@@ -236,7 +236,7 @@ class DialogPartnerWorld(World):
         self.acts = [None] * len(self.agents)
 
     def parley(self):
-        """Agent 0 goes first. Alternate between the two agents."""
+        """Agent 0 goes first. Alternate between the two agents."""       
         acts = self.acts
         agents = self.agents
         acts[0] = agents[0].act()

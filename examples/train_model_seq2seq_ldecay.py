@@ -34,7 +34,7 @@ import math
 import logging, sys
 import pdb
 
-def run_eval(agent, opt, datatype, max_exs=-1, write_log=False, valid_world=None, logger=None):
+def run_eval(agent, opt, datatype, max_exs=-1, write_log=False, valid_world=None, logger=None, generate=False):
     """Eval on validation/test data.
     - Agent is the agent to use for the evaluation.
     - opt is the options that specific the task, eval_task, etc
@@ -60,6 +60,10 @@ def run_eval(agent, opt, datatype, max_exs=-1, write_log=False, valid_world=None
     else:
         valid_world.reset()
     cnt = 0
+    agent.training = False
+    if generate:
+        agent.generating = True
+    
     for _ in valid_world:
         valid_world.parley()
         
@@ -87,7 +91,8 @@ def run_eval(agent, opt, datatype, max_exs=-1, write_log=False, valid_world=None
         f = open(opt['model_file'] + '.' + datatype, 'a+')
         f.write(metrics + '\n')
         f.close()
-
+        
+    agent.training = True
     return valid_report, valid_world
 
 
@@ -168,9 +173,12 @@ def main():
     best_loss = 1000000
     
     while True:
+        if agent.training == False:
+            agent.training = True
+            
         world.parley()
         parleys += 1
-
+                
         if opt['num_epochs'] > 0 and parleys >= max_parleys:
             logger.info('[ num_epochs completed: {} ]'.format(opt['num_epochs']))
             break
@@ -179,6 +187,7 @@ def main():
             break
         
         # instead of every_n_secs, use n_parleys
+        #if True:
         if opt['log_every_n_parleys'] > 0 and parleys % opt['log_every_n_parleys'] == 0:
             if opt['display_examples']:
                 logger.info(world.display() + '\n~~')
@@ -239,8 +248,8 @@ def main():
         # reload best validation model
         agent = create_agent(opt)
 
-    run_eval(agent, opt, 'valid', write_log=True, logger=logger)
-    run_eval(agent, opt, 'test', write_log=True, logger=logger)
+    run_eval(agent, opt, 'valid', write_log=True, logger=logger, generate=True)
+    run_eval(agent, opt, 'test', write_log=True, logger=logger, generate=True)
 
 
 if __name__ == '__main__':

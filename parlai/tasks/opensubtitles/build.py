@@ -8,8 +8,8 @@
 import parlai.core.build_data as build_data
 import gzip
 import os
+import re
 import pdb
-
 
 def create_fb_format(inpath, outpath):
     print('[building fbformat]')
@@ -30,7 +30,9 @@ def create_fb_format(inpath, outpath):
                     line_id = 1
                     turn_id = 1
                     for line in f1:
-                        line = str(line)
+                        #pdb.set_trace()
+                        #line = str(line)
+                        line=line.decode('utf-8')
                         if line.find('<s id="') != -1:
                             # new sentence
                             if len(words) > 0:
@@ -52,13 +54,23 @@ def create_fb_format(inpath, outpath):
                     handle = ftest
                 if (conv_id % 10) == 1:
                     handle = fvalid
+                    
+                dialog = re.sub('<[^>]*>', '', dialog)
                 
                 for symbol in ['- ', '* ', '%% ', '{ y : i} ', '{ y: ib} ', '{ y : i } ', '{ Y : i}',
                                '{ y}', '{ y : ib}',
+                               '&lt;/', 'i&gt;', '&lt;'
                                  '``', '"']:
                     dialog=dialog.lower().replace(symbol, '')
-                    
-                handle.write(dialog + '\n') ## Make lowercased data
+
+                dialog=dialog.replace("' m", " 'm")
+                dialog=dialog.replace("' ve", " 've")
+                dialog=dialog.replace("' s", " 's")
+                dialog=dialog.replace("' t", " 't")
+                dialog=dialog.replace("' il", " 'il")
+                dialog=dialog.replace("' d", " 'd")
+                dialog=dialog.replace("' re", " 're")
+                handle.write(dialog + '\n')
                 
 
     ftrain.close()

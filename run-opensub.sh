@@ -7,12 +7,13 @@ model='seq2seq_v2'
 emb=300
 hs=1024
 lr=0.001
-attn=True
-attType='concat'
+attn=false #False #True
+attType='general'  #general concat dot
+tag=''
 
 train=1 # train=1, eval=0
 OPTIND=1
-while getopts "e:g:t:m:h:b:l:a:" opt; do
+while getopts "e:g:t:m:h:b:l:a:w:z:" opt; do
 	case "$opt" in
 		e) exp=$OPTARG ;;
 		g) gpuid=$OPTARG ;;
@@ -21,16 +22,19 @@ while getopts "e:g:t:m:h:b:l:a:" opt; do
 		b) embsize=$OPTARG ;;
 		h) hs=$OPTARG ;;
 		l) lr=$OPTARG ;;
-		a) attn=$OPTARG ;;
+		a) attnType=$OPTARG ;;
+		w) attn=$OPTARG ;;
+		z) tag=$OPTARG;;
 	esac
 done
 shift $((OPTIND -1))
 
 exp=emb${emb}-hs${hs}-lr${lr}
-if [ $attn ]; then
+if $attn ; then
 	exp=$exp'-a_'${attType}
 fi
 
+exp=${exp}${tag}
 
 ### '-' options are defined in parlai/core/params.py 
 ### -m --model : should match parlai/agents/<model> (model:model_class)
