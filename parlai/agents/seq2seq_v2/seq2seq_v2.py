@@ -51,7 +51,7 @@ class Seq2seqV2Agent(Agent):
                            help='number of hidden layers')
         agent.add_argument('-lr', '--learning_rate', type=float, default=0.5,
                            help='learning rate')
-        agent.add_argument('-dr', '--dropout', type=float, default=0.1,
+        agent.add_argument('-dr', '--dropout', type=float, default=0.2,
                            help='dropout rate')
         agent.add_argument('-att', '--attention', default=False, type='bool',
                            help='if True, use attention')
@@ -220,7 +220,7 @@ class Seq2seqV2Agent(Agent):
             }
             if self.attention and self.attn is not None:
                 self.optims.update({'attn': optim_class(self.attn.parameters(), lr=self.lr)})
-
+            
             if hasattr(self, 'states'):
                 # set loaded states if applicable
                 self.set_states(self.states)
@@ -770,6 +770,8 @@ class Seq2seqV2Agent(Agent):
             model['encoder'] = self.encoder.state_dict()
             model['decoder'] = self.decoder.state_dict()
             model['h2o'] = self.h2o.state_dict()
+            if self.use_attention:
+                model['attn'] = self.attn.state_dict()
             model['optims'] = {k: v.state_dict()
                                for k, v in self.optims.items()}
             model['longest_label'] = self.longest_label
@@ -800,6 +802,8 @@ class Seq2seqV2Agent(Agent):
         self.encoder.load_state_dict(states['encoder'])
         self.decoder.load_state_dict(states['decoder'])
         self.h2o.load_state_dict(states['h2o'])
+        if self.use_attention:
+            self.attn.load_state_dict(states['attn'])
         for k, v in states['optims'].items():
             self.optims[k].load_state_dict(v)
         self.longest_label = states['longest_label']
@@ -829,6 +833,7 @@ class Seq2seqV2Agent(Agent):
                     self._print_grad_weight(getattr(layer, weight_name), module + ' '+ weight_name)
         self._print_grad_weight(getattr(self, 'h2o').weight, 'h2o')
         if self.use_attention:
+           pdb.set_trace()
            self._print_grad_weight(getattr(self, 'attn').weight, 'attn')
                 
     def _print_grad_weight(self, weight, module_name):

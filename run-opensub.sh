@@ -7,7 +7,7 @@ model='seq2seq_v2'
 emb=300
 hs=1024
 lr=0.001
-attn=false #False #True
+attn=true #False #True
 attType='general'  #general concat dot
 tag=''
 
