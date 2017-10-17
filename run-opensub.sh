@@ -8,7 +8,7 @@ emb=300
 hs=1024
 lr=0.001
 attn=true #False #True
-attType='general'  #general concat dot
+attType='concat'  #general concat dot
 tag=''
 
 train=1 # train=1, eval=0

@@ -381,6 +381,7 @@ class Seq2seqV2Agent(Agent):
         enc_length = encoder_output.size(1)
         mask = Variable(xs.data.eq(0).eq(0).float())
         
+        #pdb.set_trace()
         # encoder_output # B x T x 2H
         # last_hidden  B x H
 
@@ -422,7 +423,8 @@ class Seq2seqV2Agent(Agent):
         if not self.use_attention:
             last_state = torch.gather(encoder_output, 1, xlen_t.view(-1,1,1).expand(encoder_output.size(0),1,encoder_output.size(2)))
             if self.opt['bi_encoder']:
-                last_state = torch.cat((encoder_output[:,0,:self.hidden_size], last_state[:,0,self.hidden_size:]),1)        
+#                last_state = torch.cat((encoder_output[:,0,:self.hidden_size], last_state[:,0,self.hidden_size:]),1)        
+                last_state = torch.cat((encoder_output[:,0,self.hidden_size:], last_state[:,0,:self.hidden_size]),1)        
         
         for i in range(ys.size(1)):
             if self.use_attention:
@@ -448,8 +450,8 @@ class Seq2seqV2Agent(Agent):
             self.loss = loss.data[0]/sum(ylen) # consider non-NULL
             self.ndata += batchsize
         else:
-            self.loss_valid = loss.data[0]/sum(ylen) # consider non-NULL
-            self.ndata_valid += batchsize            
+            self.loss_valid += loss.data[0] # consider non-NULL / accumulate!
+            self.ndata_valid += sum(ylen)          
 
         return loss, output_lines
 
@@ -815,8 +817,8 @@ class Seq2seqV2Agent(Agent):
             m['ppl'] = math.exp(self.loss)
             m['ndata'] = self.ndata
         else:
-            m['nll'] = self.loss_valid
-            m['ppl'] = math.exp(self.loss_valid)
+            m['nll'] = self.loss_valid/self.ndata_valid
+            m['ppl'] = math.exp(self.loss_valid/self.ndata_valid)
             m['ndata'] = self.ndata_valid
                         
         m['lr'] = self.lr
@@ -824,6 +826,11 @@ class Seq2seqV2Agent(Agent):
         
         return m
     
+    def reset_valid_report(self):
+        self.ndata_valid = 0
+        self.loss_valid = 0
+        
+        
     def print_weight_state(self):
         self._print_grad_weight(getattr(self, 'lt').weight, 'lookup')
         for module in {'encoder', 'decoder'}:
@@ -833,7 +840,6 @@ class Seq2seqV2Agent(Agent):
                     self._print_grad_weight(getattr(layer, weight_name), module + ' '+ weight_name)
         self._print_grad_weight(getattr(self, 'h2o').weight, 'h2o')
         if self.use_attention:
-           pdb.set_trace()
            self._print_grad_weight(getattr(self, 'attn').weight, 'attn')
                 
     def _print_grad_weight(self, weight, module_name):

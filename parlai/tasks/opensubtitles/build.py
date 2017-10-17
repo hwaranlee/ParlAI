@@ -59,7 +59,7 @@ def create_fb_format(inpath, outpath):
                 
                 for symbol in ['- ', '* ', '%% ', '{ y : i} ', '{ y: ib} ', '{ y : i } ', '{ Y : i}',
                                '{ y}', '{ y : ib}',
-                               '&lt;/', 'i&gt;', '&lt;'
+                               '&lt;/', 'i&gt;', '&lt;', '&gt;', '&gt;/', 
                                  '``', '"']:
                     dialog=dialog.lower().replace(symbol, '')
 

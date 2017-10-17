@@ -91,8 +91,10 @@ def run_eval(agent, opt, datatype, max_exs=-1, write_log=False, valid_world=None
         f = open(opt['model_file'] + '.' + datatype, 'a+')
         f.write(metrics + '\n')
         f.close()
-        
+
+    agent.reset_valid_report()
     agent.training = True
+    
     return valid_report, valid_world
 
 
