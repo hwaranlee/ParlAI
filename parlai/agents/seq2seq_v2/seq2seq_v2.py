@@ -90,6 +90,8 @@ class Seq2seqV2Agent(Agent):
                                 'Any member of torch.optim is valid and will '
                                 'be used with default params except learning '
                                 'rate (as specified by -lr).')
+        agent.add_argument('-gradClip', '--grad-clip', type=float, default=-1,
+                       help='gradient clip, default = -1 (no clipping)')
         agent.add_argument('-epi', '--episode-concat', type='bool', default=False,
                        help='If multiple observations are from the same episode, concatenate them.')
         
@@ -587,6 +589,11 @@ class Seq2seqV2Agent(Agent):
                                                   encoder_output)
             if self.training: 
                 loss.backward()
+                if self.opt['grad_clip'] > 0:
+                    torch.nn.utils.clip_grad_norm(self.lt.parameters(), self.opt['grad_clip'])
+                    torch.nn.utils.clip_grad_norm(self.h2o.parameters(), self.opt['grad_clip'])                    
+                    torch.nn.utils.clip_grad_norm(self.encoder.parameters(), self.opt['grad_clip'])
+                    torch.nn.utils.clip_grad_norm(self.decoder.parameters(), self.opt['grad_clip'])
                 self.update_params()
 
         elif not target_exists or self.generating:

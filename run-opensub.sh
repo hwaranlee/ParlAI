@@ -9,7 +9,13 @@ hs=1024
 lr=0.001
 attn=true #False #True
 attType='concat'  #general concat dot
-tag=''
+
+############### CUSTOM
+gradClip=0.5
+
+tag='-gc0.5'
+###############
+
 
 train=1 # train=1, eval=0
 OPTIND=1
@@ -75,7 +81,7 @@ script=${script}' -m '${model}' -t opensubtitles -mf '${exp_dir}/exp-${exp}/exp-
 
 script=${script}' --gpu '${gpuid}
 
-python ${script} -hs ${hs} -emb ${emb} -att ${attn} -attType ${attType}
+python ${script} -hs ${hs} -emb ${emb} -att ${attn} -attType ${attType} -gradClip ${gradClip}
 
 
 case "$exp" in
