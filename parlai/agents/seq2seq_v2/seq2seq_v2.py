@@ -51,6 +51,8 @@ class Seq2seqV2Agent(Agent):
                            help='number of hidden layers')
         agent.add_argument('-lr', '--learning_rate', type=float, default=0.5,
                            help='learning rate')
+        agent.add_argument('-wd', '--weight_decay', type=float, default=0,
+                           help='weight decay')
         agent.add_argument('-dr', '--dropout', type=float, default=0.2,
                            help='dropout rate')
         agent.add_argument('-att', '--attention', default=False, type='bool',
@@ -212,16 +214,17 @@ class Seq2seqV2Agent(Agent):
             
             # set up optims for each module
             self.lr = opt['learning_rate']
+            self.wd = opt['weight_decay'] is not 0
 
             optim_class = Seq2seqV2Agent.OPTIM_OPTS[opt['optimizer']]
             self.optims = {
                 'lt': optim_class(self.lt.parameters(), lr=self.lr),
                 'encoder': optim_class(self.encoder.parameters(), lr=self.lr),
                 'decoder': optim_class(self.decoder.parameters(), lr=self.lr),
-                'h2o': optim_class(self.h2o.parameters(), lr=self.lr),                
+                'h2o': optim_class(self.h2o.parameters(), lr=self.lr, weight_decay=self.wd),                
             }
             if self.attention and self.attn is not None:
-                self.optims.update({'attn': optim_class(self.attn.parameters(), lr=self.lr)})
+                self.optims.update({'attn': optim_class(self.attn.parameters(), lr=self.lr, weight_decay=self.wd)})
             
             if hasattr(self, 'states'):
                 # set loaded states if applicable

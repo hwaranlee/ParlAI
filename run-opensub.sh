@@ -7,13 +7,14 @@ model='seq2seq_v2'
 emb=300
 hs=1024
 lr=0.001
+wd=0.00002
 attn=true #False #True
-attType='concat'  #general concat dot
+attType=concat  #general concat dot
 
 ############### CUSTOM
-gradClip=0.5
+gradClip=-1
 
-tag='-gc0.5'
+tag=''
 ###############
 
 
@@ -39,6 +40,11 @@ exp=emb${emb}-hs${hs}-lr${lr}
 if $attn ; then
 	exp=$exp'-a_'${attType}
 fi
+
+if [ $(awk 'BEGIN{ print ('$wd' > '0') }') -eq 1 ]; then
+	exp=$exp'-wd_'${wd}
+fi
+
 
 exp=${exp}${tag}
 
@@ -81,7 +87,7 @@ script=${script}' -m '${model}' -t opensubtitles -mf '${exp_dir}/exp-${exp}/exp-
 
 script=${script}' --gpu '${gpuid}
 
-python ${script} -hs ${hs} -emb ${emb} -att ${attn} -attType ${attType} -gradClip ${gradClip}
+python ${script} -hs ${hs} -emb ${emb} -att ${attn} -attType ${attType} -gradClip ${gradClip} -wd ${wd}
 
 
 case "$exp" in
