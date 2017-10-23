@@ -81,8 +81,8 @@ def run_eval(agent, opt, datatype, max_exs=-1, write_log=False, valid_world=None
         valid_report = agent.report()
         agent.reset_metrics()
     else:
-        valid_report = world.report()
-        world.reset_metrics()
+        valid_report = valid_world.report()
+        valid_world.reset_metrics()
     
     metrics = datatype + ':' + str(valid_report)
     logger.info(metrics)
