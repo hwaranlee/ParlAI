@@ -85,7 +85,9 @@ fi
 
 script=${script}' -m '${model}' -t opensubtitles -mf '${exp_dir}/exp-${exp}/exp-${exp}
 
-script=${script}' --gpu '${gpuid}
+if [ -n "$gpuid" ]; then
+	script=${script}' --gpu '${gpuid}
+fi
 
 python ${script} -hs ${hs} -emb ${emb} -att ${attn} -attType ${attType} -gradClip ${gradClip} -wd ${wd}
 

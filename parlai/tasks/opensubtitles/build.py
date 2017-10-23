@@ -11,6 +11,34 @@ import os
 import re
 import pdb
 
+def preprocess(sent):
+    """ text preprocessing using regular expressions
+    """
+    # remove tags
+    new_sent = re.sub(r'(<!--.*?-->|<[^>]*>|{[^}]*}|\([^\)]*\)|\[[^\]]*\])',' ', sent)
+    # replace apostrophe and convert letters to lower case
+    new_sent = new_sent.replace('\\\'','\'').lower()
+    # delete a space right after an isolated apostrophe
+    new_sent = re.sub(r' \' (?=(em|im|s|t|bout|cause)\s+)', ' \'', new_sent)
+    # delete a space right before an isolated apostrophe
+    new_sent = re.sub(r'(?<=n) \' ', '\' ', new_sent)
+    # delete a space right before a period for titles
+    new_sent = re.sub(r'(?<=( mr| jr| ms| dr| st|mrs)) \.', '. ', new_sent)
+    # remove speaker tag "xxx: "
+    new_sent = re.sub(r'^\s*[A-z]*\s*:', '', new_sent)
+    # remove unnecessary symbols
+    new_sent = re.sub(u'([-–—]+$| [-–—]+|[-–—]+ |% %|#+|\'\'|``| \' |[\(\)\"])', ' ', new_sent)
+    # convert i̇->i
+    new_sent = re.sub(u'i̇','i', new_sent)
+    # convert multiple spaces to a single space
+    new_sent = re.sub(r'\s+', ' ', new_sent).strip()
+    # ignore sentence with anly space or some symbols
+    if not re.match(r'^(\s*|[\.\?$%!,:;])$', new_sent):
+        return new_sent
+    else:
+        return ''
+
+
 def create_fb_format(inpath, outpath):
     print('[building fbformat]')
     ftrain = open(os.path.join(outpath, 'train.txt'), 'w')
@@ -37,9 +65,9 @@ def create_fb_format(inpath, outpath):
                             # new sentence
                             if len(words) > 0:
                                 if (turn_id % 2) == 0:
-                                    dialog += str(line_id) + ' ' + words
+                                    dialog += str(line_id) + ' ' + preprocess(words)
                                 else:
-                                    dialog += '\t' + words + '\n'
+                                    dialog += '\t' + preprocess(words) + '\n'
                                     line_id += 1
                             turn_id = turn_id + 1
                             words = ''
@@ -54,22 +82,7 @@ def create_fb_format(inpath, outpath):
                     handle = ftest
                 if (conv_id % 10) == 1:
                     handle = fvalid
-                    
-                dialog = re.sub('<[^>]*>', '', dialog)
                 
-                for symbol in ['- ', '* ', '%% ', '{ y : i} ', '{ y: ib} ', '{ y : i } ', '{ Y : i}',
-                               '{ y}', '{ y : ib}',
-                               '&lt;/', 'i&gt;', '&lt;', '&gt;', '&gt;/', 
-                                 '``', '"']:
-                    dialog=dialog.lower().replace(symbol, '')
-
-                dialog=dialog.replace("' m", " 'm")
-                dialog=dialog.replace("' ve", " 've")
-                dialog=dialog.replace("' s", " 's")
-                dialog=dialog.replace("' t", " 't")
-                dialog=dialog.replace("' il", " 'il")
-                dialog=dialog.replace("' d", " 'd")
-                dialog=dialog.replace("' re", " 're")
                 handle.write(dialog + '\n')
                 
 
@@ -90,9 +103,9 @@ def build(opt):
         build_data.make_dir(dpath)
 
         # Download the data.
-        #url = ('http://opus.lingfil.uu.se/download.php?f=OpenSubtitles/en.tar.gz')
-        #build_data.download(url, dpath, 'OpenSubtitles.tar.gz')
-        #build_data.untar(dpath, 'OpenSubtitles.tar.gz')
+        url = ('http://opus.lingfil.uu.se/download.php?f=OpenSubtitles/en.tar.gz')
+        build_data.download(url, dpath, 'OpenSubtitles.tar.gz')
+        build_data.untar(dpath, 'OpenSubtitles.tar.gz', deleteTar=False)
 
         create_fb_format(os.path.join(dpath, 'OpenSubtitles', 'en'), dpath)
 
