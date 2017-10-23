@@ -63,6 +63,7 @@ def run_eval(agent, opt, datatype, max_exs=-1, write_log=False, valid_world=None
     agent.training = False
     if generate:
         agent.generating = True
+        print("Generating:")
     
     for _ in valid_world:
         valid_world.parley()
@@ -249,7 +250,7 @@ def main():
     else:
         # reload best validation model
         agent = create_agent(opt)
-
+       
     run_eval(agent, opt, 'valid', write_log=True, logger=logger, generate=True)
     run_eval(agent, opt, 'test', write_log=True, logger=logger, generate=True)
 

@@ -6,15 +6,15 @@ gpuid=
 model='seq2seq_v2'
 emb=300
 hs=1024
-lr=0.001
-wd=0.00002
-attn=true #False #True
+lr=0.0001
+wd=0 #.00002
+attn=false #true #False #True
 attType=concat  #general concat dot
 
 ############### CUSTOM
 gradClip=-1
 
-tag=''
+tag='-bs128'
 ###############
 
 

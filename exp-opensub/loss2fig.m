@@ -1,7 +1,8 @@
 clear all; clc; close all;
 
-root_dir='Y:\convai\ParlAI-v2\exp-opensub';
-folder_name = 'exp-emb300-hs1024-lr0.0001-a_general';
+root_dir='S:\convai\ParlAI-v2\exp-opensub';
+folder_name = 'exp-emb300-hs2048-lr0.0001-bs128'; %-gc0.5';
+
 filename = fullfile(root_dir, folder_name, sprintf('%s.log', folder_name));
 % filename = fullfile(folder_name, sprintf('%s-2.log', folder_name));
 
@@ -75,8 +76,10 @@ while (i < size(loss_valid,1))
    end   
 end
 
+[a, best] = min(loss_valid(:,3));
+
 epoch = size(loss_valid,1)
-summary = [loss_avg(epoch,2), exp(loss_avg(epoch,2)), loss_valid(epoch, 2), loss_valid(epoch, 3)]
+summary = [loss_avg(best,2), exp(loss_avg(best,2)), loss_valid(best, 2), loss_valid(best, 3)]
 fprintf('epoch %d : ldecay %d \n', epoch, lrdecay);
 fprintf('%s\n', folder_name);
 
@@ -94,7 +97,7 @@ plot(loss_valid(:,1), loss_valid(:,2), 'linewidth', 2);
 scatter(lrate_decay(:,1), lrate_decay(:,2), '*');
 
 hold off;
-legend('Train', 'Train', 'Valid','location', 'northeast');
+legend('Train (iters)', 'Train', 'Valid','location', 'northeast');
 set(gca, 'ylim', [0, 7]);
 set(gca, 'xtick', 0:34400:size(loss_valid,1)*34400, 'xticklabel', 0:size(loss_valid,1) , 'xlim', [0,loss(end,1)]);
 xlabel('Epoch'); ylabel('NLL'); 
@@ -108,7 +111,7 @@ plot(loss_valid(:,1), exp(loss_valid(:,2)), 'linewidth', 2);
 scatter(lrate_decay(:,1), lrate_decay(:,3), '*');
 
 hold off;
-legend('Train', 'Train', 'Valid','location', 'northeast');
+legend('Train (iters)', 'Train', 'Valid','location', 'northeast');
 set(gca, 'ylim', [0, 300]);
 set(gca, 'xtick', 0:34400:size(loss_valid,1)*34400, 'xticklabel', 0:size(loss_valid,1) , 'xlim', [0,loss(end,1)]);
 xlabel('Epoch'); ylabel('PPL'); 

@@ -467,7 +467,7 @@ class Seq2seqV2Agent(Agent):
         max_len = 0
 
         output_lines = [[] for _ in range(batchsize)]
-        
+
         ## The initial of decoder is the hidden (last states) of encoder --> put zero!       
         if self.zeros_dec.size(1) != batchsize:
             self.zeros_dec.resize_(self.num_layers, batchsize, self.hidden_size).fill_(0)
@@ -598,6 +598,7 @@ class Seq2seqV2Agent(Agent):
                     torch.nn.utils.clip_grad_norm(self.encoder.parameters(), self.opt['grad_clip'])
                     torch.nn.utils.clip_grad_norm(self.decoder.parameters(), self.opt['grad_clip'])
                 self.update_params()
+            self.display_predict(xs, ys, output_lines)
 
         elif not target_exists or self.generating:
             assert(not self.training)
@@ -606,12 +607,12 @@ class Seq2seqV2Agent(Agent):
                                                         encoder_output)
 
             output_lines = self._decode_only(batchsize, xes, xlen_t, xs, encoder_output)
-                        
-        self.display_predict(xs, ys, output_lines)
+            self.display_predict(xs, ys, output_lines, 1)
+                    
         return output_lines, text_cand_inds
 
-    def display_predict(self, xs, ys, output_lines):
-        if random.random() < 0.01:
+    def display_predict(self, xs, ys, output_lines, freq=0.01):
+        if random.random() < freq:
             # sometimes output a prediction for debugging
             print('\n    input:', self.dict.vec2txt(xs[0].data.cpu()).replace(self.dict.null_token+' ', ''),
                   '\n    pred :', ' '.join(output_lines[0]), '\n')
@@ -822,17 +823,18 @@ class Seq2seqV2Agent(Agent):
 
     def report(self):
         m={}
-        if self.training:
-            m['nll'] = self.loss
-            m['ppl'] = math.exp(self.loss)
-            m['ndata'] = self.ndata
-        else:
-            m['nll'] = self.loss_valid/self.ndata_valid
-            m['ppl'] = math.exp(self.loss_valid/self.ndata_valid)
-            m['ndata'] = self.ndata_valid
-                        
-        m['lr'] = self.lr
-        self.print_weight_state()
+        if not self.generating:
+            if self.training:
+                m['nll'] = self.loss
+                m['ppl'] = math.exp(self.loss)
+                m['ndata'] = self.ndata
+            else:
+                m['nll'] = self.loss_valid/self.ndata_valid
+                m['ppl'] = math.exp(self.loss_valid/self.ndata_valid)
+                m['ndata'] = self.ndata_valid
+                            
+            m['lr'] = self.lr
+            self.print_weight_state()
         
         return m
     

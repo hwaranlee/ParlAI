@@ -11,9 +11,12 @@ For example:
 or
 `python examples/eval_model.py -t "#CornellMovie" -m "ir_baseline" -mp "-lp 0.5"`
 """
-from parlai.core.params import ParlaiParser
+
+import torch
+
 from parlai.core.agents import create_agent
 from parlai.core.worlds import create_task
+from parlai.core.params import ParlaiParser
 
 import random
 
