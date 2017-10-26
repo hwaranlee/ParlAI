@@ -269,4 +269,11 @@ task_list = [
         "tags": [ "All", "MT" ],
         "description": "Workshop on Machine Translation task, currently only includes en_de."
     }
+    {
+        "id": "ConvAI_ChitChat",
+        "display_name": "ConvAI_ChitChat",
+        "task": "convai_chitchat",
+        "tags": [ "All", "ChitChat" ],
+        "description": "Human-bot dialogues containing free discussions of randomly chosen paragraphs from SQuAD. Link to dataset: http://convai.io/data/"
+    }
 ]
