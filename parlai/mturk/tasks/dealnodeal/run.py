@@ -3,55 +3,48 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree. An additional grant
 # of patent rights can be found in the PATENTS file in the same directory.
-import os
 from parlai.core.params import ParlaiParser
 from parlai.mturk.core.mturk_manager import MTurkManager
-from parlai.mturk.tasks.multi_agent_dialog.worlds import \
-    MTurkMultiAgentDialogWorld, MTurkMultiAgentDialogOnboardWorld
+from parlai.mturk.tasks.dealnodeal.worlds import \
+    MTurkDealNoDealDialogWorld
 from parlai.agents.local_human.local_human import LocalHumanAgent
+from parlai.core.agents import create_agent
 from task_config import task_config
 
 
 def main():
-    """
-    This task consists of one local human agent and two MTurk agents,
-    each MTurk agent will go through the onboarding step to provide
-    information about themselves, before being put into a conversation.
-    You can end the conversation by sending a message ending with
-    `[DONE]` from human_1.
+    """This task consists of one agent, model or MTurk worker, talking to an
+    MTurk worker to negotiate a deal.
     """
     argparser = ParlaiParser(False, False)
     argparser.add_parlai_data_path()
     argparser.add_mturk_args()
+    argparser.add_argument('--two_mturk_agents', dest='two_mturk_agents',
+                           action='store_true', help='data collection mode '
+                           'with converations between two MTurk agents')
+
     opt = argparser.parse_args()
-    opt['task'] = os.path.basename(os.path.dirname(os.path.abspath(__file__)))
+    opt['task'] = 'dealnodeal'
+    opt['datatype'] = 'valid'
     opt.update(task_config)
 
-    mturk_agent_1_id = 'mturk_agent_1'
-    mturk_agent_2_id = 'mturk_agent_2'
-    human_agent_1_id = 'human_1'
-    mturk_agent_ids = [mturk_agent_1_id, mturk_agent_2_id]
+    local_agent_1_id = 'local_1'
+    mturk_agent_ids = ['mturk_agent_1']
+    if opt['two_mturk_agents']:
+        mturk_agent_ids.append('mturk_agent_2')
+
     mturk_manager = MTurkManager(
         opt=opt,
         mturk_agent_ids=mturk_agent_ids
     )
+
     mturk_manager.setup_server()
 
     try:
         mturk_manager.start_new_run()
         mturk_manager.create_hits()
 
-        def run_onboard(worker):
-            world = MTurkMultiAgentDialogOnboardWorld(
-                opt=opt,
-                mturk_agent=worker
-            )
-            while not world.episode_done():
-                world.parley()
-            world.shutdown()
-
-        # You can set onboard_function to None to skip onboarding
-        mturk_manager.set_onboard_function(onboard_function=run_onboard)
+        mturk_manager.set_onboard_function(onboard_function=None)
         mturk_manager.ready_to_accept_workers()
 
         def check_worker_eligibility(worker):
@@ -62,17 +55,23 @@ def main():
                 worker.id = mturk_agent_ids[index % len(mturk_agent_ids)]
 
         def run_conversation(mturk_manager, opt, workers):
-            # Create mturk agents
-            mturk_agent_1 = workers[0]
-            mturk_agent_2 = workers[1]
+            agents = workers[:]
 
-            # Create the local human agents
-            human_agent_1 = LocalHumanAgent(opt=None)
-            human_agent_1.id = human_agent_1_id
+            # Create a local agent
+            if not opt['two_mturk_agents']:
+                if 'model' in opt:
+                    local_agent = create_agent(opt)
+                else:
+                    local_agent = LocalHumanAgent(opt=None)
 
-            world = MTurkMultiAgentDialogWorld(
+                local_agent.id = local_agent_1_id
+                agents.append(local_agent)
+
+            opt["batchindex"] = mturk_manager.started_conversations
+
+            world = MTurkDealNoDealDialogWorld(
                 opt=opt,
-                agents=[human_agent_1, mturk_agent_1, mturk_agent_2]
+                agents=agents
             )
 
             while not world.episode_done():
@@ -91,6 +90,7 @@ def main():
     finally:
         mturk_manager.expire_all_unassigned_hits()
         mturk_manager.shutdown()
+
 
 if __name__ == '__main__':
     main()

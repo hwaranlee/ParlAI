@@ -10,28 +10,19 @@ import os
 
 
 def build(opt):
-    dpath = os.path.join(opt['datapath'], 'MovieDialog')
-    version = '1'
+    dpath = os.path.join(opt['datapath'], 'MutualFriends')
+    version = None
 
     if not build_data.built(dpath, version_string=version):
         print('[building data: ' + dpath + ']')
-        dpath2 = os.path.join(dpath, 'movie_dialog_dataset', 'task4_reddit')
         if build_data.built(dpath):
             # An older version exists, so remove these outdated files.
             build_data.remove_dir(dpath)
         build_data.make_dir(dpath)
-        build_data.make_dir(dpath2)
 
         # Download the data.
-        fname = 'moviedialog.tar.gz'
-        url = 'https://s3.amazonaws.com/fair-data/parlai/moviedialog/' + fname
-        build_data.download(url, dpath, fname)
-
-        url2 = 'http://tinyurl.com/' + 'p6tyohj'
-        build_data.download(url2, dpath2, 'p6tyohj.tgz')
-
-        build_data.untar(dpath, fname)
-        build_data.untar(dpath2, 'p6tyohj.tgz')
+        url = 'https://worksheets.codalab.org/rest/bundles/0x5a4cefea7fd443cea15aa532bb8fcd67/contents/blob/'
+        build_data.download(url, dpath, 'data.json')
 
         # Mark the data as built.
         build_data.mark_done(dpath, version_string=version)

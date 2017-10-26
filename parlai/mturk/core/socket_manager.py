@@ -14,6 +14,7 @@ from parlai.mturk.core.shared_utils import print_and_log
 import parlai.mturk.core.data_model as data_model
 import parlai.mturk.core.shared_utils as shared_utils
 
+
 class Packet():
     """Class for holding information sent over a socket"""
 
@@ -21,6 +22,7 @@ class Packet():
     STATUS_INIT = 0
     STATUS_SENT = 1
     STATUS_ACK = 2
+    STATUS_FAIL = 3
 
     # Possible Packet Types
     TYPE_ACK = 'ack'
@@ -69,20 +71,28 @@ class Packet():
         """Create a packet from the dictionary that would
         be recieved over a socket
         """
-        packet_id = packet['id']
-        packet_type = packet['type']
-        sender_id = packet['sender_id']
-        receiver_id = packet['receiver_id']
-        assignment_id = packet['assignment_id']
-        data = None
-        if 'data' in packet:
-            data = packet['data']
-        else:
-            data = ''
-        conversation_id = packet['conversation_id']
+        try:
+            packet_id = packet['id']
+            packet_type = packet['type']
+            sender_id = packet['sender_id']
+            receiver_id = packet['receiver_id']
+            assignment_id = packet['assignment_id']
+            data = None
+            if 'data' in packet:
+                data = packet['data']
+            else:
+                data = ''
+            conversation_id = packet['conversation_id']
 
-        return Packet(packet_id, packet_type, sender_id, receiver_id,
-            assignment_id, data, conversation_id)
+            return Packet(packet_id, packet_type, sender_id, receiver_id,
+                          assignment_id, data, conversation_id)
+        except Exception:
+            print_and_log(
+                logging.WARN,
+                'Could not create a valid packet out of the dictionary'
+                'provided: {}'.format(packet)
+            )
+            return None
 
     def as_dict(self):
         """Convert a packet into a form that can be pushed over a socket"""
@@ -107,7 +117,8 @@ class Packet():
     def get_ack(self):
         """Return a new packet that can be used to acknowledge this packet"""
         return Packet(self.id, self.TYPE_ACK, self.receiver_id, self.sender_id,
-            self.assignment_id, '', self.conversation_id, False, False)
+                      self.assignment_id, '', self.conversation_id, False,
+                      False)
 
     def new_copy(self):
         """Return a new packet that is a copy of this packet with
@@ -170,7 +181,7 @@ class SocketManager():
         self.alive_callback = alive_callback
         self.message_callback = message_callback
         self.socket_dead_callback = socket_dead_callback
-        if socket_dead_timeout == None:
+        if socket_dead_timeout is None:
             self.socket_dead_timeout = self.DEF_SOCKET_TIMEOUT
         else:
             self.socket_dead_timeout = socket_dead_timeout
@@ -220,6 +231,7 @@ class SocketManager():
             logging.DEBUG,
             'Send packet: {}'.format(packet.data)
         )
+
         def set_status_to_sent(data):
             packet.status = Packet.STATUS_SENT
         self.socketIO.emit(
@@ -237,6 +249,9 @@ class SocketManager():
                     if packet.status == Packet.STATUS_ACK:
                         # Clear the data to save memory as we no longer need it
                         packet.data = None
+                        break
+                    if packet.status == Packet.STATUS_FAIL:
+                        # Failed packets shouldn't be re-queued as they errored
                         break
                     if time.time() - start_t > self.ACK_TIME[packet.type]:
                         # didn't receive ACK, resend packet keep old queue time
@@ -275,6 +290,8 @@ class SocketManager():
             """Incoming message handler for ACKs, ALIVEs, HEARTBEATs,
             and MESSAGEs"""
             packet = Packet.from_dict(args[0])
+            if packet is None:
+                return
             packet_id = packet.id
             packet_type = packet.type
             connection_id = packet.get_sender_connection_id()
@@ -350,7 +367,7 @@ class SocketManager():
                         self.socket_dead_callback(worker_id, assignment_id)
 
                     # Make sure the queue still exists
-                    if not connection_id in self.queues:
+                    if connection_id not in self.queues:
                         self.run[connection_id] = False
                         break
 
@@ -447,6 +464,7 @@ class SocketManager():
         if connection_id in self.queues:
             self.queues[connection_id].put(item)
         else:
+            item[1].status = Packet.STATUS_FAIL
             shared_utils.print_and_log(
                 logging.WARN,
                 'Queue {} did not exist to put a message in'.format(

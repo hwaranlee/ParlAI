@@ -5,7 +5,6 @@
 # of patent rights can be found in the PATENTS file in the same directory.
 
 import boto3
-import botocore
 import os
 import json
 from datetime import datetime
@@ -23,8 +22,8 @@ mturk_hit_frame_height = 650
 def setup_aws_credentials():
     try:
         # Use existing credentials
-        session = boto3.Session(profile_name=aws_profile_name)
-    except ProfileNotFound as e:
+        boto3.Session(profile_name=aws_profile_name)
+    except ProfileNotFound:
         # Setup new credentials
         print(
             'AWS credentials not found. Please create an IAM user with '
@@ -165,28 +164,28 @@ def create_hit_config(task_description, unique_worker, is_sandbox):
 def get_mturk_client(is_sandbox):
     """Returns the appropriate mturk client given sandbox option"""
     client = boto3.client(
-        service_name = 'mturk',
-        region_name = 'us-east-1',
-        endpoint_url = 'https://mturk-requester-sandbox.us-east-1.amazonaws.com'
+        service_name='mturk',
+        region_name='us-east-1',
+        endpoint_url='https://mturk-requester-sandbox.us-east-1.amazonaws.com'
     )
     # Region is always us-east-1
     if not is_sandbox:
-        client = boto3.client(service_name = 'mturk', region_name='us-east-1')
+        client = boto3.client(service_name='mturk', region_name='us-east-1')
     return client
 
 
 def create_hit_type(hit_title, hit_description, hit_keywords, hit_reward,
                     assignment_duration_in_seconds, is_sandbox):
-    """Creates a HIT type to be used to generate HITs of the requested params"""
+    """Create a HIT type to be used to generate HITs of the requested params"""
     client = boto3.client(
-        service_name = 'mturk',
-        region_name = 'us-east-1',
-        endpoint_url = 'https://mturk-requester-sandbox.us-east-1.amazonaws.com'
+        service_name='mturk',
+        region_name='us-east-1',
+        endpoint_url='https://mturk-requester-sandbox.us-east-1.amazonaws.com'
     )
 
     # Region is always us-east-1
     if not is_sandbox:
-        client = boto3.client(service_name = 'mturk', region_name='us-east-1')
+        client = boto3.client(service_name='mturk', region_name='us-east-1')
 
     # Create a qualification with Locale In('US', 'CA') requirement attached
     localRequirements = [{
@@ -204,7 +203,7 @@ def create_hit_type(hit_title, hit_description, hit_keywords, hit_reward,
 
     # Create the HIT type
     response = client.create_hit_type(
-        AutoApprovalDelayInSeconds=4*7*24*3600, # auto-approve after 4 weeks
+        AutoApprovalDelayInSeconds=4*7*24*3600,  # auto-approve after 4 weeks
         AssignmentDurationInSeconds=assignment_duration_in_seconds,
         Reward=str(hit_reward),
         Title=hit_title,
@@ -221,11 +220,12 @@ def create_hit_with_hit_type(page_url, hit_type_id, num_assignments,
     """Creates the actual HIT given the type and page to direct clients to"""
     page_url = page_url.replace('&', '&amp;')
     amazon_ext_url = (
-        'http://mechanicalturk.amazonaws.com/AWSMechanicalTurkDataSchemas/2006-07-14/ExternalQuestion.xsd'
+        'http://mechanicalturk.amazonaws.com/'
+        'AWSMechanicalTurkDataSchemas/2006-07-14/ExternalQuestion.xsd'
     )
     question_data_struture = (
         '<ExternalQuestion xmlns="{}">'
-            '<ExternalURL>{}</ExternalURL>'
+            '<ExternalURL>{}</ExternalURL>'  # noqa: E131
             '<FrameHeight>{}</FrameHeight>'
         '</ExternalQuestion>'
         ''.format(amazon_ext_url, page_url, mturk_hit_frame_height)
@@ -239,7 +239,7 @@ def create_hit_with_hit_type(page_url, hit_type_id, num_assignments,
 
     # Region is always us-east-1
     if not is_sandbox:
-        client = boto3.client(service_name = 'mturk', region_name='us-east-1')
+        client = boto3.client(service_name='mturk', region_name='us-east-1')
 
     # Create the HIT
     response = client.create_hit_with_hit_type(
@@ -247,44 +247,6 @@ def create_hit_with_hit_type(page_url, hit_type_id, num_assignments,
         MaxAssignments=num_assignments,
         LifetimeInSeconds=31536000,
         Question=question_data_struture,
-        # AssignmentReviewPolicy={
-        #     'PolicyName': 'string',
-        #     'Parameters': [
-        #         {
-        #             'Key': 'string',
-        #             'Values': [
-        #                 'string',
-        #             ],
-        #             'MapEntries': [
-        #                 {
-        #                     'Key': 'string',
-        #                     'Values': [
-        #                         'string',
-        #                     ]
-        #                 },
-        #             ]
-        #         },
-        #     ]
-        # },
-        # HITReviewPolicy={
-        #     'PolicyName': 'string',
-        #     'Parameters': [
-        #         {
-        #             'Key': 'string',
-        #             'Values': [
-        #                 'string',
-        #             ],
-        #             'MapEntries': [
-        #                 {
-        #                     'Key': 'string',
-        #                     'Values': [
-        #                         'string',
-        #                     ]
-        #                 },
-        #             ]
-        #         },
-        #     ]
-        # },
     )
 
     # The response included several fields that will be helpful later
@@ -307,3 +269,71 @@ def expire_hit(is_sandbox, hit_id):
     # Update expiration to a time in the past, the HIT expires instantly
     past_time = datetime(2015, 1, 1)
     client.update_expiration_for_hit(HITId=hit_id, ExpireAt=past_time)
+
+
+def setup_sns_topic(task_name, server_url, task_group_id):
+    # Create the topic and subscribe to it so that our server receives notifs
+    client = boto3.client('sns', region_name='us-east-1',)
+    response = client.create_topic(Name=task_name)
+    arn = response['TopicArn']
+    topic_sub_url = \
+        '{}/sns_posts?task_group_id={}'.format(server_url, task_group_id)
+    client.subscribe(TopicArn=arn, Protocol='https', Endpoint=topic_sub_url)
+    response = client.get_topic_attributes(
+        TopicArn=arn
+    )
+    policy_json = '''{{
+    "Version": "2008-10-17",
+    "Id": "{}/MTurkOnlyPolicy",
+    "Statement": [
+        {{
+            "Sid": "MTurkOnlyPolicy",
+            "Effect": "Allow",
+            "Principal": {{
+                "Service": "mturk-requester.amazonaws.com"
+            }},
+            "Action": "SNS:Publish",
+            "Resource": "{}"
+        }}
+    ]}}'''.format(arn, arn)
+    client.set_topic_attributes(
+        TopicArn=arn,
+        AttributeName='Policy',
+        AttributeValue=policy_json
+    )
+    return arn
+
+
+def subscribe_to_hits(hit_type_id, is_sandbox, sns_arn):
+    # Get the mturk client and create notifications for our hits
+    client = get_mturk_client(is_sandbox)
+    client.update_notification_settings(
+        HITTypeId=hit_type_id,
+        Notification={
+            'Destination': sns_arn,
+            'Transport': 'SNS',
+            'Version': '2006-05-05',
+            'EventTypes': ['AssignmentAbandoned', 'AssignmentReturned',
+                           'AssignmentSubmitted']
+        },
+        Active=True
+    )
+
+
+def send_test_notif(topic_arn, event_type):
+    client = get_mturk_client(True)
+    client.send_test_event_notification(
+        Notification={
+            'Destination': topic_arn,
+            'Transport': 'SNS',
+            'Version': '2006-05-05',
+            'EventTypes': ['AssignmentAbandoned', 'AssignmentReturned',
+                           'AssignmentSubmitted']
+        },
+        TestEventType=event_type
+    )
+
+
+def delete_sns_topic(topic_arn):
+    client = boto3.client('sns', region_name='us-east-1',)
+    client.delete_topic(TopicArn=topic_arn)
