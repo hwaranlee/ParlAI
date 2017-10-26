@@ -32,6 +32,22 @@ def preprocess(sent):
     new_sent = re.sub(u'i̇','i', new_sent)
     # convert multiple spaces to a single space
     new_sent = re.sub(r'\s+', ' ', new_sent).strip()
+    
+
+    for symbol in ['- ', '* ', '%% ', '{ y : i} ', '{ y: ib} ', '{ y : i } ',
+                   '{ y}', '{ y : ib}',
+                   '&lt;/', 'i&gt;', '&lt;', '&gt;', '&gt;/', 
+                     '``', '"']:
+        new_sent=new_sent.lower().replace(symbol, '')
+
+    new_sent=new_sent.replace("' m", " 'm")
+    new_sent=new_sent.replace("' ve", " 've")
+    new_sent=new_sent.replace("' s", " 's")
+    new_sent=new_sent.replace("' t", " 't")
+    new_sent=new_sent.replace("' il", " 'il")
+    new_sent=new_sent.replace("' d", " 'd")
+    new_sent=new_sent.replace("' re", " 're")
+    
     # ignore sentence with anly space or some symbols
     if not re.match(r'^(\s*|[\.\?$%!,:;])$', new_sent):
         return new_sent
@@ -65,7 +81,7 @@ def create_fb_format(inpath, outpath):
                             # new sentence
                             if len(words) > 0:
                                 if (turn_id % 2) == 0:
-                                    dialog += str(line_id) + ' ' + preprocess(words)
+                                    dialog += str(line_id) + ' ' + words
                                 else:
                                     dialog += '\t' + preprocess(words) + '\n'
                                     line_id += 1
@@ -83,6 +99,7 @@ def create_fb_format(inpath, outpath):
                 if (conv_id % 10) == 1:
                     handle = fvalid
                 
+                dialog = preprocess(dialog)
                 handle.write(dialog + '\n')
                 
 

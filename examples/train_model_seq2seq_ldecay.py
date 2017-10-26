@@ -34,7 +34,7 @@ import math
 import logging, sys
 import pdb
 
-def run_eval(agent, opt, datatype, max_exs=-1, write_log=False, valid_world=None, logger=None, generate=False):
+def run_eval(agent, opt, datatype, max_exs=-1, write_log=False, valid_world=None, logger=None, generate=False, local_human=False):
     """Eval on validation/test data.
     - Agent is the agent to use for the evaluation.
     - opt is the options that specific the task, eval_task, etc
@@ -60,7 +60,10 @@ def run_eval(agent, opt, datatype, max_exs=-1, write_log=False, valid_world=None
     else:
         valid_world.reset()
     cnt = 0
+    
     agent.training = False
+    agent.local_human = local_human
+    
     if generate:
         agent.generating = True
         print("Generating:")
@@ -175,7 +178,7 @@ def main():
     valid_world = None
     best_loss = 1000000
     
-    while True:
+    while False:
         if agent.training == False:
             agent.training = True
             

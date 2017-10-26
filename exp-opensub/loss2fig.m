@@ -91,6 +91,7 @@ set(gcf,'Color',[1 1 1])
 subplot(1,2,1);
 hold on;
 plot(loss(:,1), loss(:,3), 'linewidth', 1);
+% plot(loss_avg(1:end-1,1), loss_avg(1:end-1,2), 'linewidth', 2);
 plot(loss_avg(:,1), loss_avg(:,2), 'linewidth', 2);
 
 plot(loss_valid(:,1), loss_valid(:,2), 'linewidth', 2);
@@ -106,6 +107,7 @@ subplot(1,2,2);
 hold on;
 plot(loss(:,1), exp(loss(:,3)), 'linewidth', 1);
 plot(loss_avg(:,1), exp(loss_avg(:,2)), 'linewidth', 2);
+% plot(loss_avg(1:end-1,1), loss_avg(1:end-1,3), 'linewidth', 2);
 
 plot(loss_valid(:,1), exp(loss_valid(:,2)), 'linewidth', 2);
 scatter(lrate_decay(:,1), lrate_decay(:,3), '*');
