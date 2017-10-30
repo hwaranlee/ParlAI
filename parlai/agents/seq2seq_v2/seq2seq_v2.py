@@ -748,7 +748,7 @@ class Seq2seqV2Agent(Agent):
         # Decoding        
         if not self.generating:
         #if (target_exist is not None) and (self.generating is False):
-            loss, output_lines = self._decode_and_train(batchsize, xes, xlen_t, xs, ys, ylen,
+            loss, output_lines = self._decode_and_train(batchsize, dec_xes, xlen_t, xs, ys, ylen,
                                                   encoder_output)
             if self.training: 
                 loss.backward()
