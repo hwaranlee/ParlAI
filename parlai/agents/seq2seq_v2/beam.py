@@ -31,6 +31,7 @@ class Beam(object):
 
         # The score for each translation on the beam.
         self.scores = self.tt.FloatTensor(size).zero_()
+        self.score_mask = self.tt.FloatTensor(size).fill_(1)
 
         # The backpointers at each time-step.
         self.prevKs = []
@@ -41,7 +42,10 @@ class Beam(object):
 
         # The attentions (matrix) for each time.
         self.attn = []
-
+        
+        # The 'done' for each translation on the beam.
+        self.doneYs = [False]*size
+        
     # Get the outputs for the current timestep.
     def get_current_state(self):
         """Get state of beam."""
@@ -62,15 +66,15 @@ class Beam(object):
     #
     # Returns: True if beam search is complete.
 
-    def advance(self, workd_lk):
+    def advance(self, word_lk):
         """Advance the beam."""
-        num_words = workd_lk.size(1)
+        num_words = word_lk.size(1)
 
         # Sum the previous scores.
         if len(self.prevKs) > 0:
-            beam_lk = workd_lk + self.scores.unsqueeze(1).expand_as(workd_lk)
+            beam_lk = word_lk + self.scores.unsqueeze(1).expand_as(word_lk)
         else:
-            beam_lk = workd_lk[0]
+            beam_lk = word_lk[0]
 
         flat_beam_lk = beam_lk.view(-1)
         
@@ -86,8 +90,50 @@ class Beam(object):
         # End condition is when top-of-beam is EOS.
         if self.nextYs[-1][0] == self.eos:
             self.done = True
-
+            
         return self.done
+
+    def advance_end(self, word_lk):
+        """Advance the beam."""
+        num_words = word_lk.size(1)
+        pdb.set_trace()
+        print(self.score_mask)
+        # Sum the previous scores.
+        if len(self.prevKs) > 0:
+            #beam_lk = word_lk + self.scores.unsqueeze(1).expand_as(word_lk)
+            beam_lk = self.score_mask.unsqueeze(1).expand_as(word_lk)*word_lk + self.scores.unsqueeze(1).expand_as(word_lk)
+        else:
+            beam_lk = word_lk[0]
+
+        flat_beam_lk = beam_lk.view(-1)
+        
+        bestScores, bestScoresId = flat_beam_lk.topk(self.size, 0, True, True)
+        self.scores = bestScores
+
+        # bestScoresId is flattened beam x word array, so calculate which
+        # word and beam each score came from
+        prev_k = bestScoresId / num_words
+        self.prevKs.append(prev_k)
+        self.nextYs.append(bestScoresId - prev_k * num_words)
+
+        # End condition is when top-of-beam is EOS.
+        if self.nextYs[-1][0] == self.eos:
+            self.done = True
+            
+        #if len(self.nextYs) == 5:
+        #    self.done = True
+        
+        #################
+        pdb.set_trace()
+        # mask
+        for i in range(word_lk.size(0)):
+            if self.nextYs[-1][i]  == self.eos:
+                self.doneYs[i] = True
+                self.score_mask[i] = 0
+                
+            self.done *= self.doneYs[i]
+        return self.done
+
 
     def sort_best(self):
         """Sort the beam."""

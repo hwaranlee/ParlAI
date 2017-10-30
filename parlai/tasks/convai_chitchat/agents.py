@@ -39,10 +39,10 @@ class DefaultTeacher(DialogTeacher):
     def _fold_utterances(raw_dialog):
         dialog = [] 
         ### exclude H-B, consider only H-H
-               
+        ### consider only long (#turns of each speaker > 3)
          
         for utterance in raw_dialog:
-            if len(dialog) > 0 and dialog[-1]['userId'] == utterance['userId']:
+            if len(dialog) > 0 and dialog[-1]['userId'] == utterance['userId']: ### ??
                 dialog[-1]['text'] = dialog[-1]['text'] + '\n' + utterance['text']
             else:
                 dialog.append({'text': utterance['text'], 'userId': utterance['userId']})

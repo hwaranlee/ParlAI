@@ -178,7 +178,7 @@ def main():
     valid_world = None
     best_loss = 1000000
     
-    while False:
+    while True:
         if agent.training == False:
             agent.training = True
             
