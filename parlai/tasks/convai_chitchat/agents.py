@@ -9,7 +9,6 @@ from parlai.core.dialog_teacher import DialogTeacher
 
 import json
 import os
-import pdb
 
 class DefaultTeacher(DialogTeacher):
     def __init__(self, opt, shared=None):
@@ -29,7 +28,7 @@ class DefaultTeacher(DialogTeacher):
         elif dt == 'test':
             path = os.path.join(opt['datapath'], 'ConvAIChitChat', 'test.json')
         elif dt == 'valid':
-            raise RuntimeError('warning: validation is not supported')  ## create valid dataset!
+            path = os.path.join(opt['datapath'], 'ConvAIChitChat', 'valid.json')
         else:
             raise RuntimeError('Not valid datatype.')
 
@@ -60,7 +59,7 @@ class DefaultTeacher(DialogTeacher):
             folded_dialog = DefaultTeacher._fold_utterances(dialog['thread'])
             context = dialog['context']
             
-            pdb.set_trace()
+            # pdb.set_trace()
             # 
             if len(folded_dialog) < 2:
                 continue
