@@ -334,7 +334,21 @@ class Seq2seqV2Agent(Agent):
         """Reset observation and episode_done."""
         self.observation = None
         self.episode_done = True
-
+    
+    def preprocess(self, reply_text):
+        # preprocess for opensub
+        reply_text = reply_text.replace('\\n', '\n') ## TODO: pre-processing
+        reply_text=reply_text.replace("'m", " 'm")
+        reply_text=reply_text.replace("'ve", " 've")
+        reply_text=reply_text.replace("'s", " 's")
+        reply_text=reply_text.replace("'t", " 't")
+        reply_text=reply_text.replace("'il", " 'il")
+        reply_text=reply_text.replace("'d", " 'd")
+        reply_text=reply_text.replace("'re", " 're")        
+        reply_text = reply_text.lower().strip()
+        
+        return reply_text
+        
     def observe(self, observation):
         """Save observation for act.
         If multiple observations are from the same episode, concatenate them.
@@ -343,11 +357,7 @@ class Seq2seqV2Agent(Agent):
             observation = {}
             observation['id'] = self.getID()
             reply_text = input("Enter Your Message: ")
-            reply_text = reply_text.replace('\\n', '\n') ## TODO: pre-processing
-            ### don't --> don 't
-            ### TODO : check appostrophes!!
-            
-            reply_text = reply_text.lower().strip()
+            reply_text = self.preprocess(reply_text)
             observation['episode_done'] = True  ### TODO: for history
             
             """
@@ -450,6 +460,7 @@ class Seq2seqV2Agent(Agent):
             self.zeros_dec.resize_(self.num_layers, batchsize, self.hidden_size).fill_(0)
         hidden = Variable(self.zeros_dec.fill_(0))
         
+        last_state = None
         if not self.use_attention:
             last_state = torch.gather(encoder_output, 1, xlen_t.view(-1,1,1).expand(encoder_output.size(0),1,encoder_output.size(2)))
             if self.opt['bi_encoder']:
@@ -537,9 +548,9 @@ class Seq2seqV2Agent(Agent):
 
         return output_lines
 
-    def _beam_search(self, batchsize, dec_xes, xlen_t, xs, encoder_output):
+    def _beam_search(self, batchsize, dec_xes, xlen_t, xs, encoder_output, n_best = 20):
         # Code borrowed from PyTorch OpenNMT example
-        # https://github.com/MaximumEntropy/Seq2Seq-PyTorch/blob/master/decode.py 
+        # https://github.com/MaximumEntropy/Seq2Seq-PyTorch/blob/master/decode.py
         
         print('(beam search {})'.format(self.beamsize))
         
@@ -591,9 +602,7 @@ class Seq2seqV2Agent(Agent):
             #### Place at the end?
             #input = torch.stack([b.get_current_state() for b in beam if not b.done]).t().contiguous().view(1, -1)
             #input = self.lt(Variable(input).transpose(1, 0))
-
-            #pdb.set_trace()
-            
+           
             active = []
             for b in range(batchsize):
                 if beam[b].done:
@@ -601,6 +610,7 @@ class Seq2seqV2Agent(Agent):
 
                 idx = batch_idx[b]
                 if not beam[b].advance(word_lk.data[idx]):
+                #if not beam[b].advance_end(word_lk.data[idx]):
                     active += [b]
 
                 for dec_state in dec_states:  # iterate over h, c
@@ -643,27 +653,26 @@ class Seq2seqV2Agent(Agent):
             max_len += 1
         
             
-        allHyp, allScores = [], []
-        n_best = 1
-
+        all_preds, allScores = [], []
+        ## TODO :: does it provide batchsize > 1 ?
         for b in range(batchsize):
-            #pdb.set_trace()
+            hyps = []
             scores, ks = beam[b].sort_best()
 
             allScores += [scores[:n_best]]
-            #hyps = [beam[b].get_hyp(k) for k in ks[:n_best]]
+            hyps += [beam[b].get_hyp(k) for k in ks[:n_best]]            
+            all_preds += [' '.join([self.dict.ind2tok[y] for y in x ]) for x in hyps]
             
-            hyps = zip(*[beam[b].get_hyp(k) for k in ks[:n_best]])
-            allHyp += [hyps]
-           
-            all_hyp_inds = [[x[0] for x in hyp] for hyp in allHyp]
-            all_preds = [' '.join([self.dict.ind2tok[x] for x in hyp]) for hyp in all_hyp_inds]
-            
-        ## TODO : n_best results and score
-        print('\n    input:', self.dict.vec2txt(xs[0].data.cpu()).replace(self.dict.null_token+' ', ''),
-              '\n    pred :', ''.join(all_preds), '\n')
-        
-        return all_preds
+                        
+            if n_best == 1:
+                print('\n    input:', self.dict.vec2txt(xs[0].data.cpu()).replace(self.dict.null_token+' ', ''),
+                  '\n    pred :', ''.join(all_preds[b]), '\n')
+            else:
+                print('\n    input:', self.dict.vec2txt(xs[0].data.cpu()).replace(self.dict.null_token+' ', '\n'))
+                for hyps in range(len(hyps)):
+                    print('   {:3f} '.format(scores[hyps]), ''.join(all_preds[hyps]))
+
+        return [all_preds[0]] # 1-best
 
     def _score_candidates(self, cands, xe, encoder_output, hidden):
         # score each candidate separately
@@ -748,7 +757,7 @@ class Seq2seqV2Agent(Agent):
         # Decoding        
         if not self.generating:
         #if (target_exist is not None) and (self.generating is False):
-            loss, output_lines = self._decode_and_train(batchsize, xes, xlen_t, xs, ys, ylen,
+            loss, output_lines = self._decode_and_train(batchsize, dec_xes, xlen_t, xs, ys, ylen,
                                                   encoder_output)
             if self.training: 
                 loss.backward()
@@ -913,13 +922,15 @@ class Seq2seqV2Agent(Agent):
         # produce predictions either way, but use the targets if available
         
         predictions, text_cand_inds = self.predict(xs, xlen, ylen, ys, cands)
-
+        #pdb.set_trace()
+        
         for i in range(len(predictions)):
             # map the predictions back to non-empty examples in the batch
             # we join with spaces since we produce tokens one at a time
             curr = batch_reply[valid_inds[i]]
-            curr['text'] = ' '.join(c for c in predictions[i] if c != self.END
-                                    and c != self.dict.null_token)
+            #curr['text'] = ' '.join(c for c in predictions[i] if c != self.END and c != self.dict.null_token) ## TODO: check!!
+            curr['text'] = ''.join(c for c in predictions[i] if c != self.END and c != self.dict.null_token) ## TODO: check!!
+            
 
         if text_cand_inds is not None:
             for i in range(len(valid_cands)):
@@ -928,7 +939,7 @@ class Seq2seqV2Agent(Agent):
                 curr = batch_reply[batch_idx]
                 curr['text_candidates'] = [curr_cands[idx] for idx in order
                                            if idx < len(curr_cands)]
-
+        
         return batch_reply
 
     def act(self):

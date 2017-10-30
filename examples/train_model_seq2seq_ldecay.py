@@ -24,6 +24,7 @@ TODO List:
 """
 
 import torch
+import os
 
 from parlai.core.agents import create_agent
 from parlai.core.worlds import create_task
@@ -148,6 +149,7 @@ def main():
     console.setFormatter(fmt)
     logger.addHandler(console)
     if 'log_file' in opt:
+        os.makedirs(os.path.dirname(opt['log_file']), exist_ok=True)
         logfile = logging.FileHandler(opt['log_file'], 'w')
         logfile.setFormatter(fmt)
         logger.addHandler(logfile)
@@ -178,7 +180,7 @@ def main():
     valid_world = None
     best_loss = 1000000
     
-    while False:
+    while True:
         if agent.training == False:
             agent.training = True
             

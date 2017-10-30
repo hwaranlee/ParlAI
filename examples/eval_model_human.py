@@ -54,7 +54,8 @@ def main():
     # Create model and assign it to the specified task
     agent = create_agent(opt)
     world = create_task(opt, agent)
-
+    
+    pdb.set_trace()
     run_eval(agent, opt, 'valid', write_log=True, logger=logger, generate=True, local_human=opt['local_human'])
     world.shutdown()
         
