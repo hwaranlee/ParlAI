@@ -8,13 +8,13 @@ emb=300
 hs=1024
 lr=0.0001
 wd=0 #.00002
-attn=false #true #False #True
+attn=false # true / fase
 attType=concat  #general concat dot
 
 ############### CUSTOM
 gradClip=-1
 
-tag='-bs128'
+tag='-bs128' #'-bs128'
 ############### EVALUATION
 beam_size=20 #set 0 for greedy search
 

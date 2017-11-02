@@ -16,6 +16,8 @@
 import torch
 import pdb
 
+debug=False
+
 class Beam(object):
     """Ordered beam of candidate outputs."""
 
@@ -45,6 +47,9 @@ class Beam(object):
         
         # The 'done' for each translation on the beam.
         self.doneYs = [False]*size
+        
+        self.active_idx_list = list(range(self.size))
+        self.active_idx = self.tt.LongTensor(self.active_idx_list)
         
     # Get the outputs for the current timestep.
     def get_current_state(self):
@@ -96,45 +101,67 @@ class Beam(object):
     def advance_end(self, word_lk):
         """Advance the beam."""
         num_words = word_lk.size(1)
-        pdb.set_trace()
-        print(self.score_mask)
+        
+        if debug:
+            print("score mask")
+            print(self.score_mask)
         # Sum the previous scores.
         if len(self.prevKs) > 0:
-            #beam_lk = word_lk + self.scores.unsqueeze(1).expand_as(word_lk)
             beam_lk = self.score_mask.unsqueeze(1).expand_as(word_lk)*word_lk + self.scores.unsqueeze(1).expand_as(word_lk)
+            beam_lk = beam_lk.index_select(0, self.active_idx)        
         else:
             beam_lk = word_lk[0]
 
-        flat_beam_lk = beam_lk.view(-1)
+        ## self.score_mask --> exclude the row
+        ## and sorting
+        if debug:
+            pdb.set_trace()
+            print("active_idx")
+            print(self.active_idx)
         
-        bestScores, bestScoresId = flat_beam_lk.topk(self.size, 0, True, True)
-        self.scores = bestScores
-
+        flat_beam_lk = beam_lk.view(-1)
+        bestScores, bestScoresId = flat_beam_lk.topk(len(self.active_idx_list), 0, True, True) ## self.size
+        self.scores.scatter_(0, self.active_idx, bestScores)
+        
         # bestScoresId is flattened beam x word array, so calculate which
         # word and beam each score came from
         prev_k = bestScoresId / num_words
-        self.prevKs.append(prev_k)
-        self.nextYs.append(bestScoresId - prev_k * num_words)
-
-        # End condition is when top-of-beam is EOS.
-        if self.nextYs[-1][0] == self.eos:
-            self.done = True
-            
-        #if len(self.nextYs) == 5:
-        #    self.done = True
+        next_ys = bestScoresId - prev_k * num_words
         
+        prev_k1 = torch.arange(0,self.size).long().cuda().scatter_(0, self.active_idx, self.active_idx[prev_k])
+        next_ys1 = self.tt.LongTensor(self.size).fill_(self.pad).scatter_(0, self.active_idx, next_ys)
+
+        self.prevKs.append(prev_k1) # trasform prev_k => original index
+        self.nextYs.append(next_ys1)
+
         #################
-        pdb.set_trace()
+        if debug:
+            print("prev_k")
+            #print(prev_k)
+            print(prev_k1)
+            print("nextYs")
+            #print(next_ys)
+            print(next_ys1)
+        
         # mask
-        for i in range(word_lk.size(0)):
+#        for i in range(len(self.active_idx_list)):
+        done = True
+        for i in range(self.size):
             if self.nextYs[-1][i]  == self.eos:
+                #idx = self.active_idx_list[i] #absolute idx 
                 self.doneYs[i] = True
                 self.score_mask[i] = 0
-                
-            self.done *= self.doneYs[i]
+                self.active_idx_list.remove(i)
+                if debug:
+                    pdb.set_trace()
+                    print(i)
+                    print(self.active_idx_list)
+            done *= self.doneYs[i]
+        
+        self.active_idx = self.tt.LongTensor(self.active_idx_list)        
+        self.done = done
         return self.done
-
-
+    
     def sort_best(self):
         """Sort the beam."""
         return torch.sort(self.scores, 0, True)
@@ -164,6 +191,5 @@ class Beam(object):
             k = self.prevKs[j][k]
 
         return hyp[::-1]
-    
-    
+       
     
