@@ -75,7 +75,7 @@ if [ $train -eq 0 ]; then # eval
 fi
 
 script=${script}' --dict-file exp-opensub/dict_file_th5.dict' # built dict (word)
-#script=${script}' --dict-file-char exp-opensub/dict_file_char_th20.dict --dict-minfreq-char 1000' # build dict (char)
+script=${script}' --dict-file-char exp-opensub/dict_file_char_th100.dict --dict-minfreq-char 100' # build dict (char)
 
 
 
@@ -91,7 +91,7 @@ if [ -n "$gpuid" ]; then
 	script=${script}' --gpu '${gpuid}
 fi
 
-python ${script} -hs ${hs} -emb ${emb} -att ${attn} -attType ${attType} -gradClip ${gradClip} -wd ${wd}
+python ${script} -hs ${hs} -emb ${emb} -att ${attn} -attType ${attType} -gradClip ${gradClip} -wd ${wd} -add_char2word True
 
 
 #case "$exp" in

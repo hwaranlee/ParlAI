@@ -906,7 +906,7 @@ class Seq2seqV2Agent(Agent):
         ys_c = None #initial
         ylen = None
 
-        pdb.set_trace()
+        #pdb.set_trace()
         if batchsize > 0 and (any(['labels' in ex for ex in exs]) or any(['eval_labels' in ex for ex in exs])):
             # randomly select one of the labels to update on, if multiple
             # append END to each label
