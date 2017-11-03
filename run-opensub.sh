@@ -75,6 +75,9 @@ if [ $train -eq 0 ]; then # eval
 fi
 
 script=${script}' --dict-file exp-opensub/dict_file_th5.dict' # built dict (word)
+#script=${script}' --dict-file-char exp-opensub/dict_file_char_th20.dict --dict-minfreq-char 1000' # build dict (char)
+
+
 
 #script=${script}' --embedding_file '$emb #validation option
 
@@ -88,12 +91,12 @@ if [ -n "$gpuid" ]; then
 	script=${script}' --gpu '${gpuid}
 fi
 
-python ${script} -hs ${hs} -emb ${emb} -att ${attn} -attType ${attType} -gradClip ${gradClip} -wd ${wd} -add_char2word true
+python ${script} -hs ${hs} -emb ${emb} -att ${attn} -attType ${attType} -gradClip ${gradClip} -wd ${wd}
 
 
-case "$exp" in
-	e300-h2048) python ${script} -hs 1024 -emb 300 -att 0
+#case "$exp" in
+#	e300-h2048) python ${script} -hs 1024 -emb 300 -att 0
 		;;
-esac
+#esac
 
 

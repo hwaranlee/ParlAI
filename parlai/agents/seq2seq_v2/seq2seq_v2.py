@@ -902,9 +902,11 @@ class Seq2seqV2Agent(Agent):
                     xs_c = Variable(xs_c)
 
         # set up the target tensors
-        ys = None
+        ys = None #initial
+        ys_c = None #initial
         ylen = None
-        
+
+        pdb.set_trace()
         if batchsize > 0 and (any(['labels' in ex for ex in exs]) or any(['eval_labels' in ex for ex in exs])):
             # randomly select one of the labels to update on, if multiple
             # append END to each label
@@ -944,6 +946,7 @@ class Seq2seqV2Agent(Agent):
                         word2char_y = self.word2char[idx]
                         nChar = min(len(word2char_y), self.opt['max_word_len'])
                         ys_c[i][j][:nChar] = word2char_y[:nChar]
+
                 if self.use_cuda:
                     # copy to gpu
                     self.ys_c.resize_(ys_c.size())
@@ -986,6 +989,7 @@ class Seq2seqV2Agent(Agent):
                 else:
                     cands = Variable(cands)
         if(self.opt['add_char2word']):
+            #pdb.set_trace()
             return xs, ys, valid_inds, cands, valid_cands, xlen, ylen, xs_c, ys_c
         else:
             return xs, ys, valid_inds, cands, valid_cands, xlen, ylen
@@ -1001,6 +1005,8 @@ class Seq2seqV2Agent(Agent):
         # e.g. for input [{}, {'text': 'hello'}, {}, {}], valid_inds is [1]
         # since the other three elements had no 'text' field
         #pdb.set_trace()
+        xs_c = None # initial
+        ys_c = None # initial
         if self.opt['add_char2word']:
             xs, ys, valid_inds, cands, valid_cands, xlen, ylen, xs_c, ys_c = self.batchify(observations, use_char=self.opt['add_char2word'])
         else:
