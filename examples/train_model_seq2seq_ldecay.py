@@ -157,12 +157,17 @@ def main():
     
         
     # Possibly build a dictionary (not all models do this).
-    if opt['dict_build_first'] and 'dict_file' in opt:
+    if opt['dict_build_first'] and 'dict_file' and 'dict_file_char' in opt:
         if opt['dict_file'] is None and opt.get('model_file'):
             opt['dict_file'] = opt['model_file'] + '.dict'
-        logger.info("[ building dictionary first... ]")
+        logger.info("[ building word dictionary first... ]")
         build_dict.build_dict(opt)
-        
+
+        if opt['dict_file_char'] is None and opt.get('model_file'):
+            opt['dict_file_char'] = opt['model_file'] + '_char' + '.dict'
+        logger.info("[ building char dictionary first... ]")
+        build_dict.build_dict_char(opt)
+
     # Create model and assign it to the specified task
     agent = create_agent(opt)
     world = create_task(opt, agent)

@@ -4,8 +4,8 @@ exp_dir='exp-convai'
 exp=
 gpuid= 
 model='seq2seq_v2'
-emb=300
-hs=1024
+emb=300 #30
+hs=32 #1024
 lr=0.0001
 wd=0 #.00002
 attn=false #true #False #True
@@ -75,6 +75,7 @@ if [ $train -eq 0 ]; then # eval
 fi
 
 script=${script}' --dict-file exp-convai/dict_file_th5.dict' # built dict (word)
+script=${script}' --dict-file-char exp-convai/dict_file_char_th1000.dict --dict-minfreq-char 1000' # build dict (char)
 
 #script=${script}' --embedding_file '$emb #validation option
 
@@ -88,12 +89,14 @@ if [ -n "$gpuid" ]; then
 	script=${script}' --gpu '${gpuid}
 fi
 
-python ${script} -hs ${hs} -emb ${emb} -att ${attn} -attType ${attType} -gradClip ${gradClip} -wd ${wd}
+python ${script} -hs ${hs} -emb ${emb} -att ${attn} -attType ${attType} -gradClip ${gradClip} -wd ${wd} -add_char2word true
 
 
-case "$exp" in
-	e300-h2048) python ${script} -hs 1024 -emb 300 -att 0
-		;;
-esac
+#case "$exp" in
+#	e300-h2048) python ${script} -hs 1024 -emb 300 -att 0
+#		;;
+#	DEBUG-char) python ${script} -hs 32 -emb 30 -att 0 -gradClip ${gradClip} -wd ${wd} -add_char2word true
+#		;;
+#esac
 
 

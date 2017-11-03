@@ -88,7 +88,7 @@ if [ -n "$gpuid" ]; then
 	script=${script}' --gpu '${gpuid}
 fi
 
-python ${script} -hs ${hs} -emb ${emb} -att ${attn} -attType ${attType} -gradClip ${gradClip} -wd ${wd}
+python ${script} -hs ${hs} -emb ${emb} -att ${attn} -attType ${attType} -gradClip ${gradClip} -wd ${wd} -add_char2word true
 
 
 case "$exp" in
