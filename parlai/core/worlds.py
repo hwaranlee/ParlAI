@@ -810,7 +810,7 @@ def create_task(opt, user_agents):
     e.g. ``"babi:Task1k:1"`` or ``"#babi-1k"`` or ``"#QA"``,
     see ``parlai/tasks/tasks.py`` and see ``parlai/tasks/task_list.py``
     for list of tasks.
-    """
+    """    
     if not opt.get('task'):
         raise RuntimeError('No task specified. Please select a task with ' +
                            '--task {task_name}.')

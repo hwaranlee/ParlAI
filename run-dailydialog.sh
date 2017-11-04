@@ -1,5 +1,5 @@
 #!/bin/bash
-exp_dir='exp-opensub'
+exp_dir='exp-dailydialog'
 #emb='data/glove.840B.300d.txt'
 exp=
 gpuid= 
@@ -74,7 +74,7 @@ if [ $train -eq 0 ]; then # eval
 	script=${script}' --beam_size '$beam_size
 fi
 
-script=${script}' --dict-file exp-opensub/dict_file_th5.dict' # built dict (word)
+script=${script}' --dict-file exp-dailydialog/dict_file_th5.dict' # built dict (word)
 
 #script=${script}' --embedding_file '$emb #validation option
 
@@ -82,7 +82,7 @@ if [ ! -d ${exp_dir}/exp-${exp} ]; then
 	mkdir ${exp_dir}/exp-${exp}
 fi
 
-script=${script}' -m '${model}' -t opensubtitles -mf '${exp_dir}/exp-${exp}/exp-${exp}
+script=${script}' -m '${model}' -t daily_dialog -mf '${exp_dir}/exp-${exp}/exp-${exp}
 
 if [ -n "$gpuid" ]; then
 	script=${script}' --gpu '${gpuid}

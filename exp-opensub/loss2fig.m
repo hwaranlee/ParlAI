@@ -1,7 +1,7 @@
 clear all; clc; close all;
 
 root_dir='S:\convai\ParlAI-v2\exp-opensub';
-folder_name = 'exp-emb300-hs2048-lr0.0001-bs128'; %-gc0.5';
+folder_name = 'exp-emb300-hs1024-lr0.0001-a_concat-bs128'; %-gc0.5';
 
 filename = fullfile(root_dir, folder_name, sprintf('%s.log', folder_name));
 % filename = fullfile(folder_name, sprintf('%s-2.log', folder_name));
@@ -91,8 +91,8 @@ set(gcf,'Color',[1 1 1])
 subplot(1,2,1);
 hold on;
 plot(loss(:,1), loss(:,3), 'linewidth', 1);
-% plot(loss_avg(1:end-1,1), loss_avg(1:end-1,2), 'linewidth', 2);
-plot(loss_avg(:,1), loss_avg(:,2), 'linewidth', 2);
+plot(loss_avg(1:end-1,1), loss_avg(1:end-1,2), 'linewidth', 2);
+% plot(loss_avg(:,1), loss_avg(:,2), 'linewidth', 2);
 
 plot(loss_valid(:,1), loss_valid(:,2), 'linewidth', 2);
 scatter(lrate_decay(:,1), lrate_decay(:,2), '*');
@@ -106,8 +106,8 @@ xlabel('Epoch'); ylabel('NLL');
 subplot(1,2,2);
 hold on;
 plot(loss(:,1), exp(loss(:,3)), 'linewidth', 1);
-plot(loss_avg(:,1), exp(loss_avg(:,2)), 'linewidth', 2);
-% plot(loss_avg(1:end-1,1), loss_avg(1:end-1,3), 'linewidth', 2);
+% plot(loss_avg(:,1), exp(loss_avg(:,2)), 'linewidth', 2);
+plot(loss_avg(1:end-1,1), exp(loss_avg(1:end-1,2)), 'linewidth', 2);
 
 plot(loss_valid(:,1), exp(loss_valid(:,2)), 'linewidth', 2);
 scatter(lrate_decay(:,1), lrate_decay(:,3), '*');

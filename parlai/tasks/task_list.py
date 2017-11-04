@@ -277,6 +277,13 @@ task_list = [
         "description": "Workshop on Machine Translation task, currently only includes en_de."
     },
     {
+        "id": "Daily_Dialog",
+        "display_name": "Daily_Dialog",
+        "task": "daily_dialog",
+        "tags": [ "All", "ChitChat" ],
+        "description": "Link to dataset: http://yanran.li/files/"
+    },
+    {
         "id": "ConvAI_ChitChat",
         "display_name": "ConvAI_ChitChat",
         "task": "convai_chitchat",
