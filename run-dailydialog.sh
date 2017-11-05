@@ -1,5 +1,5 @@
 #!/bin/bash
-exp_dir='exp-opensub'
+exp_dir='exp-dailydialog'
 #emb='data/glove.840B.300d.txt'
 exp=
 gpuid= 
@@ -74,10 +74,7 @@ if [ $train -eq 0 ]; then # eval
 	script=${script}' --beam_size '$beam_size
 fi
 
-script=${script}' --dict-file exp-opensub/dict_file_th5.dict' # built dict (word)
-script=${script}' --dict-file-char exp-opensub/dict_file_char_th100.dict --dict-minfreq-char 100' # build dict (char)
-
-
+script=${script}' --dict-file exp-dailydialog/dict_file_th5.dict' # built dict (word)
 
 #script=${script}' --embedding_file '$emb #validation option
 
@@ -85,18 +82,18 @@ if [ ! -d ${exp_dir}/exp-${exp} ]; then
 	mkdir ${exp_dir}/exp-${exp}
 fi
 
-script=${script}' -m '${model}' -t opensubtitles -mf '${exp_dir}/exp-${exp}/exp-${exp}
+script=${script}' -m '${model}' -t daily_dialog -mf '${exp_dir}/exp-${exp}/exp-${exp}
 
 if [ -n "$gpuid" ]; then
 	script=${script}' --gpu '${gpuid}
 fi
 
-python ${script} -hs ${hs} -emb ${emb} -att ${attn} -attType ${attType} -gradClip ${gradClip} -wd ${wd} -add_char2word True
+python ${script} -hs ${hs} -emb ${emb} -att ${attn} -attType ${attType} -gradClip ${gradClip} -wd ${wd}
 
 
-#case "$exp" in
-#	e300-h2048) python ${script} -hs 1024 -emb 300 -att 0
+case "$exp" in
+	e300-h2048) python ${script} -hs 1024 -emb 300 -att 0
 		;;
-#esac
+esac
 
 

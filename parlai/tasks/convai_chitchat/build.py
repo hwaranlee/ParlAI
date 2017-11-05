@@ -8,12 +8,14 @@ import parlai.core.build_data as build_data
 import os
 import json
 import random
-
+import pdb
 
 def build(opt):
     data_path = os.path.join(opt['datapath'], 'ConvAIChitChat')
     version = '1501534800'
-
+    
+    pdb.set_trace()
+    
     if not build_data.built(data_path, version_string=version):
         print('[building data: ' + data_path + ']')
 

@@ -670,8 +670,8 @@ class Seq2seqV2Agent(Agent):
                     continue
 
                 idx = batch_idx[b]
-                if not beam[b].advance(word_lk.data[idx]):
-                #if not beam[b].advance_end(word_lk.data[idx]):
+                #if not beam[b].advance(word_lk.data[idx]):
+                if not beam[b].advance_end(word_lk.data[idx]):
                     active += [b]
 
                 for dec_state in dec_states:  # iterate over h, c
@@ -721,10 +721,11 @@ class Seq2seqV2Agent(Agent):
             scores, ks = beam[b].sort_best()
 
             allScores += [scores[:n_best]]
-            hyps += [beam[b].get_hyp(k) for k in ks[:n_best]]            
-            all_preds += [' '.join([self.dict.ind2tok[y] for y in x ]) for x in hyps]
+            hyps += [beam[b].get_hyp(k) for k in ks[:n_best]]
             
-                        
+            all_preds += [' '.join([self.dict.ind2tok[y] for y in x if not y is 0]) for x in hyps] # self.dict.null_token = 0
+            
+            
             if n_best == 1:
                 print('\n    input:', self.dict.vec2txt(xs[0].data.cpu()).replace(self.dict.null_token+' ', ''),
                   '\n    pred :', ''.join(all_preds[b]), '\n')
@@ -733,6 +734,11 @@ class Seq2seqV2Agent(Agent):
                 for hyps in range(len(hyps)):
                     print('   {:3f} '.format(scores[hyps]), ''.join(all_preds[hyps]))
 
+            #pdb.set_trace()
+            print('the first: '+ ' '.join([self.dict.ind2tok[y] for y in beam[0].nextYs[1]]))
+            
+            
+            
         return [all_preds[0]] # 1-best
 
     def _score_candidates(self, cands, xe, encoder_output, hidden):
