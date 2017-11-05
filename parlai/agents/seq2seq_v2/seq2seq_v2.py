@@ -99,6 +99,8 @@ class Seq2seqV2Agent(Agent):
                        help='If multiple observations are from the same episode, concatenate them.')
         agent.add_argument('--beam_size', type=int, default=0,
                            help='Beam size for beam search (only for generation mode) \n For Greedy search set 0')
+        agent.add_argument('--max_seq_len', type=int, default=50,
+                           help='The maximum sequence length, default = 50')
         
                 
     def __init__(self, opt, shared=None):
@@ -253,6 +255,7 @@ class Seq2seqV2Agent(Agent):
         self.training = True
         self.generating = False
         self.local_human = False
+        self.max_seq_len = opt['max_seq_len']
         self.reset()
     
     def set_lrate(self,lr):
@@ -582,7 +585,7 @@ class Seq2seqV2Agent(Agent):
         encoder_output = Variable(encoder_output.data.repeat(1, beamsize, 1)) #.view(batchsize * beamsize, -1)
         
         ## for i in range(self.config['data']['max_trg_length']):
-        while max_len < 50:
+        while max_len < self.max_seq_len:
             
             #pdb.set_trace()
             # keep producing tokens until we hit END or max length for each
@@ -814,7 +817,7 @@ class Seq2seqV2Agent(Agent):
             max_x_len = max([len(x) for x in parsed])            
             if self.truncate:
                 # shrink xs to to limit batch computation
-                max_x_len = min(max_x_len, 50)
+                max_x_len = min(max_x_len, self.max_seq_len)
                 parsed = [x[-max_x_len:] for x in parsed]
         
             # sorting for unpack in encoder
@@ -856,7 +859,7 @@ class Seq2seqV2Agent(Agent):
             max_y_len = max(len(y) for y in parsed_y)
             if self.truncate:
                 # shrink ys to to limit batch computation
-                max_y_len = min(max_y_len, 50)
+                max_y_len = min(max_y_len, self.max_seq_len)
                 parsed_y = [y[:max_y_len] for y in parsed_y]
             
             seq_pairs = sorted(zip(parsed, parsed_y), key=lambda p: len(p[0]), reverse=True)

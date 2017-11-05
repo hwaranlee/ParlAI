@@ -65,10 +65,14 @@ def parse_data(in_dir, out_dir, dataset='train'):
     
 def stat(data):
     stat = torch.zeros(7,4).long()
+    max_len= 0
+    
     for i in range(len(data)):
         for j in range(len(data[i]['thread'])):
             stat[data[i]['thread'][j]['emo'], data[i]['thread'][j]['act']] += 1
+            max_len = max(max_len, len(data[i]['thread'][j]['text'].split()))
     print(stat)
+    print('max length = {}'.format(max_len))
     
     
 def build(opt):
