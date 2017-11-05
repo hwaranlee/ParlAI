@@ -561,14 +561,15 @@ class Seq2seqV2Agent(Agent):
         done = [False for _ in range(batchsize)]
         total_done = 0
         max_len = 0
-
         output_lines = [[] for _ in range(batchsize)]
                 
         hidden, last_state = self._get_context(batchsize, xlen_t, encoder_output)  ## hidden = 2(#layer)x1x2048 / last_state = 1x4096
                 
         # exapnd tensors for each beam
         beamsize = self.beamsize
-        context = Variable(last_state.data.repeat(1, beamsize, 1)) #.view(batchsize * beamsize, -1) # 1x3x4096
+        if not self.use_attention:
+            context = Variable(last_state.data.repeat(1, beamsize, 1))
+            
         dec_states = [
             Variable(hidden.data.repeat(1, beamsize, 1)) # 2x3x2048
             #Variable(context_c_t.data.repeat(1, self.beamsize, 1)) ## TODO : GRU OK. check LSTM ?
@@ -576,36 +577,26 @@ class Seq2seqV2Agent(Agent):
 
         beam = [ Beam(beamsize, self.dict.tok2ind, cuda = self.use_cuda) for k in range(batchsize) ]        
         
-        ## dec_states[0] = hidden
-
         batch_idx = list(range(batchsize))
         remaining_sents = batchsize
-
-        input = Variable(dec_xes.data.repeat(1, beamsize, 1)) #.view(batchsize * beamsize, -1)
-        encoder_output = Variable(encoder_output.data.repeat(1, beamsize, 1)) #.view(batchsize * beamsize, -1)
         
-        ## for i in range(self.config['data']['max_trg_length']):
+        input = Variable(dec_xes.data.repeat(1, beamsize, 1))
+        encoder_output = Variable(encoder_output.data.repeat(beamsize,1, 1))
+        
         while max_len < self.max_seq_len:
             
-            #pdb.set_trace()
             # keep producing tokens until we hit END or max length for each
             if self.use_attention: 
-                output = self._apply_attention(dec_xes, encoder_output, hidden[-1], xs) ## TODO : ???
+                output = self._apply_attention(input, encoder_output, dec_states[0][-1], xs)
             else:                
-                output = torch.cat((input, context), 2) #.view(1, batchsize*beamsize, -1)         
+                output = torch.cat((input, context), 2)         
             
-            #pdb.set_trace()
-            output, hidden = self.decoder(output, dec_states[0]) #.view(batchsize*beamsize, -1))
+            output, hidden = self.decoder(output, dec_states[0]) 
             preds, scores = self.hidden_to_idx(output, dropout=False)
             
-            dec_states = [hidden] #.unsqueeze(0)
+            dec_states = [hidden]
             word_lk = scores.view(beamsize, remaining_sents, -1).transpose(0, 1).contiguous()     
-                           
-            #dec_xes = self.lt(preds).unsqueeze(0)
-            #### Place at the end?
-            #input = torch.stack([b.get_current_state() for b in beam if not b.done]).t().contiguous().view(1, -1)
-            #input = self.lt(Variable(input).transpose(1, 0))
-           
+            
             active = []
             for b in range(batchsize):
                 if beam[b].done:
@@ -654,11 +645,9 @@ class Seq2seqV2Agent(Agent):
             input = self.lt(Variable(input))    
 
             max_len += 1
-        
             
         all_preds, allScores = [], []
-        ## TODO :: does it provide batchsize > 1 ?
-        for b in range(batchsize):
+        for b in range(batchsize):        ## TODO :: does it provide batchsize > 1 ?
             hyps = []
             scores, ks = beam[b].sort_best()
 
@@ -666,7 +655,6 @@ class Seq2seqV2Agent(Agent):
             hyps += [beam[b].get_hyp(k) for k in ks[:n_best]]
             
             all_preds += [' '.join([self.dict.ind2tok[y] for y in x if not y is 0]) for x in hyps] # self.dict.null_token = 0
-            
             
             if n_best == 1:
                 print('\n    input:', self.dict.vec2txt(xs[0].data.cpu()).replace(self.dict.null_token+' ', ''),
@@ -676,11 +664,7 @@ class Seq2seqV2Agent(Agent):
                 for hyps in range(len(hyps)):
                     print('   {:3f} '.format(scores[hyps]), ''.join(all_preds[hyps]))
 
-            #pdb.set_trace()
             print('the first: '+ ' '.join([self.dict.ind2tok[y] for y in beam[0].nextYs[1]]))
-            
-            
-            
         return [all_preds[0]] # 1-best
 
     def _score_candidates(self, cands, xe, encoder_output, hidden):
