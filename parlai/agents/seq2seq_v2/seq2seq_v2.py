@@ -139,29 +139,32 @@ class Seq2seqV2Agent(Agent):
                 # override options with stored ones
                 opt = self.override_opt(new_opt)
                 
-            self.word_dict = DictionaryAgent(opt)
+            self.dict = DictionaryAgent(opt)
             #pdb.set_trace()
-            self.char_dict = CharDictionaryAgent(opt)
+            if self.opt['add_char2word']:
+                self.char_dict = CharDictionaryAgent(opt)
+            else:
+                self.char_dict = None
 
             self.id = 'Seq2Seq'
             # we use START markers to start our output
-            self.START = self.word_dict.start_token
-            self.START_TENSOR = torch.LongTensor(self.word_dict.parse(self.START))
+            self.START = self.dict.start_token
+            self.START_TENSOR = torch.LongTensor(self.dict.parse(self.START))
             # we use END markers to end our output
-            self.END = self.word_dict.end_token
-            self.END_TENSOR = torch.LongTensor(self.word_dict.parse(self.END))
+            self.END = self.dict.end_token
+            self.END_TENSOR = torch.LongTensor(self.dict.parse(self.END))
             # get index of null token from dictionary (probably 0)
-            self.NULL_IDX = self.word_dict.txt2vec(self.word_dict.null_token)[0]
+            self.NULL_IDX = self.dict.txt2vec(self.dict.null_token)[0]
             self.NULL_IDX_char = self.NULL_IDX
 
             self.UNK_IDX_char = 3
-
-            self.word2char = self.build_word2char(self.word_dict, self.char_dict, special_word_start_idx=0, special_word_end_idx =3)
+            if(self.opt['add_char2word']):
+                self.word2char = self.build_word2char(self.dict, self.char_dict, special_word_start_idx=0, special_word_end_idx =3)
+                emb_char = opt['embeddingsize_char']
 
             # store important params directly
             hsz = opt['hiddensize']
             emb = opt['embeddingsize']
-            emb_char = opt['embeddingsize_char']
             self.hidden_size = hsz
             self.emb_size = emb
             self.num_layers = opt['numlayers']
@@ -191,14 +194,14 @@ class Seq2seqV2Agent(Agent):
             self.criterion = nn.NLLLoss(size_average = False, ignore_index = 0)
             
             # lookup table stores word embeddings
-            self.lt = nn.Embedding(len(self.word_dict), emb,
+            self.lt = nn.Embedding(len(self.dict), emb,
                                    padding_idx=self.NULL_IDX)
                                    #scale_grad_by_freq=True)
-            self.lt_char = nn.Embedding(len(self.char_dict), emb_char,
-                                        padding_idx=self.NULL_IDX_char)
+
             # encoder captures the input text
             enc_class = Seq2seqV2Agent.ENC_OPTS[opt['encoder']]
             if(self.opt['add_char2word']):
+                self.lt_char = nn.Embedding(len(self.char_dict), emb_char, padding_idx=self.NULL_IDX_char)
                 self.encoder = enc_class(emb+opt['TDNN_map_sum'], hsz, opt['numlayers'], bidirectional=opt['bi_encoder'], dropout = opt['dropout'])
                 self.TDNN = TDNN(opt)
                 self.Highway = Highway(emb + opt['TDNN_map_sum'], opt['nHighwayLayer'], F.relu) # fix #highway layer as 1
@@ -224,7 +227,7 @@ class Seq2seqV2Agent(Agent):
                 self.decoder = dec_class(dec_isz, hsz, opt['numlayers'], dropout = opt['dropout'])
             
             # linear layer helps us produce outputs from final decoder state
-            self.h2o = nn.Linear(hsz, len(self.word_dict))
+            self.h2o = nn.Linear(hsz, len(self.dict))
             # droput on the linear layer helps us generalize
             self.dropout = nn.Dropout(opt['dropout'])
 
@@ -322,11 +325,11 @@ class Seq2seqV2Agent(Agent):
 
     def parse(self, text):
         """Convert string to token indices."""
-        return self.word_dict.txt2vec(text)
+        return self.dict.txt2vec(text)
 
     def v2t(self, vec):
         """Convert token indices to string of tokens."""
-        return self.word_dict.vec2txt(vec)
+        return self.dict.vec2txt(vec)
 
     def cuda(self):
         """Push parameters to the GPU."""
@@ -629,7 +632,7 @@ class Seq2seqV2Agent(Agent):
             #Variable(context_c_t.data.repeat(1, self.beamsize, 1)) ## TODO : GRU OK. check LSTM ?
         ]
 
-        beam = [ Beam(beamsize, self.word_dict.tok2ind, cuda = self.use_cuda) for k in range(batchsize) ]
+        beam = [ Beam(beamsize, self.dict.tok2ind, cuda = self.use_cuda) for k in range(batchsize) ]
         
         ## dec_states[0] = hidden
 
@@ -719,14 +722,14 @@ class Seq2seqV2Agent(Agent):
 
             allScores += [scores[:n_best]]
             hyps += [beam[b].get_hyp(k) for k in ks[:n_best]]            
-            all_preds += [' '.join([self.word_dict.ind2tok[y] for y in x ]) for x in hyps]
+            all_preds += [' '.join([self.dict.ind2tok[y] for y in x ]) for x in hyps]
             
                         
             if n_best == 1:
-                print('\n    input:', self.word_dict.vec2txt(xs[0].data.cpu()).replace(self.word_dict.null_token+' ', ''),
+                print('\n    input:', self.dict.vec2txt(xs[0].data.cpu()).replace(self.dict.null_token+' ', ''),
                   '\n    pred :', ''.join(all_preds[b]), '\n')
             else:
-                print('\n    input:', self.word_dict.vec2txt(xs[0].data.cpu()).replace(self.word_dict.null_token+' ', '\n'))
+                print('\n    input:', self.dict.vec2txt(xs[0].data.cpu()).replace(self.dict.null_token+' ', '\n'))
                 for hyps in range(len(hyps)):
                     print('   {:3f} '.format(scores[hyps]), ''.join(all_preds[hyps]))
 
@@ -844,10 +847,10 @@ class Seq2seqV2Agent(Agent):
     def display_predict(self, xs, ys, output_lines, freq=0.01):
         if random.random() < freq:
             # sometimes output a prediction for debugging
-            print('\n    input:', self.word_dict.vec2txt(xs[0].data.cpu()).replace(self.word_dict.null_token+' ', ''),
+            print('\n    input:', self.dict.vec2txt(xs[0].data.cpu()).replace(self.dict.null_token+' ', ''),
                   '\n    pred :', ' '.join(output_lines[0]), '\n')
             if ys is not None:
-                print('    label:', self.word_dict.vec2txt(ys[0].data.cpu()).replace(self.word_dict.null_token+' ', ''), '\n')
+                print('    label:', self.dict.vec2txt(ys[0].data.cpu()).replace(self.dict.null_token+' ', ''), '\n')
 
     def batchify(self, observations, use_char=False):
         """Convert a list of observations into input & target tensors."""
@@ -862,7 +865,7 @@ class Seq2seqV2Agent(Agent):
         xs = None
         xlen = None
         if batchsize > 0:
-            parsed = [self.word_dict.parse(self.START)+self.parse(ex['text'])+self.word_dict.parse(self.END) for ex in exs]
+            parsed = [self.dict.parse(self.START)+self.parse(ex['text'])+self.dict.parse(self.END) for ex in exs]
             max_x_len = max([len(x) for x in parsed])            
             if self.truncate:
                 # shrink xs to to limit batch computation
@@ -1028,7 +1031,7 @@ class Seq2seqV2Agent(Agent):
             # we join with spaces since we produce tokens one at a time
             curr = batch_reply[valid_inds[i]]
             #curr['text'] = ' '.join(c for c in predictions[i] if c != self.END and c != self.dict.null_token) ## TODO: check!!
-            curr['text'] = ''.join(c for c in predictions[i] if c != self.END and c != self.word_dict.null_token) ## TODO: check!!
+            curr['text'] = ''.join(c for c in predictions[i] if c != self.END and c != self.dict.null_token) ## TODO: check!!
             
 
         if text_cand_inds is not None:
