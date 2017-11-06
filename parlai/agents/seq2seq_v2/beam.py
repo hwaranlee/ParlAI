@@ -13,6 +13,8 @@
 # Code borrowed from PyTorch OpenNMT example
 # https://github.com/pytorch/examples/blob/master/OpenNMT/onmt/Beam.py
 
+# Hwaran Lee, KAIST: 2017-present
+
 import torch
 import pdb
 

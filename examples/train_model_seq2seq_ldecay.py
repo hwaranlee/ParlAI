@@ -3,25 +3,12 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree. An additional grant
 # of patent rights can be found in the PATENTS file in the same directory.
+
+# Hwaran Lee, KAIST: 2017-present
 """Train a model.
-
 After training, computes validation and test error.
-
-Run with, e.g.:
-
-python examples/train_model.py -m ir_baseline -t dialog_babi:Task:1 -mf /tmp/model
-
-..or..
-
-python examples/train_model.py -m seq2seq -t babi:Task10k:1 -mf '/tmp/model' -bs 32 -lr 0.5 -hs 128
-
-..or..
-
-python examples/train_model.py -m drqa -t babi:Task10k:1 -mf /tmp/model -bs 10
-
-TODO List:
-- More logging (e.g. to files), make things prettier.
 """
+
 
 import torch
 import os
@@ -149,7 +136,12 @@ def main():
     console.setFormatter(fmt)
     logger.addHandler(console)
     if 'log_file' in opt:
-        os.makedirs(os.path.dirname(opt['log_file']), exist_ok=True)
+        if os.path.exists(os.path.dirname(opt['log_file'])):
+            os.makedirs(os.path.dirname(opt['log_file']), exist_ok=True)
+            pdb.set_trace()
+
+        else:        
+            os.makedirs(os.path.dirname(opt['log_file']), exist_ok=True)
         logfile = logging.FileHandler(opt['log_file'], 'w')
         logfile.setFormatter(fmt)
         logger.addHandler(logfile)

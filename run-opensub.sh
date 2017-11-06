@@ -8,7 +8,7 @@ emb=300
 hs=1024
 lr=0.0001
 wd=0 #.00002
-attn=false # true / fase
+attn=true # true / fase
 attType=concat  #general concat dot
 
 ############### CUSTOM
@@ -32,7 +32,7 @@ while getopts "e:g:t:m:h:b:l:a:w:z:" opt; do
 		b) embsize=$OPTARG ;;
 		h) hs=$OPTARG ;;
 		l) lr=$OPTARG ;;
-		a) attnType=$OPTARG ;;
+		a) attn=$OPTARG ;;
 		w) attn=$OPTARG ;;
 		z) tag=$OPTARG;;
 	esac
