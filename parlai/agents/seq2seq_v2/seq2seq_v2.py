@@ -65,7 +65,8 @@ class Seq2seqV2Agent(Agent):
                            help='#HW layerr')
         #agent.add_argument('--kernels', type=list, default='[(1, 15), (2, 20), (3, 35), (4, 40), (5, 75), (6, 90)]',
 #                        help=('kernel size of TDNN'))  # manually assign in tdnn.py
-        agent.add_argument('--TDNN_map_sum', type=list, default=275, help='TDNN #map summation')
+        #agent.add_argument('--TDNN_map_sum', type=list, default=275, help='TDNN #map summation')
+        agent.add_argument('--TDNN_map_sum', type=list, default=165, help='TDNN #map summation')
         agent.add_argument('-nl', '--numlayers', type=int, default=2,
                            help='number of hidden layers')
         agent.add_argument('-lr', '--learning_rate', type=float, default=0.5,
@@ -79,6 +80,8 @@ class Seq2seqV2Agent(Agent):
         agent.add_argument('-attType', '--attn-type', default='general',
                            choices=['general', 'concat', 'dot'],
                            help='general=bilinear dotproduct, concat=bahdanau\'s implemenation')        
+        agent.add_argument('--cuda', action='store_true', default=True,
+                           help='disable GPUs even if available')
         agent.add_argument('--no-cuda', action='store_true', default=False,
                            help='disable GPUs even if available')
         agent.add_argument('--gpu', type=int, default=-1,

@@ -9,7 +9,8 @@ class TDNN(nn.Module):
         super(TDNN, self).__init__()
         self.opt = opt
         #pdb.set_trace()
-        opt['kernels'] = [(1, 15), (2, 20), (3, 35), (4, 40), (5, 75), (6, 90)]
+        #opt['kernels'] = [(1, 15), (2, 20), (3, 35), (4, 40), (5, 75), (6, 90)]
+        opt['kernels'] = [(1, 10), (2, 15), (3, 20), (4, 30), (5, 40), (6, 50)]
         self.kernels = [Parameter(t.Tensor(out_dim, opt['embeddingsize_char'], kW).uniform_(-1, 1))
                         for kW, out_dim in opt['kernels']]
         self._add_to_parameters(self.kernels, 'TDNN_kernel')
