@@ -13,6 +13,8 @@
 # Code borrowed from PyTorch OpenNMT example
 # https://github.com/pytorch/examples/blob/master/OpenNMT/onmt/Beam.py
 
+# Hwaran Lee, KAIST: 2017-present
+
 import torch
 import pdb
 
@@ -128,7 +130,11 @@ class Beam(object):
         prev_k = bestScoresId / num_words
         next_ys = bestScoresId - prev_k * num_words
         
-        prev_k1 = torch.arange(0,self.size).long().cuda().scatter_(0, self.active_idx, self.active_idx[prev_k])
+        if self.tt == torch.cuda:
+            prev_k1 = torch.arange(0,self.size).long().cuda().scatter_(0, self.active_idx, self.active_idx[prev_k])
+        else:
+            prev_k1 = torch.arange(0,self.size).long().scatter_(0, self.active_idx, self.active_idx[prev_k])
+            
         next_ys1 = self.tt.LongTensor(self.size).fill_(self.pad).scatter_(0, self.active_idx, next_ys)
 
         self.prevKs.append(prev_k1) # trasform prev_k => original index
@@ -191,5 +197,3 @@ class Beam(object):
             k = self.prevKs[j][k]
 
         return hyp[::-1]
-       
-    
