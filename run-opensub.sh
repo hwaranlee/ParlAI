@@ -16,7 +16,7 @@ gradClip=-1
 
 tag='-bs128' #'-bs128'
 ############### EVALUATION
-beam_size=20 #set 0 for greedy search
+beam_size=50 #set 0 for greedy search
 
 ###############
 

@@ -8,7 +8,8 @@
 
 from parlai.core.agents import Agent
 from parlai.core.dict import DictionaryAgent
-from .beam import Beam
+#from .beam import Beam
+from .beam_diverse import Beam
 
 from torch.autograd import Variable
 import torch.nn as nn
@@ -553,7 +554,7 @@ class Seq2seqV2Agent(Agent):
 
         return output_lines
 
-    def _beam_search(self, batchsize, dec_xes, xlen_t, xs, encoder_output, n_best = 20):
+    def _beam_search(self, batchsize, dec_xes, xlen_t, xs, encoder_output, n_best=20):
         # Code borrowed from PyTorch OpenNMT example
         # https://github.com/MaximumEntropy/Seq2Seq-PyTorch/blob/master/decode.py
         
@@ -606,7 +607,8 @@ class Seq2seqV2Agent(Agent):
 
                 idx = batch_idx[b]
                 #if not beam[b].advance(word_lk.data[idx]):
-                if not beam[b].advance_end(word_lk.data[idx]):
+                #if not beam[b].advance_end(word_lk.data[idx]):
+                if not beam[b].advance_diverse(word_lk.data[idx]):
                     active += [b]
 
                 for dec_state in dec_states:  # iterate over h, c
@@ -653,8 +655,8 @@ class Seq2seqV2Agent(Agent):
             hyps = []
             scores, ks = beam[b].sort_best()
 
-            allScores += [scores[:n_best]]
-            hyps += [beam[b].get_hyp(k) for k in ks[:n_best]]
+            allScores += [scores[:self.beamsize]]
+            hyps += [beam[b].get_hyp(k) for k in ks[:self.beamsize]]
             
             all_preds += [' '.join([self.dict.ind2tok[y] for y in x if not y is 0]) for x in hyps] # self.dict.null_token = 0
             
@@ -729,6 +731,9 @@ class Seq2seqV2Agent(Agent):
         Update the model using the targets if available, otherwise rank
         candidates as well if they are available.
         """
+        
+        self._training(self.training)
+        
         batchsize = len(xs)
         text_cand_inds = None
         target_exist = ys is not None
@@ -754,7 +759,7 @@ class Seq2seqV2Agent(Agent):
         #if (target_exist is not None) and (self.generating is False):
             loss, output_lines = self._decode_and_train(batchsize, dec_xes, xlen_t, xs, ys, ylen,
                                                   encoder_output)
-            if self.training: 
+            if self.training:
                 loss.backward()
                 if self.opt['grad_clip'] > 0:
                     torch.nn.utils.clip_grad_norm(self.lt.parameters(), self.opt['grad_clip'])
@@ -1031,5 +1036,11 @@ class Seq2seqV2Agent(Agent):
             print('{:30}'.format(module_name) + ' {:5} x{:5}'.format(weight.size(0), weight.size(1))
                    + ' : w {0:.2e} | '.format((norm_w/nparam).sqrt().data[0]) + 'dw {0:.2e}'.format((norm_dw/nparam).sqrt().data[0]))
 
-        
+    def _training(self, training=True):
+        for module in {'encoder', 'decoder', 'lt', 'h2o', 'attn'}:
+            layer = getattr(self, module)
+            if layer is not None:
+                layer.training=training
+            
+            
     

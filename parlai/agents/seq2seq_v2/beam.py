@@ -101,7 +101,9 @@ class Beam(object):
         return self.done
 
     def advance_end(self, word_lk):
-        """Advance the beam."""
+        """Advance the beam.
+            Until each beam meets __eos__
+        """
         num_words = word_lk.size(1)
         
         if debug:
@@ -130,10 +132,9 @@ class Beam(object):
         prev_k = bestScoresId / num_words
         next_ys = bestScoresId - prev_k * num_words
         
+        prev_k1 = torch.arange(0,self.size).long().scatter_(0, self.active_idx, self.active_idx[prev_k])        
         if self.tt == torch.cuda:
-            prev_k1 = torch.arange(0,self.size).long().cuda().scatter_(0, self.active_idx, self.active_idx[prev_k])
-        else:
-            prev_k1 = torch.arange(0,self.size).long().scatter_(0, self.active_idx, self.active_idx[prev_k])
+            prev_k1 = prev_k1.cuda()
             
         next_ys1 = self.tt.LongTensor(self.size).fill_(self.pad).scatter_(0, self.active_idx, next_ys)
 
@@ -143,18 +144,14 @@ class Beam(object):
         #################
         if debug:
             print("prev_k")
-            #print(prev_k)
             print(prev_k1)
             print("nextYs")
-            #print(next_ys)
             print(next_ys1)
         
         # mask
-#        for i in range(len(self.active_idx_list)):
         done = True
         for i in range(self.size):
             if self.nextYs[-1][i]  == self.eos:
-                #idx = self.active_idx_list[i] #absolute idx 
                 self.doneYs[i] = True
                 self.score_mask[i] = 0
                 self.active_idx_list.remove(i)
@@ -166,7 +163,7 @@ class Beam(object):
         
         self.active_idx = self.tt.LongTensor(self.active_idx_list)        
         self.done = done
-        return self.done
+        return self.done    
     
     def sort_best(self):
         """Sort the beam."""
