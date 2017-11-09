@@ -983,7 +983,10 @@ class Seq2seqV2Agent(Agent):
     def load(self, path):
         """Return opt and model states."""
         with open(path, 'rb') as read:
-            model = torch.load(read)
+            if(self.use_cuda):
+                model = torch.load(read)
+            else:
+                model = torch.load(read, map_location=lambda storage, loc: storage)
 
         return model['opt'], model
 
