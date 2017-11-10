@@ -978,11 +978,9 @@ class Seq2seqV2Agent(Agent):
         """Return opt and model states."""
         with open(path, 'rb') as read:
             model = torch.load(read)
-        pdb.set_trace()
         return model['opt'], model
 
     def set_states(self, states):
-        pdb.set_trace()
         """Set the state dicts of the modules from saved states."""
         self.lt.load_state_dict(states['lt'])
         #self.lt2enc.load_state_dict(states['lt2enc'])
