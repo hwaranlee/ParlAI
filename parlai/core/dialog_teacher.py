@@ -316,7 +316,6 @@ class DialogData(object):
                         img = self.image_loader.load(entry[4])
                         if img is not None:
                             table['image'] = img
-
         if (table.get('labels', None) is not None
                 and self.cands is not None):
             if self.addedCands:

@@ -11,7 +11,7 @@ After training, computes validation and test error.
 
 
 import torch
-import os
+import os, datetime
 
 from parlai.core.agents import create_agent
 from parlai.core.worlds import create_task
@@ -137,9 +137,8 @@ def main():
     logger.addHandler(console)
     if 'log_file' in opt:
         if os.path.exists(os.path.dirname(opt['log_file'])):
+            opt['log_file'] = opt['log_file']+'_'+datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
             os.makedirs(os.path.dirname(opt['log_file']), exist_ok=True)
-            pdb.set_trace()
-
         else:        
             os.makedirs(os.path.dirname(opt['log_file']), exist_ok=True)
         logfile = logging.FileHandler(opt['log_file'], 'w')
