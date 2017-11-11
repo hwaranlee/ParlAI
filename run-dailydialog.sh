@@ -8,12 +8,13 @@ emb=300
 hs=1024
 lr=0.0001
 wd=0 #.00002
-attn=false # true / fase
+attn=false #/ false
 attType=concat  #general concat dot
 
 ############### CUSTOM
 gradClip=-1
 
+max_seq_len=50
 tag='-bs128' #'-bs128'
 ############### EVALUATION
 beam_size=20 #set 0 for greedy search
@@ -62,7 +63,7 @@ if [ $train -eq 1 ]; then # train
 	script=${script}' -vparl 681 -vp 5' #validation option
 	script=${script}' -vmt nll -vme -1' #validation measure
 	script=${script}' --optimizer adam -lr '${lr}
-	script=${script}' --max_seq_len 100'
+	script=${script}' --max_seq_len '${max_seq_len}
 
 	#Dictionary arguments
 	script=${script}' -dbf True --dict-minfreq 5'

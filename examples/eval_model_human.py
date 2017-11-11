@@ -59,6 +59,8 @@ def main():
     world = create_task(opt, agent)
     
     run_eval(agent, opt, 'valid', write_log=True, logger=logger, generate=True, local_human=opt['local_human'])
+#    run_eval(agent, opt, 'valid', write_log=True, logger=logger, generate=False, local_human=False)
+
     world.shutdown()
         
     

@@ -109,9 +109,9 @@ class Beam(object):
             # Avoid generating UNK token
             if not self.gen_unk:
                 if beam_lk.dim() == 1:
-                    beam_lk[self.unk] = -100
+                    beam_lk[self.unk] = -10000
                 else:
-                    beam_lk[:, self.unk] = -100               
+                    beam_lk[:, self.unk] = -10000               
     
             ## self.score_mask --> exclude the row and sorting
             flat_beam_lk = beam_lk.view(-1)
@@ -142,7 +142,8 @@ class Beam(object):
     def advance_diverse(self, word_lk):
         prev_k = self.tt.LongTensor(self.size).zero_()
         next_y = self.tt.LongTensor(self.size).zero_()      
-
+        
+        #pdb.set_trace()
         if len(self.prevKs) > 0:            
             for g in range(self.group):            
                 scores, prev_k1, next_ys1 = self.group_advance(word_lk[g*self.size_g:(g+1)*self.size_g], 
@@ -209,9 +210,9 @@ class Beam(object):
         # Avoid generating UNK token
         if not self.gen_unk:
             if beam_lk.dim() == 1:
-                beam_lk[self.unk] = -100
+                beam_lk[self.unk] = -10000
             else:
-                beam_lk[:, self.unk] = -100           
+                beam_lk[:, self.unk] = -10000     
         
         flat_beam_lk = beam_lk.view(-1)
         
