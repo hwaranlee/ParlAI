@@ -31,6 +31,7 @@ class Beam(object):
         self.pad = vocab['__NULL__']
         self.bos = vocab['__START__']
         self.eos = vocab['__END__']
+        self.unk = vocab['__UNK__']
         self.tt = torch.cuda if cuda else torch
 
         # The score for each translation on the beam.
@@ -53,6 +54,9 @@ class Beam(object):
         self.active_idx_list = list(range(self.size))
         self.active_idx = self.tt.LongTensor(self.active_idx_list)
         
+        # Generating unk token or not
+        self.gen_unk = False
+
     # Get the outputs for the current timestep.
     def get_current_state(self):
         """Get state of beam."""
@@ -103,6 +107,7 @@ class Beam(object):
     def advance_end(self, word_lk):
         """Advance the beam.
             Until each beam meets __eos__
+            Do not generate __unk__
         """
         num_words = word_lk.size(1)
         
@@ -116,13 +121,15 @@ class Beam(object):
         else:
             beam_lk = word_lk[0]
 
-        ## self.score_mask --> exclude the row
-        ## and sorting
-        if debug:
-            pdb.set_trace()
-            print("active_idx")
-            print(self.active_idx)
+        # Avoid generating UNK token
+        if not self.gen_unk:
+            if beam_lk.dim() == 1:
+                beam_lk[self.unk] = -100
+            else:
+                beam_lk[:, self.unk] = -100                  
         
+        ## self.score_mask --> exclude the row
+        ## and sorting        
         flat_beam_lk = beam_lk.view(-1)
         bestScores, bestScoresId = flat_beam_lk.topk(len(self.active_idx_list), 0, True, True) ## self.size
         self.scores.scatter_(0, self.active_idx, bestScores)
@@ -132,22 +139,16 @@ class Beam(object):
         prev_k = bestScoresId / num_words
         next_ys = bestScoresId - prev_k * num_words
         
-        prev_k1 = torch.arange(0,self.size).long().scatter_(0, self.active_idx, self.active_idx[prev_k])        
         if self.tt == torch.cuda:
-            prev_k1 = prev_k1.cuda()
-            
+            prev_k1 = torch.arange(0,self.size).long().cuda().scatter_(0, self.active_idx, self.active_idx[prev_k])        
+        else:
+            prev_k1 = torch.arange(0,self.size).long().scatter_(0, self.active_idx, self.active_idx[prev_k])        
+                    
         next_ys1 = self.tt.LongTensor(self.size).fill_(self.pad).scatter_(0, self.active_idx, next_ys)
 
         self.prevKs.append(prev_k1) # trasform prev_k => original index
         self.nextYs.append(next_ys1)
 
-        #################
-        if debug:
-            print("prev_k")
-            print(prev_k1)
-            print("nextYs")
-            print(next_ys1)
-        
         # mask
         done = True
         for i in range(self.size):

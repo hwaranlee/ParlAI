@@ -36,6 +36,7 @@ class Beam(object):
         self.pad = vocab['__NULL__']
         self.bos = vocab['__START__']
         self.eos = vocab['__END__']
+        self.unk = vocab['__UNK__']
         self.tt = torch.cuda if cuda else torch
 
         # The score for each translation on the beam.
@@ -61,6 +62,9 @@ class Beam(object):
         for g in range(self.group):
             self.active_idx_list.append(list(range(self.size_g)))
             self.active_idx.append(self.tt.LongTensor(self.active_idx_list[g]))        
+
+        # Generating unk token or not
+        self.gen_unk = False
         
     # Get the outputs for the current timestep.
     def get_current_state(self):
@@ -101,14 +105,15 @@ class Beam(object):
             else:
                 #beam_lk = word_lk[0] ## NEEDS?
                 beam_lk = word_lk[0] + scores[0] ## NEEDS?
+
+            # Avoid generating UNK token
+            if not self.gen_unk:
+                if beam_lk.dim() == 1:
+                    beam_lk[self.unk] = -100
+                else:
+                    beam_lk[:, self.unk] = -100               
     
             ## self.score_mask --> exclude the row and sorting
-            if debug:
-                print("active_idx")
-                print(active_idx)
-                
-            #pdb.set_trace()
-                
             flat_beam_lk = beam_lk.view(-1)
             bestScores, bestScoresId = flat_beam_lk.topk(len(active_idx_list), 0, True, True) ## self.size ## active_idx_list ==> for each group!
             scores.scatter_(0, active_idx, bestScores)
@@ -200,7 +205,14 @@ class Beam(object):
             beam_lk = word_lk + self.scores.unsqueeze(1).expand_as(word_lk)
         else:
             beam_lk = word_lk[0] ## called!
-
+        
+        # Avoid generating UNK token
+        if not self.gen_unk:
+            if beam_lk.dim() == 1:
+                beam_lk[self.unk] = -100
+            else:
+                beam_lk[:, self.unk] = -100           
+        
         flat_beam_lk = beam_lk.view(-1)
         
         bestScores, bestScoresId = flat_beam_lk.topk(self.group, 0, True, True)

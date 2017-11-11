@@ -8,7 +8,7 @@ emb=300
 hs=1024
 lr=0.0001
 wd=0 #.00002
-attn=true # true / fase
+attn=false #true # true / fase
 attType=concat  #general concat dot
 
 ############### CUSTOM
