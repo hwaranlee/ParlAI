@@ -15,6 +15,11 @@ expnum=2
 gradClip=-1
 
 tag='-bs128' #'-bs128'
+
+char=false
+#tag=${tag}'-char'
+
+
 ############### EVALUATION
 beam_size=50 #set 0 for greedy search
 
@@ -39,7 +44,7 @@ while getopts "e:g:t:m:h:b:l:a:w:z" opt; do
 done
 shift $((OPTIND -1))
 
-exp=emb${emb}-hs${hs}-lr${lr}-tdnn-${expnum}
+exp=emb${emb}-hs${hs}-lr${lr} #-tdnn-${expnum}
 if $attn ; then
 	exp=$exp'-a_'${attType}
 fi
@@ -91,7 +96,7 @@ if [ -n "$gpuid" ]; then
 	script=${script}' --gpu '${gpuid}
 fi
 
-python ${script} -hs ${hs} -emb ${emb} -att ${attn} -attType ${attType} -gradClip ${gradClip} -wd ${wd} -add_char2word True
+python ${script} -hs ${hs} -emb ${emb} -att ${attn} -attType ${attType} -gradClip ${gradClip} -wd ${wd} -add_char2word ${char}
 
 
 #case "$exp" in

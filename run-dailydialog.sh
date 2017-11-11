@@ -16,6 +16,10 @@ gradClip=-1
 
 max_seq_len=50
 tag='-bs128' #'-bs128'
+
+char=true
+tag=$tag'-char'
+
 ############### EVALUATION
 beam_size=10 #set 0 for greedy search
 
@@ -77,6 +81,7 @@ if [ $train -eq 0 ]; then # eval
 fi
 
 script=${script}' --dict-file exp-dailydialog/dict_file_th5.dict' # built dict (word)
+script=${script}' --dict-file-char exp-dailydialog/dict_file_char_th100.dict --dict-minfreq-char 100' # built dict (word)
 
 #script=${script}' --embedding_file '$emb #validation option
 
@@ -90,7 +95,7 @@ if [ -n "$gpuid" ]; then
 	script=${script}' --gpu '${gpuid}
 fi
 
-python ${script} -hs ${hs} -emb ${emb} -att ${attn} -attType ${attType} -gradClip ${gradClip} -wd ${wd}
+python ${script} -hs ${hs} -emb ${emb} -att ${attn} -attType ${attType} -gradClip ${gradClip} -wd ${wd} -add_char2word ${char}
 
 
 case "$exp" in

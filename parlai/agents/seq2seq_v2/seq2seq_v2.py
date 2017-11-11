@@ -871,6 +871,7 @@ class Seq2seqV2Agent(Agent):
         # tokenize the text
         xs = None
         xlen = None
+        xs_c = None
         if batchsize > 0:
             parsed = [self.dict.parse(self.START)+self.parse(ex['text'])+self.dict.parse(self.END) for ex in exs]
             max_x_len = max([len(x) for x in parsed])            
@@ -1061,8 +1062,6 @@ class Seq2seqV2Agent(Agent):
         if path and hasattr(self, 'lt'):
             model = {}
             model['lt'] = self.lt.state_dict()
-            #model['lt2enc'] = self.lt2enc.state_dict()
-            #model['lt2dec'] = self.lt2dec.state_dict()
             model['encoder'] = self.encoder.state_dict()
             model['decoder'] = self.decoder.state_dict()
             model['h2o'] = self.h2o.state_dict()
@@ -1072,6 +1071,11 @@ class Seq2seqV2Agent(Agent):
                                for k, v in self.optims.items()}
             model['longest_label'] = self.longest_label
             model['opt'] = self.opt
+            if(self.opt['add_char2word']): # TODO : CHECK!
+                model['lt_char'] = self.lt_char.state_dict()
+                pdb.set_trace()
+                #model['TDNN'] = self.TDNN
+                #self.Highway.load_state_dict(states['Highway'])
 
             with open(path, 'wb') as write:
                 torch.save(model, write)
@@ -1095,9 +1099,14 @@ class Seq2seqV2Agent(Agent):
 
     def set_states(self, states):
         """Set the state dicts of the modules from saved states."""
+        
+        if(self.opt['add_char2word']): # TODO : CHECK!
+            self.lt_char.load_state_dict(states['lt_char'])
+            self.TDNN.load_state_dict(states['TDNN']) 
+            self.Highway.load_state_dict(states['Highway'])
+        
+        pdb.set_trace()
         self.lt.load_state_dict(states['lt'])
-        #self.lt2enc.load_state_dict(states['lt2enc'])
-        #self.lt2dec.load_state_dict(states['lt2dec'])
         self.encoder.load_state_dict(states['encoder'])
         self.decoder.load_state_dict(states['decoder'])
         self.h2o.load_state_dict(states['h2o'])
