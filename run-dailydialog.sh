@@ -17,7 +17,7 @@ gradClip=-1
 max_seq_len=50
 tag='-bs128' #'-bs128'
 ############### EVALUATION
-beam_size=20 #set 0 for greedy search
+beam_size=10 #set 0 for greedy search
 
 ###############
 
