@@ -519,7 +519,14 @@ class ScoringNetAgent(Agent):
         output = F.sigmoid(torch.bmm(enc_y.unsqueeze(1), self.h2o(enc_x).unsqueeze(1).transpose(1,2)))
 
         # loss
-        self.loss = self.criterion(output.squeeze(), target) 
+        loss = self.criterion(output.squeeze(), target) 
+                           
+        if self.training:
+            self.ndata += batchsize
+            self.loss = loss
+        else:
+            self.ndata_valid += batchsize
+            self.loss_valid += loss.data[0]*batchsize
         
         # list of output tokens for each example in the batch
         if self.training:
@@ -529,12 +536,7 @@ class ScoringNetAgent(Agent):
                 torch.nn.utils.clip_grad_norm(self.h2o.parameters(), self.opt['grad_clip'])                    
                 torch.nn.utils.clip_grad_norm(self.encoder.parameters(), self.opt['grad_clip'])
             self.update_params()
-                    
-        if self.training:
-            self.ndata += batchsize
-        else:
-            self.ndata_valid += batchsize
-            
+        
         self.display_predict(xs[x_idx_t[0], :], ys[y_idx_t[0], :], nys[ny_idx_t[0], :], target, output, batchsize, freq=0.05)
         
         return self.loss
@@ -625,10 +627,17 @@ class ScoringNetAgent(Agent):
         neg_ylen = None        
        
         if batchsize > 0 :
+            cands=None
             for i in range(len(exs)):
                 if exs[i].get('label_candidates') is not None:
                     cands = list(exs[i]['label_candidates'])
                     break
+            if cands is None:                
+                if any(['labels' in ex for ex in exs]):
+                    cands = [ ex['labels'][0] for ex in exs] ## TODO: the same index should not be selected
+                else:
+                    cands = [ ex['eval_labels'][0] for ex in exs] ## TODO: the same index should not be selected
+            
             
             # randomly select one of the labels to update on, if multiple
             # append END to each label            
