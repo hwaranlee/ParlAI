@@ -258,7 +258,11 @@ class Seq2seqV2Agent(Agent):
         self.training = True
         self.generating = False
         self.local_human = False
-        self.max_seq_len = opt['max_seq_len']
+        
+        if opt.get('max_seq_len') is not None:
+            self.max_seq_len = opt['max_seq_len']
+        else:
+            self.max_seq_len = opt['max_seq_len'] = 50
         self.reset()
     
     def set_lrate(self,lr):
