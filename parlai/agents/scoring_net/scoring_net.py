@@ -627,7 +627,7 @@ class ScoringNetAgent(Agent):
         # set up candidates (negative samples, randomly select!!)
         neg_ys = None
         neg_ylen = None        
-        ny_ylen = None        
+        ny_idx = None        
       
         if batchsize > 0 :
             cands=None
