@@ -34,9 +34,9 @@ except ModuleNotFoundError:
 
 from parlai.core.agents import Agent
 from parlai.core.dict import DictionaryAgent
-from . import config
-from .utils import build_feature_dict, vectorize, batchify, normalize_text
-from .model import DocReaderModel
+from parlai.agents.pqmn import config
+from parlai.agents.pqmn.utils import build_feature_dict, vectorize, batchify, normalize_text
+from parlai.agents.pqmn.model import DocReaderModel
 
 import pdb
 
@@ -202,6 +202,7 @@ class PqmnAgent(Agent):
         batch = batchify([ex], null=self.word_dict[self.word_dict.null_token], cuda=self.opt['cuda'])
         
         # Either train or predict
+        #pdb.set_trace()
         if 'labels' in self.observation:
             self.n_examples += 1
             self.model.update(batch)
@@ -248,6 +249,17 @@ class PqmnAgent(Agent):
                 batch_reply[valid_inds[i]]['text'] = predictions[i]
 
         return batch_reply
+
+    def QA_single(self, passage, question):
+        #print('(QA single) befoore get features')
+        passage_t, question_t, span_t, feature = tokenize_and_get_features(self.opt, self.word_dict, self.feature_dict, passage, question)
+
+        # predict answer
+        #print('(QA single) before predict single')
+        answer = self.model.predict_single(self.word_dict, feature, passage, passage_t, question_t, span_t)
+        #print('(QA single) after predict single')
+
+        return answer
 
     def save(self, fname=None):
         """Save the parameters of the agent to a file."""

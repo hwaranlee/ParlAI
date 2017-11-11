@@ -180,7 +180,7 @@ class FbDialogTeacher(DialogTeacher):
                         x = '{x}\n{next_x}'.format(x=x, next_x=split[0])
                     else:
                         x = split[0]
-                if len(split) > 2:
+                if len(split) > 2 and split[2]:
                     reward += float(split[2])
 
                 if len(split) > 1 and split[1]:
@@ -203,3 +203,5 @@ class FbDialogTeacher(DialogTeacher):
                     # reset x in case there is unlabeled data still left
                     x = ''
                     reward = 0
+            if x:
+                yield [x, None, reward], start

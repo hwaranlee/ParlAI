@@ -79,11 +79,11 @@ def add_cmdline_args(parser):
                         help='----')
     agent.add_argument('--pp_concat', type='bool', default=False,
                         help='----')
-    agent.add_argument('--pp_gate', type='bool', default=False,
+    agent.add_argument('--pp_gate', type='bool', default=True,
                         help='----')
     agent.add_argument('--pp_rnn', type='bool', default=True,
                         help='----')
-    agent.add_argument('--pp_identity', type='bool', default=True,
+    agent.add_argument('--pp_identity', type='bool', default=False,
                         help='----')
     
     
@@ -97,9 +97,9 @@ def add_cmdline_args(parser):
     agent.add_argument('--display_iter', type=int, default=10,
                         help='Print train error after every \
                               <display_iter> epoches (default 10)')
-    agent.add_argument('--dropout_emb', type=float, default=0.4,
+    agent.add_argument('--dropout_emb', type=float, default=0.3,
                         help='Dropout rate for word embeddings')
-    agent.add_argument('--dropout_rnn', type=float, default=0.4,
+    agent.add_argument('--dropout_rnn', type=float, default=0.3,
                         help='Dropout rate for RNN states')
     agent.add_argument('--dropout_rnn_output', type='bool', default=True,
                         help='Whether to dropout the RNN output')
@@ -128,9 +128,9 @@ def add_cmdline_args(parser):
                         help='Whether to use tf features')
     agent.add_argument('--use_time', type=int, default=0,
                         help='Time features marking how recent word was said')
-    agent.add_argument('--use_pos', type='bool', default=False,
+    agent.add_argument('--use_pos', type='bool', default=True,
                         help='Whether to use pos features')
-    agent.add_argument('--use_ner', type='bool', default=False,
+    agent.add_argument('--use_ner', type='bool', default=True,
                         help='Whether to use ner features')
     
 def set_defaults(opt):

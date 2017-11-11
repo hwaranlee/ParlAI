@@ -10,7 +10,7 @@ lr=0.0001
 wd=0 #.00002
 attn=false #true # true / fase
 attType=concat  #general concat dot
-
+expnum=2
 ############### CUSTOM
 gradClip=-1
 
@@ -23,7 +23,7 @@ beam_size=50 #set 0 for greedy search
 
 train=1 # train=1, eval=0
 OPTIND=1
-while getopts "e:g:t:m:h:b:l:a:w:z:" opt; do
+while getopts "e:g:t:m:h:b:l:a:w:z" opt; do
 	case "$opt" in
 		e) exp=$OPTARG ;;
 		g) gpuid=$OPTARG ;;
@@ -39,7 +39,7 @@ while getopts "e:g:t:m:h:b:l:a:w:z:" opt; do
 done
 shift $((OPTIND -1))
 
-exp=emb${emb}-hs${hs}-lr${lr}
+exp=emb${emb}-hs${hs}-lr${lr}-tdnn-${expnum}
 if $attn ; then
 	exp=$exp'-a_'${attType}
 fi
@@ -75,6 +75,9 @@ if [ $train -eq 0 ]; then # eval
 fi
 
 script=${script}' --dict-file exp-opensub/dict_file_th5.dict' # built dict (word)
+script=${script}' --dict-file-char exp-opensub/dict_file_char_th100.dict --dict-minfreq-char 100' # build dict (char)
+
+
 
 #script=${script}' --embedding_file '$emb #validation option
 
@@ -88,12 +91,12 @@ if [ -n "$gpuid" ]; then
 	script=${script}' --gpu '${gpuid}
 fi
 
-python ${script} -hs ${hs} -emb ${emb} -att ${attn} -attType ${attType} -gradClip ${gradClip} -wd ${wd}
+python ${script} -hs ${hs} -emb ${emb} -att ${attn} -attType ${attType} -gradClip ${gradClip} -wd ${wd} -add_char2word True
 
 
-case "$exp" in
-	e300-h2048) python ${script} -hs 1024 -emb 300 -att 0
-		;;
-esac
+#case "$exp" in
+#	e300-h2048) python ${script} -hs 1024 -emb 300 -att 0
+#		;;
+#esac
 
 

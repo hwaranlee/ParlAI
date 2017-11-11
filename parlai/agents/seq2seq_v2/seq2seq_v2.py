@@ -7,8 +7,8 @@
 # Hwaran Lee, KAIST: 2017-present
 
 from parlai.core.agents import Agent
-from parlai.core.dict import DictionaryAgent
-#from .beam import Beam
+from parlai.core.dict import DictionaryAgent, CharDictionaryAgent
+from .beam import Beam
 from .beam_diverse import Beam
 
 from torch.autograd import Variable
@@ -19,7 +19,14 @@ import torch
 
 import os
 import random, math
+
+from .tdnn import TDNN
+from .highway import Highway
 import pdb
+
+def str2bool(v):
+    return v.lower() in ('true', '1')
+
 
 class Seq2seqV2Agent(Agent):
     """Agent which takes an input sequence and produces an output sequence.
@@ -46,11 +53,23 @@ class Seq2seqV2Agent(Agent):
     def add_cmdline_args(argparser):
         """Add command-line arguments specifically for this agent."""
         DictionaryAgent.add_cmdline_args(argparser)
+        CharDictionaryAgent.add_cmdline_args(argparser)
         agent = argparser.add_argument_group('Seq2Seq Arguments')
         agent.add_argument('-hs', '--hiddensize', type=int, default=128,
                            help='size of the hidden layers')
         agent.add_argument('-emb', '--embeddingsize', type=int, default=128,
                            help='size of the token embeddings')
+        agent.add_argument('-emb_char', '--embeddingsize_char', type=int, default=15,
+                           help='size of the char2word embedding')
+        agent.add_argument('-add_char2word', '--add_char2word', type=str2bool, default=False,
+                           help='add word embedding built from char')
+        agent.add_argument('-max_word_len', '--max_word_len', type=int, default=15)
+        agent.add_argument('-nHighwayLayer', '--nHighwayLayer', type=int, default=1,
+                           help='#HW layerr')
+        #agent.add_argument('--kernels', type=list, default='[(1, 15), (2, 20), (3, 35), (4, 40), (5, 75), (6, 90)]',
+#                        help=('kernel size of TDNN'))  # manually assign in tdnn.py
+        #agent.add_argument('--TDNN_map_sum', type=list, default=275, help='TDNN #map summation')
+        agent.add_argument('--TDNN_map_sum', type=list, default=165, help='TDNN #map summation')
         agent.add_argument('-nl', '--numlayers', type=int, default=2,
                            help='number of hidden layers')
         agent.add_argument('-lr', '--learning_rate', type=float, default=0.5,
@@ -64,6 +83,8 @@ class Seq2seqV2Agent(Agent):
         agent.add_argument('-attType', '--attn-type', default='general',
                            choices=['general', 'concat', 'dot'],
                            help='general=bilinear dotproduct, concat=bahdanau\'s implemenation')        
+        agent.add_argument('--cuda', action='store_true', default=True,
+                           help='disable GPUs even if available')
         agent.add_argument('--no-cuda', action='store_true', default=False,
                            help='disable GPUs even if available')
         agent.add_argument('--gpu', type=int, default=-1,
@@ -127,6 +148,12 @@ class Seq2seqV2Agent(Agent):
                 opt = self.override_opt(new_opt)
                 
             self.dict = DictionaryAgent(opt)
+            #pdb.set_trace()
+            if self.opt['add_char2word']:
+                self.char_dict = CharDictionaryAgent(opt)
+            else:
+                self.char_dict = None
+
             self.id = 'Seq2Seq'
             # we use START markers to start our output
             self.START = self.dict.start_token
@@ -136,6 +163,12 @@ class Seq2seqV2Agent(Agent):
             self.END_TENSOR = torch.LongTensor(self.dict.parse(self.END))
             # get index of null token from dictionary (probably 0)
             self.NULL_IDX = self.dict.txt2vec(self.dict.null_token)[0]
+            self.NULL_IDX_char = self.NULL_IDX
+
+            self.UNK_IDX_char = 3
+            if(self.opt['add_char2word']):
+                self.word2char = self.build_word2char(self.dict, self.char_dict, special_word_start_idx=0, special_word_end_idx =3)
+                emb_char = opt['embeddingsize_char']
 
             # store important params directly
             hsz = opt['hiddensize']
@@ -159,6 +192,8 @@ class Seq2seqV2Agent(Agent):
 
             self.xs = torch.LongTensor(1, 1)
             self.ys = torch.LongTensor(1, 1)
+            self.xs_c = torch.LongTensor(1,1,1)
+            self.ys_c = torch.LongTensor(1,1,1)
             self.cands = torch.LongTensor(1, 1, 1)
             self.cand_scores = torch.FloatTensor(1)
             self.cand_lengths = torch.LongTensor(1)
@@ -170,17 +205,29 @@ class Seq2seqV2Agent(Agent):
             self.lt = nn.Embedding(len(self.dict), emb,
                                    padding_idx=self.NULL_IDX)
                                    #scale_grad_by_freq=True)
+
             # encoder captures the input text
             enc_class = Seq2seqV2Agent.ENC_OPTS[opt['encoder']]
-            self.encoder = enc_class(emb, hsz, opt['numlayers'], bidirectional=opt['bi_encoder'], dropout = opt['dropout'])
+            if(self.opt['add_char2word']):
+                self.lt_char = nn.Embedding(len(self.char_dict), emb_char, padding_idx=self.NULL_IDX_char)
+                self.encoder = enc_class(emb+opt['TDNN_map_sum'], hsz, opt['numlayers'], bidirectional=opt['bi_encoder'], dropout = opt['dropout'])
+                self.TDNN = TDNN(opt)
+                self.Highway = Highway(emb + opt['TDNN_map_sum'], opt['nHighwayLayer'], F.relu) # fix #highway layer as 1
+            else:
+                self.encoder = enc_class(emb, hsz, opt['numlayers'], bidirectional=opt['bi_encoder'], dropout = opt['dropout'])
             # decoder produces our output states
-            
+
             #if opt['decoder'] == 'shared':
             #    self.decoder = self.encoder
+
+            #if(self.opt['add_char2word']):
+             #   dec_isz = emb+hsz  # currently, decoder does not utilize any char embedding
+            #else:
             dec_isz = emb+hsz
+
             if opt['bi_encoder']:
                 dec_isz += hsz
-            
+
             if opt['decoder'] == 'same':
                 self.decoder = enc_class(dec_isz, hsz, opt['numlayers'], dropout = opt['dropout'])
             else:
@@ -223,7 +270,6 @@ class Seq2seqV2Agent(Agent):
                         getattr(self, module).weight.data.normal_(0, 0.01)
                         #getattr(self, module).bias.data.fill_(0)
             """
-            
             
             # set up optims for each module
             self.lr = opt['learning_rate']
@@ -306,11 +352,17 @@ class Seq2seqV2Agent(Agent):
         self.zeros_dec = self.zeros_dec.cuda(async=True)
         self.xs = self.xs.cuda(async=True)
         self.ys = self.ys.cuda(async=True)
+        self.xs_c = self.xs_c.cuda(async=True)
+        self.ys_c = self.ys_c.cuda(async=True)
         self.cands = self.cands.cuda(async=True)
         self.cand_scores = self.cand_scores.cuda(async=True)
         self.cand_lengths = self.cand_lengths.cuda(async=True)
         self.criterion.cuda()
         self.lt.cuda()
+        if(self.opt['add_char2word']):
+            self.lt_char.cuda()
+            self.TDNN.cuda()
+            self.Highway.cuda()
         self.encoder.cuda()
         self.decoder.cuda()
         self.h2o.cuda()
@@ -392,16 +444,28 @@ class Seq2seqV2Agent(Agent):
         
         return observation
 
-    def _encode(self, xs, xlen, dropout=False, packed=True):
+    def _encode(self, xs, xlen, xs_c=None, dropout=False, packed=True):
         """Call encoder and return output and hidden states."""
         batchsize = len(xs)
 
         # first encode context
-        xes = self.lt(xs).transpose(0, 1)
+        xes = self.lt(xs).transpose(0, 1) # NxTxD --> TxNxD
+        if(self.opt['add_char2word']):
+            #pdb.set_trace()
+            x_char = self.lt_char(xs_c.view(-1, self.opt['max_word_len']))
+            x_char = x_char.view(batchsize, xes.size()[0], self.opt['max_word_len'], -1) # N x Tword x Tchar x D
+            xes_c = self.TDNN(x_char) # N x Tword x sum(H)
+            xes = torch.cat((xes, xes_c.transpose(0,1)), 2)
+
+            if(self.opt['nHighwayLayer'] > 0):
+                [T,N,D] = xes.size()
+                xes = self.Highway(xes.view(-1,D))
+                xes = xes.view(T,N,D)
+
         #if dropout:
         #    xes = self.dropout(xes)
-        
-        # initial hidden 
+
+        # initial hidden
         if self.zeros.size(1) != batchsize:
             if self.opt['bi_encoder']:   
                 self.zeros.resize_(2*self.num_layers, batchsize, self.hidden_size).fill_(0) 
@@ -582,7 +646,7 @@ class Seq2seqV2Agent(Agent):
             #Variable(context_c_t.data.repeat(1, self.beamsize, 1)) ## TODO : GRU OK. check LSTM ?
         ]
 
-        beam = [ Beam(beamsize, self.dict.tok2ind, cuda = self.use_cuda) for k in range(batchsize) ]        
+        beam = [ Beam(beamsize, self.dict.tok2ind, cuda = self.use_cuda) for k in range(batchsize) ]
         
         batch_idx = list(range(batchsize))
         remaining_sents = batchsize
@@ -729,7 +793,7 @@ class Seq2seqV2Agent(Agent):
 
         return text_cand_inds
 
-    def predict(self, xs, xlen, ylen=None, ys=None, cands=None):
+    def predict(self, xs, xlen, ylen=None, ys=None, cands=None, xs_c=None, ys_c = None):
         """Produce a prediction from our model.
 
         Update the model using the targets if available, otherwise rank
@@ -746,9 +810,9 @@ class Seq2seqV2Agent(Agent):
         if self.use_cuda:
             xlen_t = xlen_t.cuda()
         xlen_t = Variable(xlen_t)
-                
-        # Encoding 
-        encoder_output = self._encode(xs, xlen, dropout=self.training)
+
+        # Encoding
+        encoder_output = self._encode(xs, xlen, dropout=self.training, xs_c=xs_c)
 
         # next we use START as an input to kick off our decoder
         x = Variable(self.START_TENSOR)
@@ -795,7 +859,7 @@ class Seq2seqV2Agent(Agent):
             if ys is not None:
                 print('    label:', self.dict.vec2txt(ys[0].data.cpu()).replace(self.dict.null_token+' ', ''), '\n')
 
-    def batchify(self, observations):
+    def batchify(self, observations, use_char=False):
         """Convert a list of observations into input & target tensors."""
         # valid examples
         exs = [ex for ex in observations if 'text' in ex]
@@ -814,22 +878,15 @@ class Seq2seqV2Agent(Agent):
                 # shrink xs to to limit batch computation
                 max_x_len = min(max_x_len, self.max_seq_len)
                 parsed = [x[-max_x_len:] for x in parsed]
-        
+
             # sorting for unpack in encoder
-            parsed_x = sorted(parsed, key=lambda p: len(p), reverse=True)            
-            xlen = [len(x) for x in parsed_x]            
+            parsed_x = sorted(parsed, key=lambda p: len(p), reverse=True)
+            xlen = [len(x) for x in parsed_x]
             xs = torch.LongTensor(batchsize, max_x_len).fill_(0)
-            
-            """
-            # pack the data to the right side of the tensor for this model
-            for i, x in enumerate(parsed):
-                offset = max_x_len - len(x)
-                for j, idx in enumerate(x):
-                    xs[i][j + offset] = idx
-                    """
+
             for i, x in enumerate(parsed_x):
                 for j, idx in enumerate(x):
-                    xs[i][j] = idx        
+                    xs[i][j] = idx
             if self.use_cuda:
                 # copy to gpu
                 self.xs.resize_(xs.size())
@@ -837,11 +894,29 @@ class Seq2seqV2Agent(Agent):
                 xs = Variable(self.xs)
             else:
                 xs = Variable(xs)
-            
+
+            # Char2word embedding
+            if(self.opt['add_char2word']):
+                xs_c = torch.LongTensor(batchsize, max_x_len, self.opt['max_word_len']).fill_(0)  # Null idx = 0
+                for i, x in enumerate(parsed_x):
+                    for j, idx in enumerate(x):
+                        word2char_x = self.word2char[idx]
+                        nChar = min(len(word2char_x), self.opt['max_word_len'])
+                        xs_c[i][j][:nChar] = word2char_x[:nChar]
+
+                if self.use_cuda:
+                    self.xs_c.resize_(xs_c.size())
+                    self.xs_c.copy_(xs_c, async=True)
+                    xs_c = Variable(self.xs_c)
+                else:
+                    xs_c = Variable(xs_c)
+
         # set up the target tensors
-        ys = None
+        ys = None #initial
+        ys_c = None #initial
         ylen = None
-        
+
+        #pdb.set_trace()
         if batchsize > 0 and (any(['labels' in ex for ex in exs]) or any(['eval_labels' in ex for ex in exs])):
             # randomly select one of the labels to update on, if multiple
             # append END to each label
@@ -865,6 +940,7 @@ class Seq2seqV2Agent(Agent):
             for i, y in enumerate(parsed_y):
                 for j, idx in enumerate(y):
                     ys[i][j] = idx
+
             if self.use_cuda:
                 # copy to gpu
                 self.ys.resize_(ys.size())
@@ -872,6 +948,23 @@ class Seq2seqV2Agent(Agent):
                 ys = Variable(self.ys)
             else:
                 ys = Variable(ys)
+
+            if self.opt['add_char2word']:
+                ys_c = torch.LongTensor(batchsize, max_y_len, self.opt['max_word_len']).fill_(0)  # Null idx = 0
+                for i, y in enumerate(parsed_y):
+                    for j, idx in enumerate(y):
+                        word2char_y = self.word2char[idx]
+                        nChar = min(len(word2char_y), self.opt['max_word_len'])
+                        ys_c[i][j][:nChar] = word2char_y[:nChar]
+
+                if self.use_cuda:
+                    # copy to gpu
+                    self.ys_c.resize_(ys_c.size())
+                    self.ys_c.copy_(ys_c, async=True)
+                    ys_c = Variable(self.ys_c)
+                else:
+                    ys_c = Variable(ys_c)
+
                 
         # set up candidates
         cands = None
@@ -905,8 +998,12 @@ class Seq2seqV2Agent(Agent):
                     cands = Variable(self.cands)
                 else:
                     cands = Variable(cands)
+        if(self.opt['add_char2word']):
+            #pdb.set_trace()
+            return xs, ys, valid_inds, cands, valid_cands, xlen, ylen, xs_c, ys_c
+        else:
+            return xs, ys, valid_inds, cands, valid_cands, xlen, ylen
 
-        return xs, ys, valid_inds, cands, valid_cands, xlen, ylen
 
     def batch_act(self, observations):
         batchsize = len(observations)
@@ -917,7 +1014,15 @@ class Seq2seqV2Agent(Agent):
         # valid_inds tells us the indices of all valid examples
         # e.g. for input [{}, {'text': 'hello'}, {}, {}], valid_inds is [1]
         # since the other three elements had no 'text' field
-        xs, ys, valid_inds, cands, valid_cands, xlen, ylen = self.batchify(observations)
+        #pdb.set_trace()
+        xs_c = None # initial
+        ys_c = None # initial
+        if self.opt['add_char2word']:
+            xs, ys, valid_inds, cands, valid_cands, xlen, ylen, xs_c, ys_c = self.batchify(observations, use_char=self.opt['add_char2word'])
+        else:
+            xs, ys, valid_inds, cands, valid_cands, xlen, ylen = self.batchify(observations, use_char=self.opt['add_char2word'])
+
+        # pdb.set_trace()
 
         if xs is None:
             # no valid examples, just return the empty responses we set up
@@ -925,7 +1030,7 @@ class Seq2seqV2Agent(Agent):
 
         # produce predictions either way, but use the targets if available
         
-        predictions, text_cand_inds = self.predict(xs, xlen, ylen, ys, cands)
+        predictions, text_cand_inds = self.predict(xs, xlen, ylen, ys, cands, xs_c, ys_c)
         #pdb.set_trace()
         
         for i in range(len(predictions)):
@@ -981,7 +1086,11 @@ class Seq2seqV2Agent(Agent):
     def load(self, path):
         """Return opt and model states."""
         with open(path, 'rb') as read:
-            model = torch.load(read)
+            if(self.opt['cuda']):
+                model = torch.load(read)
+            else:
+                model = torch.load(read, map_location = lambda storage, loc: storage)
+
         return model['opt'], model
 
     def set_states(self, states):
@@ -1044,6 +1153,24 @@ class Seq2seqV2Agent(Agent):
             layer = getattr(self, module)
             if layer is not None:
                 layer.training=training
-            
-            
-    
+    def build_word2char(self, word_dict, char_dict, special_word_start_idx, special_word_end_idx, UNKIDX_char = 3):
+        word2char = []
+        nWord = len(word_dict.ind2tok)
+        for i in range(nWord):
+            if(i >= special_word_start_idx and i <= special_word_end_idx):
+                # NULL, START, END, UNK word --> word idx = char idx && see it as single char
+                char_tensor = torch.LongTensor(1).fill_(i)
+            else:
+                word = word_dict.ind2tok[i]
+                nChar = len(word)
+                char_tensor = torch.LongTensor(nChar)
+                for j in range(nChar):
+                    char = word[j]
+                    #pdb.set_trace()
+                    if(char in char_dict.tok2ind.keys()):
+                        char_tensor[j] = char_dict.tok2ind[char]
+                    else:
+                        char_tensor[j] = UNKIDX_char
+
+            word2char.append(char_tensor)
+        return word2char
