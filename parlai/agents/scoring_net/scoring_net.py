@@ -561,6 +561,7 @@ class ScoringNetAgent(Agent):
         # tokenize the text
         xs = None
         xlen = None
+        x_idx = None
         if batchsize > 0:
             parsed = [self.dict.parse(self.START)+self.parse(ex['text'])+self.dict.parse(self.END) for ex in exs]
             max_x_len = max([len(x) for x in parsed])            
@@ -589,6 +590,7 @@ class ScoringNetAgent(Agent):
         # set up the target tensors (positive exampels)
         ys = None
         ylen = None
+        y_idx = None
                 
         if batchsize > 0 and (any(['labels' in ex for ex in exs]) or any(['eval_labels' in ex for ex in exs])):
             # randomly select one of the labels to update on, if multiple
@@ -625,7 +627,8 @@ class ScoringNetAgent(Agent):
         # set up candidates (negative samples, randomly select!!)
         neg_ys = None
         neg_ylen = None        
-       
+        ny_ylen = None        
+      
         if batchsize > 0 :
             cands=None
             for i in range(len(exs)):
