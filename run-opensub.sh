@@ -14,7 +14,7 @@ attType=concat  #general concat dot
 ############### CUSTOM
 gradClip=-1
 
-tag='-bs128' #'-bs128'
+tag=''  #'-gc0.5' #'-bs128' #'-bs128'
 ############### EVALUATION
 beam_size=50 #set 0 for greedy search
 
@@ -33,7 +33,6 @@ while getopts "e:g:t:m:h:b:l:a:w:z:" opt; do
 		h) hs=$OPTARG ;;
 		l) lr=$OPTARG ;;
 		a) attn=$OPTARG ;;
-		w) attn=$OPTARG ;;
 		z) tag=$OPTARG;;
 	esac
 done
