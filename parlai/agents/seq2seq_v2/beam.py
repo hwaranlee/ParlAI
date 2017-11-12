@@ -142,7 +142,7 @@ class Beam(object):
         if self.tt == torch.cuda:
             prev_k1 = torch.arange(0,self.size).long().cuda().scatter_(0, self.active_idx, self.active_idx[prev_k])        
         else:
-            prev_k1 = torch.arange(0,self.size).long().scatter_(0, self.active_idx, self.active_idx[prev_k])        
+            prev_k1 = torch.arange(0,self.size).long().scatter_(0, self.active_idx, self.active_idx[prev_k])      
                     
         next_ys1 = self.tt.LongTensor(self.size).fill_(self.pad).scatter_(0, self.active_idx, next_ys)
 
@@ -195,5 +195,3 @@ class Beam(object):
             k = self.prevKs[j][k]
 
         return hyp[::-1]
-       
-    

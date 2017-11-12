@@ -34,9 +34,9 @@ except ModuleNotFoundError:
 
 from parlai.core.agents import Agent
 from parlai.core.dict import DictionaryAgent
-from . import config
-from .utils import build_feature_dict, vectorize, batchify, normalize_text
-from .model import DocReaderModel
+from parlai.agents.pqmn import config
+from parlai.agents.pqmn.utils import build_feature_dict, vectorize, batchify, normalize_text
+from parlai.agents.pqmn.model import DocReaderModel
 
 import pdb
 

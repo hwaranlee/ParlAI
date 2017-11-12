@@ -981,14 +981,15 @@ class Seq2seqV2Agent(Agent):
     def load(self, path):
         """Return opt and model states."""
         with open(path, 'rb') as read:
-            model = torch.load(read)
+            if(self.use_cuda):
+                model = torch.load(read)
+            else:
+                model = torch.load(read, map_location=lambda storage, loc: storage)
         return model['opt'], model
 
     def set_states(self, states):
         """Set the state dicts of the modules from saved states."""
         self.lt.load_state_dict(states['lt'])
-        #self.lt2enc.load_state_dict(states['lt2enc'])
-        #self.lt2dec.load_state_dict(states['lt2dec'])
         self.encoder.load_state_dict(states['encoder'])
         self.decoder.load_state_dict(states['decoder'])
         self.h2o.load_state_dict(states['h2o'])
