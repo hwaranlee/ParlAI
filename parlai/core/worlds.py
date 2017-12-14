@@ -573,6 +573,10 @@ class BatchWorld(World):
         if (batch_observation is not None and len(batch_observation) > 0 and
                 hasattr(a, 'batch_act')):
             batch_actions = a.batch_act(batch_observation)
+
+            if isinstance(batch_actions, tuple):
+                batch_actions = batch_actions[0]
+
             # Store the actions locally in each world.
             for i, w in enumerate(self.worlds):
                 acts = w.get_acts()

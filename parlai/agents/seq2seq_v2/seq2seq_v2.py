@@ -760,6 +760,7 @@ class Seq2seqV2Agent(Agent):
         output_lines = None
         
         # Decoding        
+        beam_cands = None
         if not self.generating:
         #if (target_exist is not None) and (self.generating is False):
             loss, output_lines = self._decode_and_train(batchsize, dec_xes, xlen_t, xs, ys, ylen,

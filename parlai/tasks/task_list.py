@@ -282,5 +282,12 @@ task_list = [
         "task": "convai_chitchat",
         "tags": [ "All", "ChitChat" ],
         "description": "Human-bot dialogues containing free discussions of randomly chosen paragraphs from SQuAD. Link to dataset: http://convai.io/data/"
+    },
+    {
+        "id": "opensubtitles_trial",
+        "display_name": "OpenSubtitles Trial",
+        "task": "opensubtitles_trial",
+        "tags": ["All", "ChitChat"],
+        "description": "OpenSubtitles Trial"
     }
 ]
