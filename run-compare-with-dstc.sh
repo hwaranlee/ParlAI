@@ -58,7 +58,7 @@ exp=${exp}${tag}
 if [ $train -eq 1 ]; then # train
 	script='examples/train_model_seq2seq_ldecay.py'
 	script=${script}' --log-file '$exp_dir'/exp-'${exp}'/exp-'${exp}'.log'
-	script=${script}' -bs 128' # training option
+	script=${script}' -bs 100' # training option
 	script=${script}' -vparl 34436 -vp 5' #validation option
 	script=${script}' -vmt nll -vme -1' #validation measure
 	script=${script}' --optimizer adam -lr '${lr}

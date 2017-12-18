@@ -25,3 +25,6 @@ class DefaultTeacher(FbDialogTeacher):
         opt['datafile'] = _path(opt, '')
         opt['cands_datafile'] = opt['datafile']
         super().__init__(opt, shared)
+
+    def label_candidates(self):
+        return None
