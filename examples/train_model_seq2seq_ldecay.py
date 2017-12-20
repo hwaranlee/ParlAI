@@ -125,6 +125,7 @@ def main():
                         help='build dictionary first before training agent')
     train.add_argument('-logger', '--log-file', default='',
                        help='log file name')
+    train.add_argument('-dn', '--dict-nwords', type=int, default=1000000, help='The number of words for dictionary')
 
     opt = parser.parse_args()
     

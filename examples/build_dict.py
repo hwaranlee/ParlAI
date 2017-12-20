@@ -40,20 +40,15 @@ def build_dict(opt):
     world_dict = create_task(ordered_opt, dictionary)
     # pass examples to dictionary
     for _ in world_dict:
-        ## consider all examples
-        """
         cnt += 1
         if cnt > opt['dict_maxexs'] and opt['dict_maxexs'] > 0:
             print('Processed {} exs, moving on.'.format(opt['dict_maxexs']))
             # don't wait too long...
             break
-        """
         world_dict.parley()  
-    # remove tail
-    if opt['dict_minfreq'] > 0:
-        dictionary.remove_tail(opt['dict_minfreq'])
-        print('[ Remove dictionary tail: remove if freq < %d ]' % opt['dict_minfreq'])
     
+    if opt['dict_nwords'] > 0:
+        dictionary.keep(opt['dict_nwords'])
     
     print('[ dictionary built. ]')
     dictionary.save(opt['dict_file'], sort=True)
