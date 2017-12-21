@@ -11,6 +11,7 @@ dr=0.5
 wd=0 #.00002
 attn=false #true # true / fase
 attType=concat  #general concat dot
+enc=lstm
 
 ############### CUSTOM
 gradClip=-1
@@ -63,6 +64,7 @@ if [ $train -eq 1 ]; then # train
 	script=${script}' -vmt nll -vme -1' #validation measure
 	script=${script}' --optimizer adam -lr '${lr}
         script=${script}' --dropout '${dr}
+        script=${script}' -enc '${enc}
 	
 	#Dictionary arguments
 	script=${script}' -dbf True --dict-minfreq 5'
