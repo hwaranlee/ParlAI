@@ -279,6 +279,14 @@ class DictionaryAgent(Agent):
         for token in to_remove:
             del self.freq[token]
 
+    def keep(self, nwords):
+        if len(self) > nwords:
+            self.sort()
+            for i in range(nwords, len(self)):
+                token = self.ind2tok.pop(i)
+                del self.tok2ind[token]
+                del self.freq[token]
+
     def load(self, filename):
         """Load pre-existing dictionary in 'token[<TAB>count]' format.
         Initialize counts from other dictionary, or 0 if they aren't included.

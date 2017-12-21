@@ -2,16 +2,18 @@
 exp_dir='exp'
 #emb='data/glove.840B.300d.txt'
 exp=exp-compare-with-dstc
-gpuid=0
+gpuid=1
 model='seq2seq_v2'
 emb=100
 hs=512
-lr=0.0001
+lr=0.001
 dr=0.5
 wd=0 #.00002
 attn=false #true # true / fase
 attType=concat  #general concat dot
 enc=lstm
+dict_maxexs=0
+dict_nwords=20000
 
 ############### CUSTOM
 gradClip=-1
@@ -67,7 +69,9 @@ if [ $train -eq 1 ]; then # train
         script=${script}' -enc '${enc}
 	
 	#Dictionary arguments
-	script=${script}' -dbf True --dict-minfreq 5'
+	#script=${script}' -dbf True --dict-minfreq 5'
+        script=${script}' -dbf True --dict-maxexs '${dict_maxexs}
+        script=${script}' --dict-nwords '${dict_nwords}
 fi
 
 if [ $train -eq 0 ]; then # eval
@@ -77,7 +81,7 @@ if [ $train -eq 0 ]; then # eval
 	script=${script}' --beam_size '$beam_size
 fi
 
-script=${script}' --dict-file exp-opensub/dict_file_th5.dict' # built dict (word)
+script=${script}' --dict-file exp-opensub/dict_file_20000.dict' # built dict (word)
 
 #script=${script}' --embedding_file '$emb #validation option
 
@@ -91,7 +95,7 @@ if [ -n "$gpuid" ]; then
 	script=${script}' --gpu '${gpuid}
 fi
 
-python ${script} -hs ${hs} -emb ${emb} -att ${attn} -attType ${attType} -gradClip ${gradClip} -wd ${wd}
+python -u ${script} -hs ${hs} -emb ${emb} -att ${attn} -attType ${attType} -gradClip ${gradClip} -wd ${wd}
 
 
 case "$exp" in
