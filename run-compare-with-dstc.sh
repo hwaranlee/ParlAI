@@ -2,7 +2,7 @@
 exp_dir='exp'
 #emb='data/glove.840B.300d.txt'
 exp=exp-compare-with-dstc
-gpuid=1
+gpuid=
 model='seq2seq_v2'
 emb=100
 hs=512
@@ -14,6 +14,7 @@ attType=concat  #general concat dot
 enc=lstm
 dict_maxexs=0
 dict_nwords=20000
+no_cuda=False
 
 ############### CUSTOM
 gradClip=-1
@@ -67,6 +68,9 @@ if [ $train -eq 1 ]; then # train
 	script=${script}' --optimizer adam -lr '${lr}
         script=${script}' --dropout '${dr}
         script=${script}' -enc '${enc}
+        if [ $no_cuda = 'True' ]; then
+            script=${script}' --no-cuda '
+        fi
 	
 	#Dictionary arguments
 	#script=${script}' -dbf True --dict-minfreq 5'
@@ -89,7 +93,7 @@ if [ ! -d ${exp_dir}/exp-${exp} ]; then
 	mkdir -p ${exp_dir}/exp-${exp}
 fi
 
-script=${script}' -m '${model}' -t opensubtitles_trial -mf '${exp_dir}/exp-${exp}/exp-${exp}
+script=${script}' -m '${model}' -t opensubtitles -mf '${exp_dir}/exp-${exp}/exp-${exp}
 
 if [ -n "$gpuid" ]; then
 	script=${script}' --gpu '${gpuid}
