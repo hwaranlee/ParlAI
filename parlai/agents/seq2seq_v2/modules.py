@@ -60,12 +60,6 @@ class Seq2seq(nn.Module):
             
         self.zeros_dec = torch.zeros(self.num_layers, 1, hsz)
 
-        self.xs = torch.LongTensor(1, 1)
-        self.ys = torch.LongTensor(1, 1)
-        self.cands = torch.LongTensor(1, 1, 1)
-        self.cand_scores = torch.FloatTensor(1)
-        self.cand_lengths = torch.LongTensor(1)
-
         rnn_class = Seq2seq.RNN_OPTS[opt['encoder']]
         self.encoder = rnn_class(opt['embeddingsize'], opt['hiddensize'], opt['numlayers'], bidirectional=opt['bi_encoder'], dropout=opt['dropout'])
 
