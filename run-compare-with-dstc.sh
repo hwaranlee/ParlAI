@@ -2,16 +2,16 @@
 exp_dir='exp'
 #emb='data/glove.840B.300d.txt'
 exp=exp-compare-with-dstc
-gpuid=
+gpuid=0
 model='seq2seq_v2'
 emb=100
 hs=512
-lr=0.001
+lr=0.0001
 dr=0.5
 wd=0 #.00002
 attn=false #true # true / fase
 attType=concat  #general concat dot
-enc=lstm
+enc=gru
 dict_maxexs=0
 dict_nwords=20000
 no_cuda=False
@@ -93,7 +93,7 @@ if [ ! -d ${exp_dir}/exp-${exp} ]; then
 	mkdir -p ${exp_dir}/exp-${exp}
 fi
 
-script=${script}' -m '${model}' -t opensubtitles -mf '${exp_dir}/exp-${exp}/exp-${exp}
+script=${script}' -m '${model}' -t opensubtitles_trial -mf '${exp_dir}/exp-${exp}/exp-${exp}
 
 if [ -n "$gpuid" ]; then
 	script=${script}' --gpu '${gpuid}
