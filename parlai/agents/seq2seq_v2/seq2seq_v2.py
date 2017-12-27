@@ -183,11 +183,6 @@ class Seq2seqV2Agent(Agent):
 
             if self.use_cuda:
                 self.cuda()
-
-            self.loss = 0
-            self.ndata = 0
-            self.loss_valid = 0
-            self.ndata_valid = 0
             
             if opt['beam_size'] > 0:
                 self.beamsize = opt['beam_size'] 
@@ -521,6 +516,10 @@ class Seq2seqV2Agent(Agent):
 
         return text_cand_inds
 
+    def update_params(self):
+        """Do one optimization step."""
+        self.model.optimizer.step()
+
     def predict(self, xs, xlen, ylen=None, ys=None, cands=None):
         """Produce a prediction from our model.
 
@@ -540,14 +539,34 @@ class Seq2seqV2Agent(Agent):
             xlen_t = xlen_t.cuda()
         xlen_t = Variable(xlen_t)
                 
-        loss, output_lines = self.model(xs, xlen, self.training, batchsize, xlen_t, ys, ylen)
+        loss, preds = self.model(xs, xlen, self.training, batchsize, xlen_t, ys, ylen)
+        
+        output_lines = [[] for _ in range(batchsize)]
+        
+        if self.generating:
+            assert(not self.training)
+            if cands is not None:
+                text_cand_inds = self._score_candidates(cands, xe, encoder_output)
+
+            if self.opt['beam_size'] > 0:
+                output_lines, beam_cands = self._beam_search(batchsize, dec_xes, xlen_t, xs, encoder_output)
+            else:
+                output_lines = self._decode_only(batchsize, dec_xes, xlen_t, xs, encoder_output)
+                self.display_predict(xs, ys, output_lines, 1)
+        
+        # TODO: overhead!
+        for b in range(batchsize):
+            # convert the output scores to tokens
+            token = self.v2t([preds.data[b]])
+            output_lines[b].append(token)
+        
         if self.training:
             loss.backward()
             if self.opt['grad_clip'] > 0:
-                torch.nn.utils.clip_grad_norm(self.lt.parameters(), self.opt['grad_clip'])
-                torch.nn.utils.clip_grad_norm(self.h2o.parameters(), self.opt['grad_clip'])                    
-                torch.nn.utils.clip_grad_norm(self.encoder.parameters(), self.opt['grad_clip'])
-                torch.nn.utils.clip_grad_norm(self.decoder.parameters(), self.opt['grad_clip'])
+                torch.nn.utils.clip_grad_norm(self.model.lt.parameters(), self.opt['grad_clip'])
+                torch.nn.utils.clip_grad_norm(self.model.h2o.parameters(), self.opt['grad_clip'])                    
+                torch.nn.utils.clip_grad_norm(self.model.encoder.parameters(), self.opt['grad_clip'])
+                torch.nn.utils.clip_grad_norm(self.model.decoder.parameters(), self.opt['grad_clip'])
             self.update_params()
         self.display_predict(xs, ys, output_lines)
         
@@ -753,13 +772,13 @@ class Seq2seqV2Agent(Agent):
         m = {}
         if not self.generating:
             if self.training:
-                m['nll'] = self.loss
-                m['ppl'] = math.exp(self.loss)
-                m['ndata'] = self.ndata
+                m['nll'] = self.model.loss
+                m['ppl'] = math.exp(self.model.loss)
+                m['ndata'] = self.model.ndata
             else:
-                m['nll'] = self.loss_valid / self.ndata_valid
-                m['ppl'] = math.exp(self.loss_valid / self.ndata_valid)
-                m['ndata'] = self.ndata_valid
+                m['nll'] = self.model.loss_valid / self.model.ndata_valid
+                m['ppl'] = math.exp(self.model.loss_valid / self.model.ndata_valid)
+                m['ndata'] = self.model.ndata_valid
                             
             m['lr'] = self.lr
             self.print_weight_state()
@@ -767,8 +786,8 @@ class Seq2seqV2Agent(Agent):
         return m
     
     def reset_valid_report(self):
-        self.ndata_valid = 0
-        self.loss_valid = 0
+        self.model.ndata_valid = 0
+        self.model.loss_valid = 0
         
     def print_weight_state(self):
         self._print_grad_weight(getattr(self, 'lt').weight, 'lookup')

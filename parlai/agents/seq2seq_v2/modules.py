@@ -77,7 +77,7 @@ class Seq2seq(nn.Module):
         if opt['bi_encoder']:
             dec_isz += opt['hiddensize']
 
-        self.decoder = rnn_class(dec_isz, opt['hiddensize'], opt['numlayers'], bidirectional=opt['bi_encoder'], dropout=opt['dropout'])
+        self.decoder = rnn_class(dec_isz, opt['hiddensize'], opt['numlayers'], dropout=opt['dropout'])
 
         self.lt = nn.Embedding(num_features, opt['embeddingsize'], padding_idx=self.NULL_IDX)
 
@@ -91,6 +91,11 @@ class Seq2seq(nn.Module):
             kwargs['momentum'] = 0.95
             kwargs['nesterov'] = True
         self.optimizer = optim_class(self.parameters(), **kwargs)
+        
+        self.loss = 0
+        self.ndata = 0
+        self.loss_valid = 0
+        self.ndata_valid = 0
 
         self.use_attention = False
 
@@ -148,11 +153,6 @@ class Seq2seq(nn.Module):
     def zero_grad(self):
         """Zero out optimizers."""
         self.optimizer.zero_grad()
-
-    def update_params(self):
-        """Do one optimization step."""
-        for optimizer in self.optims.values():
-            optimizer.step()
             
     def _get_context(self, batchsize, xlen_t, encoder_output):
         " return initial hidden of decoder and encoder context (last_state)"
@@ -176,8 +176,6 @@ class Seq2seq(nn.Module):
         self.zero_grad()
         loss = 0
         
-        output_lines = [[] for _ in range(batchsize)]
-        
         # keep track of longest label we've ever seen
         self.longest_label = max(self.longest_label, ys.size(1))
 
@@ -189,8 +187,6 @@ class Seq2seq(nn.Module):
             else:                
                 output = torch.cat((dec_xes, last_state.unsqueeze(0)), 2)
             
-            print(output.size())
-            print(hidden.size())
             output, hidden = self.decoder(output, hidden)           
             preds, scores = self.hidden_to_idx(output, dropout=self.training)
             y = ys.select(1, i)
@@ -198,12 +194,6 @@ class Seq2seq(nn.Module):
             # use the true token as the next input instead of predicted
             # this produces a biased prediction but better training
             dec_xes = self.lt(y).unsqueeze(0)
-            
-            # TODO: overhead!
-            for b in range(batchsize):
-                # convert the output scores to tokens
-                token = self.v2t([preds.data[b]])
-                output_lines[b].append(token)
         
         if self.training:
             self.loss = loss.data[0] / sum(ylen)  # consider non-NULL
@@ -212,7 +202,7 @@ class Seq2seq(nn.Module):
             self.loss_valid += loss.data[0]  # consider non-NULL / accumulate!
             self.ndata_valid += sum(ylen)          
 
-        return loss, output_lines
+        return loss, preds
     
     def hidden_to_idx(self, hidden, dropout=False):
         """Convert hidden state vectors into indices into the dictionary."""
@@ -234,7 +224,7 @@ class Seq2seq(nn.Module):
 
         output_lines = None
 
-        loss, output_lines = self._decode_and_train(batchsize, dec_xes, xlen_t, xs, ys, ylen, encoder_output)
+        loss, preds = self._decode_and_train(batchsize, dec_xes, xlen_t, xs, ys, ylen, encoder_output)
 
-        return loss, output_lines
+        return loss, preds
 
