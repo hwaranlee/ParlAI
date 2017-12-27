@@ -527,8 +527,7 @@ class Seq2seqV2Agent(Agent):
         candidates as well if they are available.
         """
         
-        if self.training:
-            self.model.train()
+        self.model.train(self.training)
         
         batchsize = len(xs)
         text_cand_inds = None
@@ -542,17 +541,6 @@ class Seq2seqV2Agent(Agent):
         loss, preds = self.model(xs, xlen, self.training, batchsize, xlen_t, ys, ylen)
         
         output_lines = [[] for _ in range(batchsize)]
-        
-        if self.generating:
-            assert(not self.training)
-            if cands is not None:
-                text_cand_inds = self._score_candidates(cands, xe, encoder_output)
-
-            if self.opt['beam_size'] > 0:
-                output_lines, beam_cands = self._beam_search(batchsize, dec_xes, xlen_t, xs, encoder_output)
-            else:
-                output_lines = self._decode_only(batchsize, dec_xes, xlen_t, xs, encoder_output)
-                self.display_predict(xs, ys, output_lines, 1)
         
         # TODO: overhead!
         for b in range(batchsize):
@@ -570,7 +558,7 @@ class Seq2seqV2Agent(Agent):
             self.update_params()
         self.display_predict(xs, ys, output_lines)
         
-        return output_lines, text_cand_inds, beam_cands
+        return output_lines, text_cand_inds
 
     def display_predict(self, xs, ys, output_lines, freq=0.01):
         if random.random() < freq:
@@ -710,7 +698,7 @@ class Seq2seqV2Agent(Agent):
 
         # produce predictions either way, but use the targets if available
         
-        predictions, text_cand_inds, beam_cands = self.predict(xs, xlen, ylen, ys, cands)
+        predictions, text_cand_inds = self.predict(xs, xlen, ylen, ys, cands)
         
         for i in range(len(predictions)):
             # map the predictions back to non-empty examples in the batch
@@ -727,7 +715,7 @@ class Seq2seqV2Agent(Agent):
                 curr['text_candidates'] = [curr_cands[idx] for idx in order
                                            if idx < len(curr_cands)]
         
-        return batch_reply, beam_cands
+        return batch_reply
 
     def act(self):
         # call batch_act with this batch of one
@@ -739,7 +727,7 @@ class Seq2seqV2Agent(Agent):
     def save(self, path=None):
         path = self.opt.get('model_file', None) if path is None else path
 
-        if path and hasattr(self, 'lt'):
+        if path and hasattr(self, 'model'):
             model = {}
             model['model'] = self.model.state_dict()
             model['longest_label'] = self.longest_label
@@ -781,7 +769,7 @@ class Seq2seqV2Agent(Agent):
                 m['ndata'] = self.model.ndata_valid
                             
             m['lr'] = self.lr
-            self.print_weight_state()
+            # self.print_weight_state()
         
         return m
     
