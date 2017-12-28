@@ -79,13 +79,6 @@ class Seq2seq(nn.Module):
         self.h2o = nn.Linear(opt['hiddensize'], num_features)
         self.dropout = nn.Dropout(opt['dropout'])
 
-        optim_class = Seq2seq.OPTIM_OPTS[opt['optimizer']]
-        kwargs = {'lr': opt['learning_rate']}
-        if opt['optimizer'] == 'sgd':
-            kwargs['momentum'] = 0.95
-            kwargs['nesterov'] = True
-        self.optimizer = optim_class(self.parameters(), **kwargs)
-        
         self.loss = 0
         self.ndata = 0
         self.loss_valid = 0
