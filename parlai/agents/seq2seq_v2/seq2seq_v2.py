@@ -229,8 +229,8 @@ class Seq2seqV2Agent(Agent):
     def cuda(self):
         """Push parameters to the GPU."""
         self.model.cuda()
-        self.model.zeros = self.zeros.cuda(async=True)
-        self.model.zeros_dec = self.zeros_dec.cuda(async=True)
+        self.model.zeros = self.model.zeros.cuda(async=True)
+        self.model.zeros_dec = self.model.zeros_dec.cuda(async=True)
         self.model.START_TENSOR = self.model.START_TENSOR.cuda(async=True)
         self.xs = self.xs.cuda(async=True)
         self.ys = self.ys.cuda(async=True)
