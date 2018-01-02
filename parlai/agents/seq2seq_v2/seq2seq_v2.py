@@ -146,7 +146,7 @@ class Seq2seqV2Agent(Agent):
             self.cand_lengths = torch.LongTensor(1)
 
             # set up modules
-            self.model = Seq2seq(opt, len(self.dict), self.START_TENSOR, self.NULL_IDX, longest_label=self.states.get('longest_label', 1))
+            self.model = nn.DataParallel(Seq2seq(opt, len(self.dict), self.START_TENSOR, self.NULL_IDX, longest_label=self.states.get('longest_label', 1)))
             
             self.use_attention = False
 
@@ -228,9 +228,9 @@ class Seq2seqV2Agent(Agent):
     def cuda(self):
         """Push parameters to the GPU."""
         self.model.cuda()
-        self.model.zeros = self.model.zeros.cuda(async=True)
-        self.model.zeros_dec = self.model.zeros_dec.cuda(async=True)
-        self.model.START_TENSOR = self.model.START_TENSOR.cuda(async=True)
+        self.model.module.zeros = self.model.module.zeros.cuda(async=True)
+        self.model.module.zeros_dec = self.model.module.zeros_dec.cuda(async=True)
+        self.model.module.START_TENSOR = self.model.module.START_TENSOR.cuda(async=True)
         self.xs = self.xs.cuda(async=True)
         self.ys = self.ys.cuda(async=True)
         self.cands = self.cands.cuda(async=True)

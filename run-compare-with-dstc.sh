@@ -1,7 +1,7 @@
 #!/bin/bash
 exp_dir='exp'
 #emb='data/glove.840B.300d.txt'
-exp=exp-compare-with-dstc
+exp=exp-parallel
 gpuid=0
 model='seq2seq_v2'
 emb=100
@@ -19,7 +19,7 @@ no_cuda=False
 ############### CUSTOM
 gradClip=-1
 
-tag=''  #'-gc0.5' #'-bs128' #'-bs128'
+tag='parallel'  #'-gc0.5' #'-bs128' #'-bs128'
 ############### EVALUATION
 beam_size=5 #set 0 for greedy search
 
