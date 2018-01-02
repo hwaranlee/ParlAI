@@ -17,6 +17,7 @@ from parlai.core.agents import create_agent
 from parlai.core.worlds import create_task
 from parlai.core.params import ParlaiParser
 from parlai.core.utils import Timer
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 import build_dict
 import math
 import logging, sys
@@ -171,7 +172,11 @@ def main():
     saved = False
     valid_world = None
     best_loss = 1000000
-    
+    scheduler = ReduceLROnPlateau(agent.model.optimizer, factor=0.5, patience=1, verbose=True)
+
+    def get_lr():
+        return agent.model.optimizer.param_groups[0]['lr']
+
     while True:
         if agent.training == False:
             agent.training = True
@@ -226,18 +231,18 @@ def main():
                     break
             #if True:
             else:
-                opt['learning_rate'] *= 0.5
-                agent.set_lrate(opt['learning_rate'])
-                logger.info('[ Decrease learning_rate %.2e]' % opt['learning_rate'] )
                 impatience += 1
                 logger.info('[ did not beat best accuracy: {} impatience: {} ]'.format(
                         round(best_loss, 4), impatience))
+
+            scheduler.step(valid_report[opt['validation_metric']])
+            opt['learning_rate'] = get_lr()
         
             validate_time.reset()
             if opt['validation_patience'] > 0 and impatience >= opt['validation_patience']:
                 logger.info('[ ran out of patience! stopping training. ]')
                 break
-            if opt['learning_rate'] < pow(10, -6):
+            if get_lr() < pow(10, -6):
                 logger.info('[ learning_rate < pow(10,-6) ! stopping training. ]')
                 break
             

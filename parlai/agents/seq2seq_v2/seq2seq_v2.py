@@ -166,7 +166,6 @@ class Seq2seqV2Agent(Agent):
             """
             
             # set up optims for each module
-            self.lr = opt['learning_rate']
             self.wd = opt['weight_decay']
             
             if self.states:
@@ -595,7 +594,7 @@ class Seq2seqV2Agent(Agent):
                 m['ppl'] = math.exp(self.model.loss_valid / self.model.ndata_valid)
                 m['ndata'] = self.model.ndata_valid
                             
-            m['lr'] = self.lr
+            m['lr'] = self.model.optimizer.param_groups[0]['lr'] 
             # self.print_weight_state()
         
         return m
