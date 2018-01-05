@@ -148,7 +148,8 @@ class Seq2seqV2Agent(Agent):
             self.criterion = nn.NLLLoss(size_average=False, ignore_index=0)
 
             # set up modules
-            self.model = nn.DataParallel(Seq2seq(opt, len(self.dict), self.START_IDX, self.NULL_IDX, longest_label=self.states.get('longest_label', 1)), [0])
+            self.model = Seq2seq(opt, len(self.dict), self.START_IDX, self.NULL_IDX, longest_label=self.states.get('longest_label', 1))
+            # self.model = nn.DataParallel(Seq2seq(opt, len(self.dict), self.START_IDX, self.NULL_IDX, longest_label=self.states.get('longest_label', 1)), [0])
             
             self.use_attention = False
 
@@ -409,7 +410,6 @@ class Seq2seqV2Agent(Agent):
                 torch.nn.utils.clip_grad_norm(self.model.encoder.parameters(), self.opt['grad_clip'])
                 torch.nn.utils.clip_grad_norm(self.model.decoder.parameters(), self.opt['grad_clip'])
             self.update_params()
-        self.display_predict(xs, ys, output_lines)
         
         return output_lines, text_cand_inds
 

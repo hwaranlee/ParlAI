@@ -11,6 +11,7 @@ After training, computes validation and test error.
 
 
 import torch
+import random
 import os, datetime
 
 from parlai.core.agents import create_agent
@@ -92,6 +93,10 @@ def run_eval(agent, opt, datatype, max_exs=-1, write_log=False, valid_world=None
 
 
 def main():
+    torch.cuda.manual_seed_all(0)
+    torch.manual_seed(0)
+    random.seed(0)
+
     # Get command line arguments
     parser = ParlaiParser(True, True)
     train = parser.add_argument_group('Training Loop Arguments')
