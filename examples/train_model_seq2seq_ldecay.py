@@ -172,10 +172,10 @@ def main():
     saved = False
     valid_world = None
     best_loss = 1000000
-    scheduler = ReduceLROnPlateau(agent.model.optimizer, factor=0.5, patience=1, verbose=True)
+    scheduler = ReduceLROnPlateau(agent.optimizer, factor=0.5, patience=1, verbose=True)
 
     def get_lr():
-        return agent.model.optimizer.param_groups[0]['lr']
+        return agent.optimizer.param_groups[0]['lr']
 
     while True:
         if agent.training == False:

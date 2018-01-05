@@ -120,7 +120,7 @@ class Seq2seqV2Agent(Agent):
             self.id = 'Seq2Seq'
             # we use START markers to start our output
             self.START = self.dict.start_token
-            self.START_TENSOR = torch.LongTensor(self.dict.parse(self.START))
+            self.START_IDX = self.dict.parse(self.START)
             # we use END markers to end our output
             self.END = self.dict.end_token
             # get index of null token from dictionary (probably 0)
@@ -145,8 +145,10 @@ class Seq2seqV2Agent(Agent):
             self.cand_scores = torch.FloatTensor(1)
             self.cand_lengths = torch.LongTensor(1)
 
+            self.criterion = nn.NLLLoss(size_average=False, ignore_index=0)
+
             # set up modules
-            self.model = nn.DataParallel(Seq2seq(opt, len(self.dict), self.START_TENSOR, self.NULL_IDX, longest_label=self.states.get('longest_label', 1)))
+            self.model = nn.DataParallel(Seq2seq(opt, len(self.dict), self.START_IDX, self.NULL_IDX, longest_label=self.states.get('longest_label', 1)), [0])
             
             self.use_attention = False
 
@@ -174,6 +176,11 @@ class Seq2seqV2Agent(Agent):
 
             if self.use_cuda:
                 self.cuda()
+
+            self.loss = 0
+            self.loss_valid = 0
+            self.ndata = 0
+            self.ndata_valid = 0
                 
             kwargs = {'lr': opt['learning_rate']}
             if opt['optimizer'] == 'sgd':
@@ -181,7 +188,14 @@ class Seq2seqV2Agent(Agent):
                 kwargs['nesterov'] = True
             
             optim_class = Seq2seq.OPTIM_OPTS[opt['optimizer']]
-            self.model.optimizer = optim_class(self.model.parameters(), **kwargs)
+            self.optimizer = optim_class(self.model.parameters(), **kwargs)
+
+            if self.states:
+                if self.states['optimizer_type'] != opt['optimizer']:
+                    print('WARNING: not loading optim state since optim class '
+                          'changed.')
+                else:
+                    self.optimizer.load_state_dict(self.states['optimizer'])
             
             if opt['beam_size'] > 0:
                 self.beamsize = opt['beam_size'] 
@@ -225,17 +239,18 @@ class Seq2seqV2Agent(Agent):
         """Convert token indices to string of tokens."""
         return self.dict.vec2txt(vec)
 
+    def zero_grad(self):
+        self.optimizer.zero_grad()
+
     def cuda(self):
         """Push parameters to the GPU."""
         self.model.cuda()
-        self.model.module.zeros = self.model.module.zeros.cuda(async=True)
-        self.model.module.zeros_dec = self.model.module.zeros_dec.cuda(async=True)
-        self.model.module.START_TENSOR = self.model.module.START_TENSOR.cuda(async=True)
         self.xs = self.xs.cuda(async=True)
         self.ys = self.ys.cuda(async=True)
         self.cands = self.cands.cuda(async=True)
         self.cand_scores = self.cand_scores.cuda(async=True)
         self.cand_lengths = self.cand_lengths.cuda(async=True)
+        self.criterion.cuda()
 
     def reset(self):
         """Reset observation and episode_done."""
@@ -344,7 +359,7 @@ class Seq2seqV2Agent(Agent):
 
     def update_params(self):
         """Do one optimization step."""
-        self.model.optimizer.step()
+        self.optimizer.step()
 
     def predict(self, xs, xlen, ylen=None, ys=None, cands=None):
         """Produce a prediction from our model.
@@ -354,17 +369,29 @@ class Seq2seqV2Agent(Agent):
         """
         
         self.model.train(self.training)
+        self.zero_grad()
         
         batchsize = len(xs)
         text_cand_inds = None
-        target_exist = ys is not None
         
         xlen_t = torch.LongTensor(xlen) - 1
         if self.use_cuda:
             xlen_t = xlen_t.cuda()
         xlen_t = Variable(xlen_t)
-                
-        loss, preds = self.model(xs, xlen, self.training, batchsize, xlen_t, ys, ylen)
+
+        scores, preds = self.model(xs, self.training, xlen_t, ys)
+
+        loss = 0
+        for i, score in enumerate(scores):
+            y = ys.select(1, i)
+            loss += self.criterion(score, y)
+
+        if self.training:
+            self.loss = loss.data[0] / sum(ylen)
+            self.ndata += batchsize
+        else:
+            self.loss_valid += loss.data[0]
+            self.ndata_valid += sum(ylen)
         
         output_lines = [[] for _ in range(batchsize)]
         
@@ -407,7 +434,7 @@ class Seq2seqV2Agent(Agent):
         xs = None
         xlen = None
         if batchsize > 0:
-            parsed = [self.dict.parse(self.START) + self.parse(ex['text']) + self.dict.parse(self.END) for ex in exs]
+            parsed = [self.START_IDX + self.parse(ex['text']) + self.dict.parse(self.END) for ex in exs]
             max_x_len = max([len(x) for x in parsed])            
             if self.truncate:
                 # shrink xs to to limit batch computation
@@ -441,7 +468,7 @@ class Seq2seqV2Agent(Agent):
         ys = None
         ylen = None
         
-        if batchsize > 0 and (any(['labels' in ex for ex in exs]) or any(['eval_labels' in ex for ex in exs])):
+        if batchsize > 0:
             # randomly select one of the labels to update on, if multiple
             # append END to each label
             if any(['labels' in ex for ex in exs]):
@@ -558,6 +585,8 @@ class Seq2seqV2Agent(Agent):
             model['model'] = self.model.state_dict()
             model['longest_label'] = self.longest_label
             model['opt'] = self.opt
+            model['optimizer'] = self.optimizer.state_dict()
+            model['optimizer_type'] = self.opt['optimizer']
 
             with open(path, 'wb') as write:
                 torch.save(model, write)
@@ -586,22 +615,22 @@ class Seq2seqV2Agent(Agent):
         m = {}
         if not self.generating:
             if self.training:
-                m['nll'] = self.model.loss
-                m['ppl'] = math.exp(self.model.loss)
-                m['ndata'] = self.model.ndata
+                m['nll'] = self.loss
+                m['ppl'] = math.exp(self.loss)
+                m['ndata'] = self.ndata
             else:
-                m['nll'] = self.model.loss_valid / self.model.ndata_valid
-                m['ppl'] = math.exp(self.model.loss_valid / self.model.ndata_valid)
-                m['ndata'] = self.model.ndata_valid
+                m['nll'] = self.loss_valid / self.ndata_valid
+                m['ppl'] = math.exp(self.loss_valid / self.ndata_valid)
+                m['ndata'] = self.ndata_valid
                             
-            m['lr'] = self.model.optimizer.param_groups[0]['lr'] 
+            m['lr'] = self.optimizer.param_groups[0]['lr'] 
             # self.print_weight_state()
         
         return m
     
     def reset_valid_report(self):
-        self.model.ndata_valid = 0
-        self.model.loss_valid = 0
+        self.ndata_valid = 0
+        self.loss_valid = 0
         
     def print_weight_state(self):
         self._print_grad_weight(getattr(self, 'lt').weight, 'lookup')
