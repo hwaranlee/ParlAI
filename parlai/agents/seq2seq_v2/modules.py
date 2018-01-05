@@ -86,7 +86,7 @@ class Seq2seq(nn.Module):
         if device_id in self.zeros_decs:
             ret = self.zeros_decs[device_id]
         else:
-            ret = torch.zeros(1, 1, 1).cuda(0)
+            ret = torch.zeros(1, 1, 1).cuda(device_id)
             self.zeros_decs[device_id] = ret
 
         return ret
@@ -104,7 +104,7 @@ class Seq2seq(nn.Module):
         if packed:
             xes = torch.nn.utils.rnn.pack_padded_sequence(xes, (xlen + 1).data.cpu().numpy()) 
 
-        zeros = self.zeros(0)
+        zeros = self.zeros(xs.get_device())
         if zeros.size(1) != batchsize:
             zeros.resize_(self.dirs * self.num_layers, batchsize, self.hidden_size).fill_(0)
         h0 = Variable(zeros, requires_grad=False)
