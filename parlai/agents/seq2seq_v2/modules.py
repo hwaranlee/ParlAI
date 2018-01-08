@@ -154,7 +154,7 @@ class Seq2seq(nn.Module):
         if dropout:
             hidden = self.dropout(hidden)  # dropout over the last hidden
         scores = self.h2o(hidden)
-        scores = F.log_softmax(scores)
+        scores = F.log_softmax(scores, 1)
         _max_score, idx = scores.max(1)
         return idx, scores
 
