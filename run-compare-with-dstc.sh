@@ -99,6 +99,7 @@ if [ -n "$gpuid" ]; then
 	script=${script}' --gpu '${gpuid}
 fi
 
+# python -u -m cProfile -s "tottime" ${script} -hs ${hs} -emb ${emb} -att ${attn} -attType ${attType} -gradClip ${gradClip} -wd ${wd}
 python -u ${script} -hs ${hs} -emb ${emb} -att ${attn} -attType ${attType} -gradClip ${gradClip} -wd ${wd}
 
 

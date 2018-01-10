@@ -91,6 +91,9 @@ def run_eval(agent, opt, datatype, max_exs=-1, write_log=False, valid_world=None
     
     return valid_report, valid_world
 
+def select_batch(world):
+    n_data = len(world)
+    world.batch_observations = [[random.randrange(n_data)], None]
 
 def main():
     torch.cuda.manual_seed_all(0)
@@ -185,6 +188,8 @@ def main():
     while True:
         if agent.training == False:
             agent.training = True
+
+        select_batch(world)
             
         world.parley()
         parleys += 1
