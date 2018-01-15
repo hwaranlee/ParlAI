@@ -50,7 +50,7 @@ class DefaultTeacher(FbDialogTeacher):
 
     def sort_data(self):
         # Sort based on the number of words in sentences.
-        self.data.data = sorted(self.data.data, key=DefaultTeacher.get_key)
+        self.data.data.sort(key=DefaultTeacher.get_key)
 
     def batch_act(self, batch_observation):
         num_eps = self.data.num_episodes()

@@ -91,8 +91,11 @@ def run_eval(agent, opt, datatype, max_exs=-1, write_log=False, valid_world=None
     
     return valid_report, valid_world
 
+def get_n_data(world):
+    return len(world.world.get_agents()[0].data.data)
+
 def select_batch(world):
-    n_data = len(world)
+    n_data = get_n_data(world)
     world.batch_observations = [[random.randrange(n_data)], None]
 
 def main():
@@ -174,7 +177,7 @@ def main():
     logger.info('[ training... ]')
     parleys = 0
     total_exs = 0
-    max_exs = opt['num_epochs'] * len(world)
+    max_exs = opt['num_epochs'] * get_n_data(world)
     max_parleys = math.ceil(max_exs / opt['batchsize'])
     impatience = 0
     saved = False
@@ -188,7 +191,6 @@ def main():
     while True:
         if agent.training == False:
             agent.training = True
-
         select_batch(world)
             
         world.parley()

@@ -19,7 +19,7 @@ no_cuda=False
 ############### CUSTOM
 gradClip=-1
 
-tag='parallel'  #'-gc0.5' #'-bs128' #'-bs128'
+tag='sorted'  #'-gc0.5' #'-bs128' #'-bs128'
 ############### EVALUATION
 beam_size=5 #set 0 for greedy search
 
@@ -53,7 +53,7 @@ if [ $(awk 'BEGIN{ print ('$wd' > '0') }') -eq 1 ]; then
 fi
 
 
-exp=${exp}${tag}
+exp=${exp}-${tag}
 
 ### '-' options are defined in parlai/core/params.py 
 ### -m --model : should match parlai/agents/<model> (model:model_class)
