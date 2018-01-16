@@ -127,7 +127,7 @@ class Seq2seq(nn.Module):
                 
         return encoder_output, hidden
 
-    def _decode_and_train(self, batchsize, output, xlen_t, xs, ys, hidden):
+    def _decode(self, batchsize, output, xlen_t, xs, ys, hidden):
         # update the model based on the labels
         scores = []
         
@@ -139,9 +139,13 @@ class Seq2seq(nn.Module):
             output, hidden = self.decoder(output, hidden)           
             preds, score = self.hidden_to_idx(output, dropout=self.training)
             scores.append(score)
-            y = ys.select(1, i)
-            # use the true token as the next input instead of predicted
-            # this produces a biased prediction but better training
+            if self.training:
+                y = ys.select(1, i)
+                # use the true token as the next input instead of predicted
+                # this produces a biased prediction but better training
+            else:
+                y = preds
+
             output = self.lt(y).unsqueeze(0)
         
         return scores, preds
@@ -167,7 +171,7 @@ class Seq2seq(nn.Module):
 
         output_lines = None
 
-        scores, preds = self._decode_and_train(batchsize, dec_xes, xlen_t, xs, ys, hidden)
+        scores, preds = self._decode(batchsize, dec_xes, xlen_t, xs, ys, hidden)
 
         return scores, preds
 
