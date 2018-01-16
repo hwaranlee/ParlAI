@@ -22,7 +22,6 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 import build_dict
 import math
 import logging, sys
-import pdb
 
 def run_eval(agent, opt, datatype, max_exs=-1, write_log=False, valid_world=None, logger=None, generate=False, local_human=False):
     """Eval on validation/test data.
@@ -59,6 +58,7 @@ def run_eval(agent, opt, datatype, max_exs=-1, write_log=False, valid_world=None
         print("Generating:")
     
     for _ in valid_world:
+        valid_world.batch_observations[0] = None
         valid_world.parley()
         
         if cnt == 0 and opt['display_examples']:
