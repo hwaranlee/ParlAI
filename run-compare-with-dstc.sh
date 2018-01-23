@@ -4,8 +4,8 @@ exp_dir='exp'
 exp=exp-parallel
 gpuid=0
 model='seq2seq_v2'
-emb=800
-hs=4096
+emb=100
+hs=512
 lr=0.0001
 dr=0.5
 wd=0 #.00002
@@ -15,14 +15,14 @@ enc=gru
 dict_maxexs=0
 dict_nwords=20000
 no_cuda=False
-split_gpus=True
+split_gpus=False
 lt=unique
 bi=False
 
 ############### CUSTOM
 gradClip=-1
 
-tag='separate'  #'-gc0.5' #'-bs128' #'-bs128'
+tag='uni_encoder'  #'-gc0.5' #'-bs128' #'-bs128'
 ############### EVALUATION
 beam_size=5 #set 0 for greedy search
 
@@ -71,11 +71,13 @@ if [ $train -eq 1 ]; then # train
 	script=${script}' --optimizer adam -lr '${lr}
         script=${script}' --dropout '${dr}
         script=${script}' -enc '${enc}
-        script=${script}' --split-gpus '${split_gpus}
         script=${script}' -lt '${lt}
         script=${script}' -bi '${bi}
         if [ $no_cuda = 'True' ]; then
             script=${script}' --no-cuda '
+        fi
+        if [ $split_gpus = 'True']; then
+            script=${script}' --split-gpus '
         fi
 	
 	#Dictionary arguments

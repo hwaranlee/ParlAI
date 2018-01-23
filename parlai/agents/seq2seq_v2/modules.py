@@ -100,7 +100,7 @@ class Seq2seq(nn.Module):
             self.e2s.cuda(1)
             self.dropout.cuda(1)
         else:
-            super().cuda(self)
+            super().cuda()
 
     def zeros(self, device_id):
         if device_id in self.zeros_decs:
