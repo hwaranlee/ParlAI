@@ -51,6 +51,7 @@ class Seq2seq(nn.Module):
         self.truncate = opt['truncate']
         self.attention = opt['attention']
         self.dirs = 2 if opt['bi_encoder'] else 1
+        self.split_gpus = opt['split_gpus']
         
         # set up tensors
         self.zeros_decs = {}
@@ -67,7 +68,14 @@ class Seq2seq(nn.Module):
 
         self.lt = nn.Embedding(num_features, opt['embeddingsize'], padding_idx=self.NULL_IDX)
 
-        self.h2o = nn.Linear(opt['hiddensize'], num_features)
+        if opt['hiddensize'] == opt['embeddingsize']:
+            self.o2e = lambda x: x
+        else:
+            self.o2e = nn.Linear(opt['hiddensize'], opt['embeddingsize'])
+
+        share_output = opt['lookuptable'] in ['dec_out', 'all']
+        shared_weight = self.lt.weight if share_output else None
+        self.e2s = Linear(opt['embeddingsize'], num_features, bias=False, shared_weight=shared_weight)
         self.dropout = nn.Dropout(opt['dropout'])
 
         self.use_attention = False
@@ -81,6 +89,18 @@ class Seq2seq(nn.Module):
             self.max_seq_len = opt['max_seq_len']
         else:
             self.max_seq_len = opt['max_seq_len'] = 50
+
+    def cuda(self):
+        if self.split_gpus:
+            self.START = self.START.cuda(0)
+            self.lt.cuda(0)
+            self.encoder.cuda(0)
+            self.decoder.cuda(1)
+            self.o2e.cuda(1)
+            self.e2s.cuda(1)
+            self.dropout.cuda(1)
+        else:
+            super().cuda(self)
 
     def zeros(self, device_id):
         if device_id in self.zeros_decs:
@@ -134,6 +154,10 @@ class Seq2seq(nn.Module):
         # keep track of longest label we've ever seen
         self.longest_label = max(self.longest_label, ys.size(1))
 
+        if self.split_gpus:
+            output = output.cuda(1)
+            hidden = hidden.cuda(1)
+
         for i in range(ys.size(1)):
             # self.decoder.flatten_parameters()
             output, hidden = self.decoder(output, hidden)           
@@ -142,7 +166,13 @@ class Seq2seq(nn.Module):
             y = ys.select(1, i)
             # use the true token as the next input instead of predicted
             # this produces a biased prediction but better training
+            if self.split_gpus:
+                y = y.cuda(0)
+
             output = self.lt(y).unsqueeze(0)
+
+            if self.split_gpus:
+                output = output.cuda(1)
         
         return scores, preds
     
@@ -153,7 +183,8 @@ class Seq2seq(nn.Module):
         hidden = hidden.squeeze(0)
         if dropout:
             hidden = self.dropout(hidden)  # dropout over the last hidden
-        scores = self.h2o(hidden)
+        scores = self.o2e(hidden)
+        scores = self.e2s(scores)
         scores = F.log_softmax(scores, 1)
         _max_score, idx = scores.max(1)
         return idx, scores
@@ -171,3 +202,51 @@ class Seq2seq(nn.Module):
 
         return scores, preds
 
+
+class Linear(nn.Module):
+    """Custom Linear layer which allows for sharing weights (e.g. with an
+    nn.Embedding layer).
+    """
+    def __init__(self, in_features, out_features, bias=True,
+                 shared_weight=None):
+        super().__init__()
+        self.in_features = in_features
+        self.out_features = out_features
+        self.shared = shared_weight is not None
+
+        # init weight
+        if not self.shared:
+            self.weight = Parameter(torch.Tensor(out_features, in_features))
+        else:
+            if (shared_weight.size(0) != out_features or
+                    shared_weight.size(1) != in_features):
+                raise RuntimeError('wrong dimensions for shared weights')
+            self.weight = shared_weight
+
+        # init bias
+        if bias:
+            self.bias = Parameter(torch.Tensor(out_features))
+        else:
+            self.register_parameter('bias', None)
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        stdv = 1. / math.sqrt(self.weight.size(1))
+        if not self.shared:
+            # weight is shared so don't overwrite it
+            self.weight.data.uniform_(-stdv, stdv)
+        if self.bias is not None:
+            self.bias.data.uniform_(-stdv, stdv)
+
+    def forward(self, input):
+        weight = self.weight
+        if self.shared:
+            # detach weight to prevent gradients from changing weight
+            # (but need to detach every time so weights are up to date)
+            weight = weight.detach()
+        return F.linear(input, weight, self.bias)
+
+    def __repr__(self):
+        return self.__class__.__name__ + ' (' \
+            + str(self.in_features) + ' -> ' \
+            + str(self.out_features) + ')'
