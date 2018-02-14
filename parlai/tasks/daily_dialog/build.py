@@ -9,6 +9,8 @@ import os, sys, gzip, json, torch
 
 import pdb
 
+sentiment_vaild_list = ['Neutral', 'Anger', 'Disgust', 'Fear', 'Happiness', 'Sadness', 'surprised']
+
 
 def parse_data(in_dir, out_dir, dataset='train'):
 
@@ -46,7 +48,7 @@ def parse_data(in_dir, out_dir, dataset='train'):
             # Get rid of the blanks at the start & end of each turns
             seq = seq.strip().lower()
             utt={}
-            utt['text']=seq
+            utt['text']=seq + ' ' + sentiment_vaild_list[int(emo)] 
             utt['emo']=int(emo) # range 0~6
             utt['act']=int(act)-1 # range 0~3
             thread.append(utt)
@@ -79,7 +81,7 @@ def build(opt):
 
     data_path = os.path.join(opt['datapath'], 'DailyDialog')
     version = None
-    
+
     if not build_data.built(data_path, version_string=version):
         print('[building data: ' + data_path + ']')
 

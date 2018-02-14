@@ -7,6 +7,9 @@
 from parlai.core.dialog_teacher import DialogTeacher
 import pdb
 
+import copy
+import os
+
 class DefaultTeacher(DialogTeacher):
     def __init__(self, opt, shared=None):
         self.datatype = opt['datatype']
@@ -14,6 +17,10 @@ class DefaultTeacher(DialogTeacher):
         opt['datafile'] = self.data_path
         self.id = 'Daily_Dialog'
         super().__init__(opt, shared)
+        if shared is None:
+            self.unpack_data()
+            self.sort_data()
+
 
     @classmethod
     def _path(cls, opt):
@@ -34,6 +41,14 @@ class DefaultTeacher(DialogTeacher):
         
         return path
     
+    def unpack_data(self):
+        temp = []
+        for episode in self.data.data:
+            for entry in episode:
+                temp.append([entry])
+
+        self.data.data = temp
+
     """     
 
     @staticmethod
@@ -93,7 +108,25 @@ class DefaultTeacher(DialogTeacher):
 
         return DefaultTeacher._data_generator(dialogs)
 
+    def sort_data(self):
+        # Sort based on the number of words in sentences.
+        self.data.data.sort(key=DefaultTeacher.get_key)
+
+
     """
+    @staticmethod
+    def get_key(data):
+        xlen = len(data[0][0].split())
+        ylen = len(data[0][1][0].split())
+        ylen = ylen if xlen % 2 == 0 else -ylen
+
+        return (xlen, ylen)
+
+
+    def sort_data(self):
+        # Sort based on the number of words in sentences.
+        self.data.data.sort(key=DefaultTeacher.get_key)
+
     
     def setup_data(self, path):
         import json
@@ -114,6 +147,9 @@ class DefaultTeacher(DialogTeacher):
                 #current_utterance = ': '.join([utterance['userId'], utterance['text']])
                 # A-B ; B-C ; C-D structure!
                 current_utterance = ': '.join([utterance['text']])
+                if prev_utterance is None:
+                    prev_utterance = current_utterance
+                    continue
                 res = (prev_utterance, [current_utterance])
                 prev_utterance = current_utterance
 
