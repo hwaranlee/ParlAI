@@ -114,3 +114,5 @@ tmp/
 heroku-cli-*
 
 .idea
+
+*.out

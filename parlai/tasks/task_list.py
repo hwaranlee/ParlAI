@@ -289,5 +289,12 @@ task_list = [
         "task": "opensubtitles_trial",
         "tags": ["All", "ChitChat"],
         "description": "OpenSubtitles Trial"
+    },
+    {
+        "id": "acryl_korean",
+        "display_name": "Acryl Korean",
+        "task": "acryl_korean",
+        "tags": ["All", "ChitChat"],
+        "description": "Acryl Korean"
     }
 ]
