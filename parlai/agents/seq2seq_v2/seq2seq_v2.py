@@ -94,6 +94,16 @@ class Seq2seqV2Agent(Agent):
                            help='Beam size for beam search (only for generation mode) \n For Greedy search set 0')
         agent.add_argument('--max_seq_len', type=int, default=50,
                            help='The maximum sequence length, default = 50')
+        agent.add_argument('-lt', '--lookuptable', default='all',
+                           choices=['unique', 'enc_dec', 'dec_out', 'all'],
+                           help='The encoder, decoder, and output modules can '
+                                'share weights, or not. '
+                                'Unique has independent embeddings for each. '
+                                'Enc_dec shares the embedding for the encoder '
+                                'and decoder. '
+                                'Dec_out shares decoder embedding and output '
+                                'weights. '
+                                'All shares all three weights.')
                 
     def __init__(self, opt, shared=None):
         """Set up model if shared params not set, otherwise no work to do."""
@@ -141,9 +151,6 @@ class Seq2seqV2Agent(Agent):
             # set up tensors
             self.xs = torch.LongTensor(1, 1)
             self.ys = torch.LongTensor(1, 1)
-            self.cands = torch.LongTensor(1, 1, 1)
-            self.cand_scores = torch.FloatTensor(1)
-            self.cand_lengths = torch.LongTensor(1)
 
             self.criterion = nn.NLLLoss(size_average=False, ignore_index=0)
 
@@ -247,11 +254,12 @@ class Seq2seqV2Agent(Agent):
         """Push parameters to the GPU."""
         self.model.cuda()
         self.xs = self.xs.cuda(async=True)
-        self.ys = self.ys.cuda(async=True)
-        self.cands = self.cands.cuda(async=True)
-        self.cand_scores = self.cand_scores.cuda(async=True)
-        self.cand_lengths = self.cand_lengths.cuda(async=True)
-        self.criterion.cuda()
+        if self.opt['split_gpus']:
+            self.criterion.cuda(1)
+            self.ys = self.ys.cuda(1, async=True)
+        else:
+            self.ys = self.ys.cuda(async=True)
+            self.criterion.cuda()
 
     def reset(self):
         """Reset observation and episode_done."""
@@ -304,59 +312,6 @@ class Seq2seqV2Agent(Agent):
         self.episode_done = observation['episode_done']          
         
         return observation
-
-    def _score_candidates(self, cands, xe, encoder_output, hidden):
-        # score each candidate separately
-
-        # cands are exs_with_cands x cands_per_ex x words_per_cand
-        # cview is total_cands x words_per_cand
-        cview = cands.view(-1, cands.size(2))
-        cands_xes = xe.expand(xe.size(0), cview.size(0), xe.size(2))
-        sz = hidden.size()
-        cands_hn = (
-            hidden.view(sz[0], sz[1], 1, sz[2])
-            .expand(sz[0], sz[1], cands.size(1), sz[2])
-            .contiguous()
-            .view(sz[0], -1, sz[2])
-        )
-
-        sz = encoder_output.size()
-        cands_encoder_output = (
-            encoder_output.contiguous()
-            .view(sz[0], 1, sz[1], sz[2])
-            .expand(sz[0], cands.size(1), sz[1], sz[2])
-            .contiguous()
-            .view(-1, sz[1], sz[2])
-        )
-
-        cand_scores = Variable(
-                    self.cand_scores.resize_(cview.size(0)).fill_(0))
-        cand_lengths = Variable(
-                    self.cand_lengths.resize_(cview.size(0)).fill_(0))
-
-        for i in range(cview.size(1)):
-            output = cands_xes
-
-            output, cands_hn = self.decoder(output, cands_hn)
-            preds, scores = self.hidden_to_idx(output, dropout=False)
-            cs = cview.select(1, i)
-            non_nulls = cs.ne(self.NULL_IDX)
-            cand_lengths += non_nulls.long()
-            score_per_cand = torch.gather(scores, 1, cs.unsqueeze(1))
-            cand_scores += score_per_cand.squeeze() * non_nulls.float()
-            # cands_xes = self.lt2dec(self.lt(cs).unsqueeze(0))
-            cands_xes = self.lt(cs).unsqueeze(0)
-
-        # set empty scores to -1, so when divided by 0 they become -inf
-        cand_scores -= cand_lengths.eq(0).float()
-        # average the scores per token
-        cand_scores /= cand_lengths.float()
-
-        cand_scores = cand_scores.view(cands.size(0), cands.size(1))
-        srtd_scores, text_cand_inds = cand_scores.sort(1, True)
-        text_cand_inds = text_cand_inds.data
-
-        return text_cand_inds
 
     def update_params(self):
         """Do one optimization step."""
@@ -499,40 +454,7 @@ class Seq2seqV2Agent(Agent):
             else:
                 ys = Variable(ys)
                 
-        # set up candidates
-        cands = None
-        valid_cands = None
-        if ys is None and self.rank:
-            # only do ranking when no targets available and ranking flag set
-            parsed = []
-            valid_cands = []
-            for i in valid_inds:
-                if 'label_candidates' in observations[i]:
-                    # each candidate tuple is a pair of the parsed version and
-                    # the original full string
-                    cs = list(observations[i]['label_candidates'])
-                    parsed.append([self.parse(c) for c in cs])
-                    valid_cands.append((i, cs))
-            if len(parsed) > 0:
-                # TODO: store lengths of cands separately, so don't have zero
-                # padding for varying number of cands per example
-                # found cands, pack them into tensor
-                max_c_len = max(max(len(c) for c in cs) for cs in parsed)
-                max_c_cnt = max(len(cs) for cs in parsed)
-                cands = torch.LongTensor(len(parsed), max_c_cnt, max_c_len).fill_(0)
-                for i, cs in enumerate(parsed):
-                    for j, c in enumerate(cs):
-                        for k, idx in enumerate(c):
-                            cands[i][j][k] = idx
-                if self.use_cuda:
-                    # copy to gpu
-                    self.cands.resize_(cands.size())
-                    self.cands.copy_(cands, async=True)
-                    cands = Variable(self.cands)
-                else:
-                    cands = Variable(cands)
-
-        return xs, ys, valid_inds, cands, valid_cands, xlen, ylen
+        return xs, ys, valid_inds, xlen, ylen
 
     def batch_act(self, observations):
         batchsize = len(observations)
@@ -543,7 +465,7 @@ class Seq2seqV2Agent(Agent):
         # valid_inds tells us the indices of all valid examples
         # e.g. for input [{}, {'text': 'hello'}, {}, {}], valid_inds is [1]
         # since the other three elements had no 'text' field
-        xs, ys, valid_inds, cands, valid_cands, xlen, ylen = self.batchify(observations)
+        xs, ys, valid_inds, xlen, ylen = self.batchify(observations)
 
         if xs is None:
             # no valid examples, just return the empty responses we set up
@@ -551,7 +473,7 @@ class Seq2seqV2Agent(Agent):
 
         # produce predictions either way, but use the targets if available
         
-        predictions, text_cand_inds = self.predict(xs, xlen, ylen, ys, cands)
+        predictions, text_cand_inds = self.predict(xs, xlen, ylen, ys)
         
         for i in range(len(predictions)):
             # map the predictions back to non-empty examples in the batch

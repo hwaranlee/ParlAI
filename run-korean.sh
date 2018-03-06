@@ -1,7 +1,5 @@
 #!/bin/bash
 exp_dir='exp'
-#emb='data/glove.840B.300d.txt'
-exp=exp-parallel
 gpuid=0
 model='seq2seq_v2'
 emb=100
@@ -13,7 +11,7 @@ attn=false #true # true / fase
 attType=concat  #general concat dot
 enc=gru
 dict_maxexs=0
-dict_nwords=20000
+dict_nwords=100000
 no_cuda=False
 split_gpus=False
 lt=unique
@@ -22,7 +20,7 @@ bi=False
 ############### CUSTOM
 gradClip=-1
 
-tag='uni_encoder'  #'-gc0.5' #'-bs128' #'-bs128'
+tag='korean'  #'-gc0.5' #'-bs128' #'-bs128'
 ############### EVALUATION
 beam_size=5 #set 0 for greedy search
 
@@ -73,11 +71,9 @@ if [ $train -eq 1 ]; then # train
         script=${script}' -enc '${enc}
         script=${script}' -lt '${lt}
         script=${script}' -bi '${bi}
+        script=${script}' --split-gpus '${split_gpus}
         if [ $no_cuda = 'True' ]; then
             script=${script}' --no-cuda '
-        fi
-        if [ $split_gpus = 'True']; then
-            script=${script}' --split-gpus '
         fi
 	
 	#Dictionary arguments
@@ -93,7 +89,7 @@ if [ $train -eq 0 ]; then # eval
 	script=${script}' --beam_size '$beam_size
 fi
 
-script=${script}' --dict-file exp-opensub/dict_file_20000.dict' # built dict (word)
+script=${script}' --dict-file exp-acryl_korean/dict_file_'${dict_nwords}'.dict' # built dict (word)
 
 #script=${script}' --embedding_file '$emb #validation option
 
@@ -101,7 +97,7 @@ if [ ! -d ${exp_dir}/exp-${exp} ]; then
 	mkdir -p ${exp_dir}/exp-${exp}
 fi
 
-script=${script}' -m '${model}' -t opensubtitles_trial -mf '${exp_dir}/exp-${exp}/exp-${exp}
+script=${script}' -m '${model}' -t acryl_korean -mf '${exp_dir}/exp-${exp}/exp-${exp}
 
 if [ -n "$gpuid" ]; then
 	script=${script}' --gpu '${gpuid}

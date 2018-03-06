@@ -138,6 +138,7 @@ def main():
     train.add_argument('-logger', '--log-file', default='',
                        help='log file name')
     train.add_argument('-dn', '--dict-nwords', type=int, default=1000000, help='The number of words for dictionary')
+    train.add_argument('--split-gpus', type=bool, default=False, help='Split gpus for a large model.')
 
     opt = parser.parse_args()
     
