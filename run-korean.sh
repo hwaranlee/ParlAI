@@ -1,6 +1,6 @@
 #!/bin/bash
 exp_dir='exp'
-gpuid=1
+gpuid=0
 model='seq2seq_v2'
 emb=200
 hs=1024
@@ -21,7 +21,7 @@ embed='data/word2vec_ko/ko.bin'
 ############### CUSTOM
 gradClip=-1
 
-tag='unmute_w2v'  #'-gc0.5' #'-bs128' #'-bs128'
+tag='double'  #'-gc0.5' #'-bs128' #'-bs128'
 ############### EVALUATION
 beam_size=5 #set 0 for greedy search
 
@@ -65,7 +65,7 @@ if [ $train -eq 1 ]; then # train
 	script='examples/train_model_seq2seq_ldecay.py'
 	script=${script}' --log-file '$exp_dir'/exp-'${exp}'/exp-'${exp}'.log'
 	script=${script}' -bs 100' # training option
-	script=${script}' -vparl 200 -vp 5' #validation option
+	script=${script}' -vparl 400 -vp 5' #validation option
 	script=${script}' -vmt nll -vme -1' #validation measure
 	script=${script}' --optimizer adam -lr '${lr}
         script=${script}' --dropout '${dr}

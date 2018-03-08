@@ -49,7 +49,6 @@ class Seq2seq(nn.Module):
         self.num_layers = opt['numlayers']
         self.learning_rate = opt['learning_rate']
         self.rank = opt['rank_candidates']
-        self.longest_label = 1
         self.truncate = opt['truncate']
         self.attention = opt['attention']
         self.dirs = 2 if opt['bi_encoder'] else 1
@@ -172,10 +171,6 @@ class Seq2seq(nn.Module):
     def _decode_and_train(self, batchsize, output, xlen_t, xs, ys, hidden):
         # update the model based on the labels
         scores = []
-        
-        # keep track of longest label we've ever seen
-        self.longest_label = max(self.longest_label, ys.size(1))
-
         if self.split_gpus:
             output = output.cuda(1)
             hidden = hidden.cuda(1)
@@ -206,6 +201,9 @@ class Seq2seq(nn.Module):
                             done[b] = True
                             total_done += 1
         else:
+            # keep track of longest label we've ever seen
+            self.longest_label = max(self.longest_label, ys.size(1))
+
             for i in range(ys.size(1)):
                 output, hidden = self.decoder(output, hidden)           
                 pred, score = self.hidden_to_idx(output, dropout=self.training)

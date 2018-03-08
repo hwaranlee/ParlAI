@@ -8,6 +8,7 @@
 
 from parlai.core.agents import Agent
 from parlai.core.dict import DictionaryAgent
+from parlai.tasks.acryl_korean.build import preprocess
 # from .beam import Beam
 from .beam_diverse import Beam
 from .modules import Seq2seq
@@ -147,7 +148,7 @@ class Seq2seqV2Agent(Agent):
             self.num_layers = opt['numlayers']
             self.learning_rate = opt['learning_rate']
             self.rank = opt['rank_candidates']
-            self.longest_label = 1
+            self.longest_label = self.states.get('longest_label', 1)
             self.truncate = opt['truncate']
             self.attention = opt['attention']
 
@@ -158,7 +159,7 @@ class Seq2seqV2Agent(Agent):
             self.criterion = nn.NLLLoss(size_average=False, ignore_index=0)
 
             # set up modules
-            self.model = Seq2seq(opt, len(self.dict), self.START_IDX, self.NULL_IDX, longest_label=self.states.get('longest_label', 1))
+            self.model = Seq2seq(opt, len(self.dict), self.START_IDX, self.NULL_IDX, longest_label=self.longest_label)
             # self.model = nn.DataParallel(Seq2seq(opt, len(self.dict), self.START_IDX, self.NULL_IDX, longest_label=self.states.get('longest_label', 1)), [0])
             
             self.use_attention = False
@@ -269,20 +270,6 @@ class Seq2seqV2Agent(Agent):
         self.observation = None
         self.episode_done = True
     
-    def preprocess(self, reply_text):
-        # preprocess for opensub
-        reply_text = reply_text.replace('\\n', '\n')  # # TODO: pre-processing
-        reply_text = reply_text.replace("'m", " 'm")
-        reply_text = reply_text.replace("'ve", " 've")
-        reply_text = reply_text.replace("'s", " 's")
-        reply_text = reply_text.replace("'t", " 't")
-        reply_text = reply_text.replace("'il", " 'il")
-        reply_text = reply_text.replace("'d", " 'd")
-        reply_text = reply_text.replace("'re", " 're")        
-        reply_text = reply_text.lower().strip()
-        
-        return reply_text
-        
     def observe(self, observation):
         """Save observation for act.
         If multiple observations are from the same episode, concatenate them.
@@ -291,7 +278,7 @@ class Seq2seqV2Agent(Agent):
             observation = {}
             observation['id'] = self.getID()
             reply_text = input("Enter Your Message: ")
-            reply_text = self.preprocess(reply_text)
+            reply_text = preprocess(reply_text)
             observation['episode_done'] = True  # ## TODO: for history
             
             """
@@ -340,18 +327,19 @@ class Seq2seqV2Agent(Agent):
 
         scores, preds = self.model(xs, self.training, xlen_t, ys)
 
-        loss = 0
-        for i, score in enumerate(scores):
-            y = ys.select(1, i)
-            loss += self.criterion(score, y)
-
-        if self.training:
-            self.loss = loss.data[0] / sum(ylen)
-            self.ndata += batchsize
-        else:
-            self.loss_valid += loss.data[0]
-            self.ndata_valid += sum(ylen)
-        
+        if ys is not None:
+            loss = 0
+            for i, score in enumerate(scores):
+                y = ys.select(1, i)
+                loss += self.criterion(score, y)
+    
+            if self.training:
+                self.loss = loss.data[0] / sum(ylen)
+                self.ndata += batchsize
+            else:
+                self.loss_valid += loss.data[0]
+                self.ndata_valid += sum(ylen)
+            
         output_lines = [[] for _ in range(batchsize)]
         for b in range(batchsize):
             # convert the output scores to tokens
@@ -372,6 +360,10 @@ class Seq2seqV2Agent(Agent):
 #            print(len(output_lines[0].split()))
         
         self.display_predict(xs, ys, output_lines, 0)
+
+        if ys is None:
+            print(output_lines)
+
         return output_lines, text_cand_inds
 
     def display_predict(self, xs, ys, output_lines, freq=0.01):
@@ -429,7 +421,7 @@ class Seq2seqV2Agent(Agent):
         ys = None
         ylen = None
         
-        if batchsize > 0:
+        if batchsize > 0 and not self.generating:
             # randomly select one of the labels to update on, if multiple
             # append END to each label
             if any(['labels' in ex for ex in exs]):
@@ -511,7 +503,7 @@ class Seq2seqV2Agent(Agent):
         if path and hasattr(self, 'model'):
             model = {}
             model['model'] = self.model.state_dict()
-            model['longest_label'] = self.longest_label
+            model['longest_label'] = self.model.longest_label
             model['opt'] = self.opt
             model['optimizer'] = self.optimizer.state_dict()
             model['optimizer_type'] = self.opt['optimizer']

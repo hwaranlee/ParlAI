@@ -35,9 +35,13 @@ class DefaultTeacher(FbDialogTeacher):
     def unpack_data(self):
         temp = []
         for episode in self.data.data:
+            previous_label = None
             for entry in episode:
+                if previous_label is not None:
+                    temp.append([(previous_label, (entry[0],), 0)])
                 if entry[1] is not None:
                     temp.append([entry])
+                    previous_label = entry[1][0]
 
         self.data.data = temp
 
