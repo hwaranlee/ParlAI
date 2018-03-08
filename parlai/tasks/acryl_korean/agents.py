@@ -36,14 +36,13 @@ class DefaultTeacher(FbDialogTeacher):
         temp = []
         for episode in self.data.data:
             for entry in episode:
-                temp.append([entry])
+                if entry[1] is not None:
+                    temp.append([entry])
 
         self.data.data = temp
 
     @staticmethod
     def get_key(data):
-        if data[0][1] is None:
-            data[0] = (data[0][0], ('',), data[0][2])
         xlen = len(data[0][0].split())
         ylen = len(data[0][1][0].split())
         ylen = ylen if xlen % 2 == 0 else -ylen

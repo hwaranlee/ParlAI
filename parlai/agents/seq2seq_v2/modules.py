@@ -6,6 +6,7 @@
 
 import math
 import torch
+import gensim
 from torch import optim
 import torch.nn as nn
 from torch.nn.parameter import Parameter
@@ -38,6 +39,7 @@ class Seq2seq(nn.Module):
         self.register_buffer('START', torch.LongTensor(start_idx))
         # get index of null token from dictionary (probably 0)
         self.NULL_IDX = padding_idx
+        self.END = 1
         
         # store important params directly
         hsz = opt['hiddensize']
@@ -67,6 +69,8 @@ class Seq2seq(nn.Module):
         self.decoder = rnn_class(dec_isz, opt['hiddensize'], opt['numlayers'], dropout=opt['dropout'])
 
         self.lt = nn.Embedding(num_features, opt['embeddingsize'], padding_idx=self.NULL_IDX)
+        if opt['embed'] is not None:
+            self.load_pretrained()
 
         if opt['hiddensize'] == opt['embeddingsize']:
             self.o2e = lambda x: x
@@ -89,6 +93,24 @@ class Seq2seq(nn.Module):
             self.max_seq_len = opt['max_seq_len']
         else:
             self.max_seq_len = opt['max_seq_len'] = 50
+
+    def load_pretrained(self):
+        model = gensim.models.word2vec.Word2Vec.load(self.opt['embed']).wv
+        std = model.vectors.std().item()
+        n_unk = 0
+        for i in range(self.emb_size):
+            if i == 0:
+                self.lt.weight.data[i].zero_()
+            else:
+                word = self.opt['dict'].vec2txt([i])
+
+                try:
+                    self.lt.weight.data[i] = torch.from_numpy(model[word])
+                except KeyError:
+                    print(word)
+                    n_unk += 1
+                    self.lt.weight.data[i].normal_(0, std)
+        print('unk_num: {}'.format(n_unk))
 
     def cuda(self):
         if self.split_gpus:
@@ -125,7 +147,7 @@ class Seq2seq(nn.Module):
             xes = torch.nn.utils.rnn.pack_padded_sequence(xes, (xlen + 1).data.cpu().numpy()) 
 
         zeros = self.zeros(xs.get_device())
-        if zeros.size(1) != batchsize:
+        if list(zeros.size()) != [self.dirs * self.num_layers, batchsize, self.hidden_size]:
             zeros.resize_(self.dirs * self.num_layers, batchsize, self.hidden_size).fill_(0)
         h0 = Variable(zeros, requires_grad=False)
 
@@ -158,22 +180,47 @@ class Seq2seq(nn.Module):
             output = output.cuda(1)
             hidden = hidden.cuda(1)
 
-        for i in range(ys.size(1)):
-            # self.decoder.flatten_parameters()
-            output, hidden = self.decoder(output, hidden)           
-            preds, score = self.hidden_to_idx(output, dropout=self.training)
-            scores.append(score)
-            y = ys.select(1, i)
-            # use the true token as the next input instead of predicted
-            # this produces a biased prediction but better training
-            if self.split_gpus:
-                y = y.cuda(0)
+        preds = []
+        if ys is None:
+            done = [False] * batchsize
+            total_done = 0
+            max_len = 0
+            while total_done < batchsize and max_len < self.longest_label:
+                # keep producing tokens until we hit END or max length for each
+                output, hidden = self.decoder(output, hidden)
+                pred, score = self.hidden_to_idx(output, dropout=self.training)
+                preds.append(pred)
+                scores.append(score)
+    
+                if self.split_gpus:
+                    pred = pred.cuda(0)
 
-            output = self.lt(y).unsqueeze(0)
+                output = self.lt(pred).unsqueeze(0)
+                
+                max_len += 1
+                for b in range(batchsize):
+                    if not done[b]:
+                        # only add more tokens for examples that aren't done yet
+                        if pred.data[b] == self.END:
+                            # if we produced END, we're done
+                            done[b] = True
+                            total_done += 1
+        else:
+            for i in range(ys.size(1)):
+                output, hidden = self.decoder(output, hidden)           
+                pred, score = self.hidden_to_idx(output, dropout=self.training)
+                preds.append(pred)
+                scores.append(score)
+                y = ys.select(1, i)
+                if self.split_gpus:
+                    y = y.cuda(0)
+    
+                output = self.lt(y).unsqueeze(0)
+    
+                if self.split_gpus:
+                    output = output.cuda(1)
+        preds = torch.stack(preds, 1)
 
-            if self.split_gpus:
-                output = output.cuda(1)
-        
         return scores, preds
     
     def hidden_to_idx(self, hidden, dropout=False):

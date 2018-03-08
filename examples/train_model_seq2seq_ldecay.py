@@ -16,6 +16,7 @@ import os, datetime
 
 from parlai.core.agents import create_agent
 from parlai.core.worlds import create_task
+from parlai.core.worlds import BatchWorld
 from parlai.core.params import ParlaiParser
 from parlai.core.utils import Timer
 from torch.optim.lr_scheduler import ReduceLROnPlateau
@@ -58,7 +59,8 @@ def run_eval(agent, opt, datatype, max_exs=-1, write_log=False, valid_world=None
         print("Generating:")
     
     for _ in valid_world:
-        valid_world.batch_observations[0] = None
+        if isinstance(valid_world, BatchWorld):
+            valid_world.batch_observations[0] = None
         valid_world.parley()
         
         if cnt == 0 and opt['display_examples']:

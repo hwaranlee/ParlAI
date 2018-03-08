@@ -104,6 +104,7 @@ class Seq2seqV2Agent(Agent):
                                 'Dec_out shares decoder embedding and output '
                                 'weights. '
                                 'All shares all three weights.')
+        agent.add_argument('--embed', type=str, default=None, help='pretrained embedding')
                 
     def __init__(self, opt, shared=None):
         """Set up model if shared params not set, otherwise no work to do."""
@@ -135,6 +136,8 @@ class Seq2seqV2Agent(Agent):
             self.END = self.dict.end_token
             # get index of null token from dictionary (probably 0)
             self.NULL_IDX = self.dict.txt2vec(self.dict.null_token)[0]
+
+            opt['dict'] = self.dict
 
             # store important params directly
             hsz = opt['hiddensize']
@@ -350,12 +353,9 @@ class Seq2seqV2Agent(Agent):
             self.ndata_valid += sum(ylen)
         
         output_lines = [[] for _ in range(batchsize)]
-        
-        # TODO: overhead!
         for b in range(batchsize):
             # convert the output scores to tokens
-            token = self.v2t([preds.data[b]])
-            output_lines[b].append(token)
+            output_lines[b] = self.v2t(preds.data[b])
         
         if self.training:
             loss.backward()
@@ -365,7 +365,13 @@ class Seq2seqV2Agent(Agent):
                 torch.nn.utils.clip_grad_norm(self.model.encoder.parameters(), self.opt['grad_clip'])
                 torch.nn.utils.clip_grad_norm(self.model.decoder.parameters(), self.opt['grad_clip'])
             self.update_params()
+
+#        try:
+#            print(output_lines[0].split().index('__END__'))
+#        except ValueError:
+#            print(len(output_lines[0].split()))
         
+        self.display_predict(xs, ys, output_lines, 0)
         return output_lines, text_cand_inds
 
     def display_predict(self, xs, ys, output_lines, freq=0.01):

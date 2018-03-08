@@ -34,6 +34,7 @@ def main():
     parser.add_argument('-logger', '--log-file', default='', help='log file name')
     parser.add_argument('--local-human', default=True, type='bool', help='log file name')   
     parser.add_argument('--display-examples', default=False, type='bool', help='')
+    parser.add_argument('--split-gpus', type=bool, default=False, help='Split gpus for a large model.')
     opt = parser.parse_args()
     
     # Set logging
