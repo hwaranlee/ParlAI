@@ -291,6 +291,13 @@ task_list = [
         "description": "OpenSubtitles Trial"
     },
     {
+        "id": "opensubtitles_ko",
+        "display_name": "OpenSubtitles Korean",
+        "task": "opensubtitles_ko",
+        "tags": ["All", "ChitChat"],
+        "description": "OpenSubtitles Korean"
+    },
+    {
         "id": "acryl_korean",
         "display_name": "Acryl Korean",
         "task": "acryl_korean",
