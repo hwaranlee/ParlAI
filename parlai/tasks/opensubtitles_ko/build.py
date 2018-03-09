@@ -8,6 +8,7 @@
 import parlai.core.build_data as build_data
 import gzip
 import os
+import re
 
 from konlpy.tag import Komoran
 
@@ -37,10 +38,8 @@ def create_fb_format(inpath, outpath):
                     line_id = 1
                     turn_id = 1
                     for line in f1:
-                        #pdb.set_trace()
-                        #line = str(line)
                         line=line.decode('utf-8')
-                        if line.find('<s id="') != -1:
+                        if re.search('<s .*id="', line):
                             # new sentence
                             if len(words) > 0:
                                 if (turn_id % 2) == 0:
