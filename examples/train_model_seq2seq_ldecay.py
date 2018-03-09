@@ -268,8 +268,8 @@ def main():
         # reload best validation model
         agent = create_agent(opt)
        
-    run_eval(agent, opt, 'valid', write_log=True, logger=logger, generate=True)
-    run_eval(agent, opt, 'test', write_log=True, logger=logger, generate=True)
+    # run_eval(agent, opt, 'valid', write_log=True, logger=logger, generate=True)
+    # run_eval(agent, opt, 'test', write_log=True, logger=logger, generate=True)
 
 
 if __name__ == '__main__':
