@@ -22,7 +22,7 @@ dict_dir='exp-opensub_ko'
 ############### CUSTOM
 gradClip=-1
 
-tag='openko'  #'-gc0.5' #'-bs128' #'-bs128'
+tag='openko2'  #'-gc0.5' #'-bs128' #'-bs128'
 ############### EVALUATION
 beam_size=5 #set 0 for greedy search
 
@@ -66,7 +66,7 @@ if [ $train -eq 1 ]; then # train
 	script='examples/train_model_seq2seq_ldecay.py'
 	script=${script}' --log-file '$exp_dir'/exp-'${exp}'/exp-'${exp}'.log'
 	script=${script}' -bs 100' # training option
-	script=${script}' -vparl 8270 -vp 5' #validation option
+	script=${script}' -vparl 16940 -vp 5' #validation option
 	script=${script}' -vmt nll -vme -1' #validation measure
 	script=${script}' --optimizer adam -lr '${lr}
         script=${script}' --dropout '${dr}
