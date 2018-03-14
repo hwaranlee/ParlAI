@@ -97,7 +97,7 @@ class Seq2seq(nn.Module):
         model = gensim.models.word2vec.Word2Vec.load(self.opt['embed']).wv
         std = model.vectors.std().item()
         n_unk = 0
-        for i in range(self.emb_size):
+        for i in range(len(self.lt.weight)):
             if i == 0:
                 self.lt.weight.data[i].zero_()
             else:

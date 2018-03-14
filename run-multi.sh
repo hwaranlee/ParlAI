@@ -1,9 +1,9 @@
 #!/bin/bash
 exp_dir='exp'
-gpuid=0
+gpuid=1
 model='seq2seq_v2'
 emb=200
-hs=1024
+hs=2048
 lr=0.0001
 dr=0.5
 wd=0 #.00002
@@ -17,11 +17,12 @@ split_gpus=False
 lt=unique
 bi=False
 embed='data/word2vec_ko/ko.bin'
+dict_dir='exp-ko_multi_20180312'
 
 ############### CUSTOM
 gradClip=-1
 
-tag='test5'  #'-gc0.5' #'-bs128' #'-bs128'
+tag='multi'  #'-gc0.5' #'-bs128' #'-bs128'
 ############### EVALUATION
 beam_size=5 #set 0 for greedy search
 
@@ -65,7 +66,7 @@ if [ $train -eq 1 ]; then # train
 	script='examples/train_model_seq2seq_ldecay.py'
 	script=${script}' --log-file '$exp_dir'/exp-'${exp}'/exp-'${exp}'.log'
 	script=${script}' -bs 100' # training option
-	script=${script}' -vparl 400 -vp 5' #validation option
+	script=${script}' -vparl 18000 -vp 5' #validation option
 	script=${script}' -vmt nll -vme -1' #validation measure
 	script=${script}' --optimizer adam -lr '${lr}
         script=${script}' --dropout '${dr}
@@ -97,13 +98,14 @@ if [ $train -eq 0 ]; then # eval
         script=${script}' -lt '${lt}
 fi
 
-script=${script}' --dict-file exp-acryl_korean/dict_file_'${dict_nwords}'.dict' # built dict (word)
+mkdir -p $dict_dir
+script=${script}' --dict-file '$dict_dir'/dict_file_'${dict_nwords}'.dict' # built dict (word)
 
 if [ ! -d ${exp_dir}/exp-${exp} ]; then
 	mkdir -p ${exp_dir}/exp-${exp}
 fi
 
-script=${script}' -m '${model}' -t acryl_korean -mf '${exp_dir}/exp-${exp}/exp-${exp}
+script=${script}' -m '${model}' -t ko_multi -mf '${exp_dir}/exp-${exp}/exp-${exp}
 
 if [ -n "$gpuid" ]; then
 	script=${script}' --gpu '${gpuid}
