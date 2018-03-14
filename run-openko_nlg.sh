@@ -1,6 +1,6 @@
 #!/bin/bash
 exp_dir='exp'
-gpuid=1
+gpuid=0
 model='seq2seq_v2'
 emb=200
 hs=1024
@@ -16,13 +16,13 @@ no_cuda=False
 split_gpus=False
 lt=unique
 bi=False
-embed='data/word2vec_ko/ko.bin'
-dict_dir='exp-opensub_ko_mix'
+embed=''
+dict_dir='exp-opensub_ko_nlg'
 
 ############### CUSTOM
 gradClip=-1
 
-tag='openko2'  #'-gc0.5' #'-bs128' #'-bs128'
+tag='oknlg'  #'-gc0.5' #'-bs128' #'-bs128'
 ############### EVALUATION
 beam_size=5 #set 0 for greedy search
 
@@ -66,7 +66,7 @@ if [ $train -eq 1 ]; then # train
 	script='examples/train_model_seq2seq_ldecay.py'
 	script=${script}' --log-file '$exp_dir'/exp-'${exp}'/exp-'${exp}'.log'
 	script=${script}' -bs 100' # training option
-	script=${script}' -vparl 16940 -vp 5' #validation option
+	script=${script}' -vparl 17312 -vp 5' #validation option
 	script=${script}' -vmt nll -vme -1' #validation measure
 	script=${script}' --optimizer adam -lr '${lr}
         script=${script}' --dropout '${dr}
@@ -105,7 +105,7 @@ if [ ! -d ${exp_dir}/exp-${exp} ]; then
 	mkdir -p ${exp_dir}/exp-${exp}
 fi
 
-script=${script}' -m '${model}' -t opensubtitles_ko -mf '${exp_dir}/exp-${exp}/exp-${exp}
+script=${script}' -m '${model}' -t opensubtitles_ko_nlg -mf '${exp_dir}/exp-${exp}/exp-${exp}
 
 if [ -n "$gpuid" ]; then
 	script=${script}' --gpu '${gpuid}

@@ -192,7 +192,7 @@ def main():
         return agent.optimizer.param_groups[0]['lr']
 
     while True:
-        if agent.training == False:
+        if not agent.training:
             agent.training = True
         select_batch(world)
             

@@ -303,5 +303,12 @@ task_list = [
         "task": "acryl_korean",
         "tags": ["All", "ChitChat"],
         "description": "Acryl Korean"
+    },
+    {
+        "id": "opensubtitles_ko_nlg",
+        "display_name": "OpenSubtitles Korean NLG",
+        "task": "opensubtitles_ko_nlg",
+        "tags": ["All", "NLG"],
+        "description": "OpenSubtitles Korean NLG"
     }
 ]
