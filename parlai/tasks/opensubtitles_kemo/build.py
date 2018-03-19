@@ -11,14 +11,26 @@ import os
 import re
 
 from konlpy.tag import Komoran
+from examples.bot import Bot
 
 komoran = Komoran()
+nlg = Bot('exp/exp-emb200-hs1024-lr0.0001-oknlg/exp-emb200-hs1024-lr0.0001-oknlg'
+        ,'exp-opensub_ko_nlg/dict_file_100000.dict', True)
 
 def preprocess(sent):
     """ text preprocessing using a parser
     """
     print(sent)
     return ' '.join(komoran.morphs(sent))
+
+def postprocess(sent):
+    sent = sent.replace(' __END__', '')
+    sent = re.sub(' (.)$', '\\1', sent)
+    wordlist = sent.split()
+    if 'Happiness' or 'Neutral' or 'Anger' or 'Disgust' or 'Sadness' or 'surprised' in wordlist[-1] :
+        sent = ' '.join(wordlist[:-1])
+    print(sent)
+    return nlg.reply(sent) + ' ' + wordlist[-1]
 
 def create_fb_format(inpath, outpath):
     print('[building fbformat]')
