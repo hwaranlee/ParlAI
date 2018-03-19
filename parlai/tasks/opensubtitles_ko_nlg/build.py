@@ -11,22 +11,24 @@ import os
 import re
 
 from konlpy.tag import Komoran
-from examples.bot import Bot
 
 komoran = Komoran()
-nlg = Bot('exp/exp-emb200-hs1024-lr0.0001-oknlg/exp-emb200-hs1024-lr0.0001-oknlg'
-        ,'exp-opensub_ko_nlg/dict_file_100000.dict', True)
 
-def preprocess(sent):
+def morphs(sent):
     """ text preprocessing using a parser
     """
     return ' '.join(komoran.morphs(sent))
 
+def preprocess(sent):
+    return ' '.join(sent.replace(' ', '_'))
+
 def postprocess(sent):
     sent = sent.replace(' __END__', '')
+    sent = sent.replace(' ', '')
+    sent = sent.replace('_', ' ')
+    sent = sent.replace(' ,', ',')
     sent = re.sub(' (.)$', '\\1', sent)
-    print(sent)
-    return nlg.reply(sent)
+    return sent
 
 def create_fb_format(inpath, outpath):
     print('[building fbformat]')
@@ -45,18 +47,14 @@ def create_fb_format(inpath, outpath):
                     # print(str(conv_id) + ': ' + f)
                     words = ''
                     line_id = 1
-                    turn_id = 1
                     for line in f1:
                         line=line.decode('utf-8')
                         if re.search('<s .*id="', line):
                             # new sentence
                             if len(words) > 0:
-                                if (turn_id % 2) == 0:
-                                    dialog += str(line_id) + ' ' + preprocess(words)
-                                else:
-                                    dialog += '\t' + preprocess(words) + '\n'
-                                    line_id += 1
-                            turn_id = turn_id + 1
+                                dialog += str(line_id) + ' ' + preprocess(morphs(words))
+                                dialog += '\t' + syllable(words.strip()) + '\n'
+                                line_id += 1
                             words = ''
                         else:
                             i1 = line.find('<w id="')
@@ -79,7 +77,7 @@ def create_fb_format(inpath, outpath):
 
 
 def build(opt):
-    dpath = os.path.join(opt['datapath'], 'OpenSubtitlesKo')
+    dpath = os.path.join(opt['datapath'], 'OpenSubtitlesKoNLG')
     version = None
 
     if not build_data.built(dpath, version_string=version):

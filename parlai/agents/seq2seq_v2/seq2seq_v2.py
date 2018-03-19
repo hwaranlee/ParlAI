@@ -8,7 +8,6 @@
 
 from parlai.core.agents import Agent
 from parlai.core.dict import DictionaryAgent
-from parlai.tasks.acryl_korean.build import preprocess
 # from .beam import Beam
 from .beam_diverse import Beam
 from .modules import Seq2seq
@@ -18,11 +17,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import optim
 import torch
+import importlib
 
 import os
 import random, math
 import pdb
-
 
 class Seq2seqV2Agent(Agent):
     """Agent which takes an input sequence and produces an output sequence.
@@ -222,6 +221,19 @@ class Seq2seqV2Agent(Agent):
         else:
             self.max_seq_len = opt['max_seq_len'] = 50
         self.reset()
+        
+        task_module = importlib.import_module(
+                'parlai.tasks.{}.build'.format(self.opt['task']))
+        self.preprocess = task_module.preprocess
+        if self.opt['task'] == 'opensubtitles_ko_nlg' and self.local_human:
+            self.syllable = self.preprocess
+            self.morphs = task_module.morphs
+            self.preprocess = lambda x: self.syllable(self.morphs(x))
+        try:
+            self.postprocess = importlib.import_module(
+                    'parlai.tasks.{}.build'.format(self.opt['task'])).postprocess
+        except AttributeError:
+            self.postprocess = lambda x: x
 
     def override_opt(self, new_opt):
         """Set overridable opts from loaded opt file.
@@ -277,8 +289,11 @@ class Seq2seqV2Agent(Agent):
         if self.local_human:
             observation = {}
             observation['id'] = self.getID()
-            reply_text = input("Enter Your Message: ")
-            reply_text = preprocess(reply_text)
+            try:
+                reply_text = input("Enter Your Message: ")
+            except UnicodeDecodeError:
+                reply_text = '디코딩 에러가 났습니다.'
+            reply_text = self.preprocess(reply_text)
             observation['episode_done'] = True  # ## TODO: for history
             
             """
@@ -288,7 +303,6 @@ class Seq2seqV2Agent(Agent):
                 reply_text = reply_text.replace('[DONE]', '')
             """
             observation['text'] = reply_text
-     
         else:
             # shallow copy observation (deep copy can be expensive)
             observation = observation.copy()
@@ -360,9 +374,6 @@ class Seq2seqV2Agent(Agent):
 #            print(len(output_lines[0].split()))
         
         self.display_predict(xs, ys, output_lines, 0)
-
-        if ys is None:
-            print(output_lines)
 
         return output_lines, text_cand_inds
 
@@ -472,6 +483,9 @@ class Seq2seqV2Agent(Agent):
         # produce predictions either way, but use the targets if available
         
         predictions, text_cand_inds = self.predict(xs, xlen, ylen, ys)
+
+        if self.local_human:
+            print(self.postprocess(predictions[0]))
         
         for i in range(len(predictions)):
             # map the predictions back to non-empty examples in the batch

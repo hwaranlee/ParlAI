@@ -21,7 +21,7 @@ embed='data/word2vec_ko/ko.bin'
 ############### CUSTOM
 gradClip=-1
 
-tag='double'  #'-gc0.5' #'-bs128' #'-bs128'
+tag='test5'  #'-gc0.5' #'-bs128' #'-bs128'
 ############### EVALUATION
 beam_size=5 #set 0 for greedy search
 

@@ -310,6 +310,20 @@ task_list = [
         "task": "opensubtitles_kemo",
         "tags": ["All", "ChitChat"],
         "description": "Korean with Emotion"
+    },
+    {
+        "id": "opensubtitles_ko_nlg",
+        "display_name": "OpenSubtitles Korean NLG",
+        "task": "opensubtitles_ko_nlg",
+        "tags": ["All", "NLG"],
+        "description": "OpenSubtitles Korean NLG"
+    },
+    {
+        "id": "ko_multi",
+        "display_name": "OpenSubtitles and Acryl Korean",
+        "task": "ko_multi",
+        "tags": ["All", "ChitChat"],
+        "description": "OpenSubtitles and Acryl Korean"
     }
 
 ]

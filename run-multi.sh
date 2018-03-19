@@ -3,7 +3,7 @@ exp_dir='exp'
 gpuid=1
 model='seq2seq_v2'
 emb=200
-hs=1024
+hs=2048
 lr=0.0001
 dr=0.5
 wd=0 #.00002
@@ -17,19 +17,19 @@ split_gpus=False
 lt=unique
 bi=False
 embed='data/word2vec_ko/ko.bin'
-dict_dir='exp-opensub_ko_mix'
+dict_dir='exp-ko_multi_20180312'
 
 ############### CUSTOM
 gradClip=-1
 
-tag='openko2'  #'-gc0.5' #'-bs128' #'-bs128'
+tag='multi'  #'-gc0.5' #'-bs128' #'-bs128'
 ############### EVALUATION
 beam_size=5 #set 0 for greedy search
 
 ###############
 
 
-train=0 # train=1, eval=0
+train=1 # train=1, eval=0
 OPTIND=1
 while getopts "e:g:t:m:h:b:l:a:w:z:" opt; do
 	case "$opt" in
@@ -66,7 +66,7 @@ if [ $train -eq 1 ]; then # train
 	script='examples/train_model_seq2seq_ldecay.py'
 	script=${script}' --log-file '$exp_dir'/exp-'${exp}'/exp-'${exp}'.log'
 	script=${script}' -bs 100' # training option
-	script=${script}' -vparl 16940 -vp 5' #validation option
+	script=${script}' -vparl 18000 -vp 5' #validation option
 	script=${script}' -vmt nll -vme -1' #validation measure
 	script=${script}' --optimizer adam -lr '${lr}
         script=${script}' --dropout '${dr}
@@ -105,7 +105,7 @@ if [ ! -d ${exp_dir}/exp-${exp} ]; then
 	mkdir -p ${exp_dir}/exp-${exp}
 fi
 
-script=${script}' -m '${model}' -t opensubtitles_ko -mf '${exp_dir}/exp-${exp}/exp-${exp}
+script=${script}' -m '${model}' -t ko_multi -mf '${exp_dir}/exp-${exp}/exp-${exp}
 
 if [ -n "$gpuid" ]; then
 	script=${script}' --gpu '${gpuid}
