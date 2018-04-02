@@ -1,6 +1,6 @@
 ## Requirements
 You may be able to use the library without this requirements, but the library is tested only from the below environment.
-- one or more GeForce GTX 1080 Ti graphics cards (driver should be installed)
+- One or more GeForce GTX 1080 Ti graphics cards (driver should be installed)
 - CentOS 7
 
 ## Installation
@@ -10,6 +10,7 @@ sudo yum install bzip2
 ```
 Follow instructions.
 
+
 2. Install Anaconda with Python 3.6
 ```bash
 cd ~
@@ -18,9 +19,10 @@ cd ~/Downloads
 wget https://repo.continuum.io/archive/Anaconda3-5.1.0-Linux-x86_64.sh
 bash Anaconda3-5.1.0-Linux-x86_64.sh
 ```
-Follow instructions.
-Answer 'yes' to prepend the Anaconda3 install location to PATH in your .bashrc.
+Follow instructions.  
+Answer 'yes' to prepend the Anaconda3 install location to PATH in your .bashrc.  
 Answer 'no' not to install Microsoft VSCode.
+
 
 3. Install NVIDIA CUDA Toolkit 9.1
 ```bash
@@ -30,20 +32,15 @@ wget https://developer.nvidia.com/compute/cuda/9.1/Prod/patches/2/cuda_9.1.85.2_
 wget https://developer.nvidia.com/compute/cuda/9.1/Prod/patches/3/cuda_9.1.85.3_linux
 sudo sh cuda_9.1.85_387.26_linux
 ```
-Follow instructions.
-Do not install NVIDIA Accelerated Graphics Driver, if you have already installed it.
+Follow instructions.  
+Do not install NVIDIA Accelerated Graphics Driver, if you have already installed it.  
 ```bash
 sudo sh cuda_9.1.85.1_linux
-```
-Follow instructions.
-```bash
 sudo sh cuda_9.1.85.2_linux
-```
-Follow instructions.
-```bash
 sudo sh cuda_9.1.85.3_linux
 ```
 Follow instructions.
+
 
 4. Install PyTorch
 ```bash
@@ -51,16 +48,20 @@ conda install pytorch torchvision cuda91 -c pytorch
 ```
 Follow instructions.
 
+
 5. Install ParlAI
 ```bash
 python setup.py develop
 ```
+
+
 6. Copy files
-cc/exp-ko_multi_20180316/dict_file_100000.dict
-cc/exp-opensub_ko_nlg/dict_file_100000.dict
-cc/exp/exp-emb200-hs2048-lr0.0001-multi2018_30000/exp-emb200-hs2048-lr0.0001-multi2018_30000
-cc/exp/exp-emb200-hs1024-lr0.0001-oknlg/exp-emb200-hs1024-lr0.0001-oknlg
-data/word2vec_ko/ko.bin
+cc/exp-ko_multi_20180316/dict_file_100000.dict  
+cc/exp-opensub_ko_nlg/dict_file_100000.dict  
+cc/exp/exp-emb200-hs2048-lr0.0001-multi2018_30000/exp-emb200-hs2048-lr0.0001-multi2018_30000  
+cc/exp/exp-emb200-hs1024-lr0.0001-oknlg/exp-emb200-hs1024-lr0.0001-oknlg  
+data/word2vec_ko/ko.bin  
+
 
 7. Install KoNLPy
 ```bash
@@ -68,6 +69,7 @@ sudo yum install gcc-c++ java-1.7.0-openjdk-devel python-devel
 pip install JPype1-py3
 pip install konlpy
 ```
+
 
 8. Install Gensim
 ```bash
@@ -81,3 +83,5 @@ from examples.bot import Bot
 bot = Bot('exp/exp-emb200-hs2048-lr0.0001-multi2018_30000/exp-emb200-hs2048-lr0.0001-multi2018_30000', 'exp-ko_multi_20180316/dict_file_100000.dict', True)
 answer = bot.reply('안녕')
 ```
+The last parameter of the Bot constructor determines whether to use CUDA or not.  
+False is not tested.
