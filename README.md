@@ -55,7 +55,7 @@ python setup.py develop
 ```
 
 
-6. Copy files
+6. Copy files  
 cc/exp-ko_multi_20180316/dict_file_100000.dict  
 cc/exp-opensub_ko_nlg/dict_file_100000.dict  
 cc/exp/exp-emb200-hs2048-lr0.0001-multi2018_30000/exp-emb200-hs2048-lr0.0001-multi2018_30000  
