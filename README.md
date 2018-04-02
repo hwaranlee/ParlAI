@@ -4,13 +4,14 @@ You may be able to use the library without this requirements, but the library is
 - CentOS 7
 
 ## Installation
-1. Install bzip2
+1. Install bzip2  
 ```bash
 sudo yum install bzip2
 ```
 Follow instructions.
-<br />
-2. Install Anaconda with Python 3.6
+
+
+2. Install Anaconda with Python 3.6  
 ```bash
 cd ~
 mkdir Downloads
@@ -21,7 +22,8 @@ bash Anaconda3-5.1.0-Linux-x86_64.sh
 Follow instructions.  
 Answer 'yes' to prepend the Anaconda3 install location to PATH in your .bashrc.  
 Answer 'no' not to install Microsoft VSCode.
-<br/>
+
+
 3. Install NVIDIA CUDA Toolkit 9.1
 ```bash
 wget https://developer.nvidia.com/compute/cuda/9.1/Prod/local_installers/cuda_9.1.85_387.26_linux
@@ -38,37 +40,42 @@ sudo sh cuda_9.1.85.2_linux
 sudo sh cuda_9.1.85.3_linux
 ```
 Follow instructions.
-<br/>
+
+
 4. Install PyTorch
 ```bash
 conda install pytorch torchvision cuda91 -c pytorch
 ```
 Follow instructions.
-<br/>
+
+
 5. Install ParlAI
 ```bash
 python setup.py develop
 ```
-<br/>
+
+
 6. Copy files  
 cc/exp-ko_multi_20180316/dict_file_100000.dict  
 cc/exp-opensub_ko_nlg/dict_file_100000.dict  
 cc/exp/exp-emb200-hs2048-lr0.0001-multi2018_30000/exp-emb200-hs2048-lr0.0001-multi2018_30000  
 cc/exp/exp-emb200-hs1024-lr0.0001-oknlg/exp-emb200-hs1024-lr0.0001-oknlg  
 data/word2vec_ko/ko.bin  
-<br/>
+
+
 7. Install KoNLPy
 ```bash
 sudo yum install gcc-c++ java-1.7.0-openjdk-devel python-devel
 pip install JPype1-py3
 pip install konlpy
 ```
-<br/>
+
+
 8. Install Gensim
 ```bash
 pip install gensim
 ```
-<br/>
+
 ## Usage
 ```python
 from examples.bot import Bot
