@@ -9,7 +9,7 @@ You may be able to use the library without this requirements, but the library is
 sudo yum install bzip2
 ```
 Follow instructions.
-<br/>
+<br />
 2. Install Anaconda with Python 3.6
 ```bash
 cd ~
