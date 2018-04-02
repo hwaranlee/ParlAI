@@ -17,19 +17,19 @@ split_gpus=False
 lt=unique
 bi=False
 embed='data/word2vec_ko/ko.bin'
-dict_dir='exp-ko_multi_20180312'
+dict_dir='exp-ko_multi_20180316'
 
 ############### CUSTOM
 gradClip=-1
 
-tag='multi'  #'-gc0.5' #'-bs128' #'-bs128'
+tag='multi2018_30000'  #'-gc0.5' #'-bs128' #'-bs128'
 ############### EVALUATION
 beam_size=5 #set 0 for greedy search
 
 ###############
 
 
-train=1 # train=1, eval=0
+train=0 # train=1, eval=0
 OPTIND=1
 while getopts "e:g:t:m:h:b:l:a:w:z:" opt; do
 	case "$opt" in

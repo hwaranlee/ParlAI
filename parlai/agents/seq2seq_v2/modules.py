@@ -106,7 +106,6 @@ class Seq2seq(nn.Module):
                 try:
                     self.lt.weight.data[i] = torch.from_numpy(model[word])
                 except KeyError:
-                    print(word)
                     n_unk += 1
                     self.lt.weight.data[i].normal_(0, std)
         print('unk_num: {}'.format(n_unk))
