@@ -24,18 +24,37 @@ class Bot:
         self.agent.training= False
         self.agent.generating = True
         
-    def reply(self, message, history_context=None, history_reply=None):
+    def reply(self, message, *args):
         observation = {}
         message = self.agent.preprocess(message)
         observation['episode_done'] = True  ### TODO: for history
-        observation['text'] = message
+        if len(args) > 0:
+            if args[0] == 'Surprise':
+                emotion = 'surprised'
+            else:
+                emotion = args[0]
+            observation['text'] = message + ' ' + emotion
+        else:
+            observation['text'] = message
     
         self.agent.observe(validate(observation))
         response = self.agent.act()        
         response = self.agent.postprocess(response['text'])
 
-        return response
-    
+        if len(args) > 0 and response != '':
+            splited = response.split()
+            emotion = splited[-1]
+            if emotion == 'surprised':
+                emotion = 'Surprise'
+            if emotion in ('Neutral', 'Surprise', 'Anger', 'Sadness', 'Fear', 'Happiness', 'Disgust'):
+                response = ' '.join(splited[:-1])
+            else:
+                emotion = 'Neutral'
+
+            return response, emotion
+        else:
+            return response
+
 def get_opt(model_path, cuda=False):
     if cuda: 
         mdl = torch.load(model_path)
