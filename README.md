@@ -84,6 +84,7 @@ pip install gensim
 
 ## Usage
 * Bot  
+
 ```python
 from examples.bot import Bot
 
@@ -91,6 +92,7 @@ bot = Bot('exp/exp-emb200-hs2048-lr0.0001-multi2018_30000/exp-emb200-hs2048-lr0.
 answer = bot.reply('안녕')
 ```
 * Emotional Bot  
+
 ```python
 from examples.bot import Bot
 
