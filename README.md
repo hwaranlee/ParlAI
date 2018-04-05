@@ -63,7 +63,6 @@ cc/exp/exp-emb200-hs2048-lr0.0001-multi2018_30000/exp-emb200-hs2048-lr0.0001-mul
 cc/exp/exp-emb200-hs1024-lr0.0001-oknlg/exp-emb200-hs1024-lr0.0001-oknlg  
 data/word2vec_ko/ko.bin  
 
-
   - Emotional Bot  
 cc/exp-opensub_kemo/dict_file_100000.dict
 cc/exp-opensub_ko_nlg/dict_file_100000.dict
