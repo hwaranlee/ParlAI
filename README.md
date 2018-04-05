@@ -83,16 +83,14 @@ pip install gensim
 ```
 
 ## Usage
-- Bot  
+* Bot  
 ```python
 from examples.bot import Bot
 
 bot = Bot('exp/exp-emb200-hs2048-lr0.0001-multi2018_30000/exp-emb200-hs2048-lr0.0001-multi2018_30000', 'exp-ko_multi_20180316/dict_file_100000.dict', True)
 answer = bot.reply('안녕')
 ```
-
-
-- Emotional Bot  
+* Emotional Bot  
 ```python
 from examples.bot import Bot
 
