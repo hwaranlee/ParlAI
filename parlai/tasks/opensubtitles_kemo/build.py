@@ -28,7 +28,7 @@ def postprocess(sent):
     sent = sent.replace(' __END__', '')
     sent = re.sub(' (.)$', '\\1', sent)
     wordlist = sent.split()
-    if wordlist[-1] in ('Happiness', 'Neutral', 'Anger', 'Disgust', 'Sadness', 'surprised')  :
+    if wordlist[-1] in ('Happiness', 'Neutral', 'Anger', 'Disgust', 'Sadness', 'surprised', 'Fear'):
         sent = ' '.join(wordlist[:-1])
     print(sent)
     return nlg.reply(sent) + ' ' + wordlist[-1]
