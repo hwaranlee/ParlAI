@@ -97,7 +97,7 @@ answer = bot.reply('안녕')
 from examples.bot import Bot
 
 bot = Bot('exp/exp-emb200-hs2048-lr0.0001-d2018/exp-emb200-hs2048-lr0.0001-d2018', 'exp-opensub_kemo/dict_file_100000.dict', True)
-answer, emotion = bot.reply('안녕', 'Neutral')
+answer, emotion = bot.reply('안녕', 'Neutral') # The second parameter can be one of these: Neutral, Happiness, Anger, Sadness, Surprise, Fear, Disgust.
 ```
 The last parameter of the Bot constructor determines whether to use CUDA or not.  
 False is not tested.
