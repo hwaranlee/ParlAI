@@ -12,6 +12,8 @@ import re
 
 from konlpy.tag import Komoran
 from examples.bot import Bot
+from openpyxl import load_workbook
+
 
 komoran = Komoran()
 nlg = Bot('exp/exp-emb200-hs1024-lr0.0001-oknlg/exp-emb200-hs1024-lr0.0001-oknlg'
@@ -20,14 +22,13 @@ nlg = Bot('exp/exp-emb200-hs1024-lr0.0001-oknlg/exp-emb200-hs1024-lr0.0001-oknlg
 def preprocess(sent):
     """ text preprocessing using a parser
     """
-    print(sent)
     return ' '.join(komoran.morphs(sent))
 
 def postprocess(sent):
     sent = sent.replace(' __END__', '')
     sent = re.sub(' (.)$', '\\1', sent)
     wordlist = sent.split()
-    if 'Happiness' or 'Neutral' or 'Anger' or 'Disgust' or 'Sadness' or 'surprised' in wordlist[-1] :
+    if wordlist[-1] in ('Happiness', 'Neutral', 'Anger', 'Disgust', 'Sadness', 'surprised')  :
         sent = ' '.join(wordlist[:-1])
     print(sent)
     return nlg.reply(sent) + ' ' + wordlist[-1]
@@ -39,35 +40,54 @@ def create_fb_format(inpath, outpath):
     ftest = open(os.path.join(outpath, 'test.txt'), 'w')
 
     conv_id = 0
+    dialog = None
     # find all the files.
 
-    filebody = pd.read_excel(inpath, header=1)
-    nums = filebody.values[:, 0]
-    texts = filebody.values[:, 1]
-    emotion_set = filebody.values[:, 2]
-    
-    dialog = ''
+    for root, _subfolder, files in os.walk(inpath):
+        for f in files:
+            if f.endswith('.xlsx') :
+                wb = load_workbook(os.path.join(root, f))
+                ws = wb.active
+                for row_idx, row in enumerate(ws.rows):
+                    preSentence = ''
+                    if row_idx == 0 :
+                        print(row_idx)
+                        continue
 
-    lineid = 1
-    conv_id = 1
+                    if row[0].value == "S":
+                        if dialog:
+                            handle = ftrain
+                            if conv_id % 10 == 0:
+                                handle = ftest
+                            elif conv_id % 10 == 1:
+                                handle = fvalid
+                            handle.write(dialog + '\n')
+                        conv_id = conv_id + 1
+                        dialog = ''
+                        line_id = 1
+                        turn_id = 0
 
-    for i in range(0, len(nums)-1):
-        if nums[i] < nums[i+1]:
-            dialog = str(lineid) + ' ' + preprocess(texts[i]) + ' ' + emotion_set[i] + '\t' + preprocess(texts[i+1]) + ' ' + emotion_set[i+1] 
-            lineid += 1
-        else :
-            conv_id += 1
-            lineid = 0
+                    value = preprocess(row[1].value) + ' ' + row[2].value
+                    if turn_id % 2 == 0:
+                        preSentence = row[1].value  
+                        dialog += '{} {}'.format(line_id, value)
+                        turn_id += 1
+                    else:
+                        if(preSentence != row[1].value):
+                            dialog += '\t{}\n'.format(value)
+                            line_id += 1
+                            turn_id += 1
+                    
 
-        handle = ftrain
+                if dialog != '':
+                    handle = ftrain
+                    if conv_id % 10 == 0:
+                        handle = ftest
+                    elif conv_id % 10 == 1:
+                        handle = fvalid
+                    handle.write(dialog + '\n')
 
-        if (conv_id % 10) == 0:
-            handle = ftest
-        if (conv_id % 10) == 1:
-            handle = fvalid
-                
-        handle.write(dialog + '\n')
-                
+ 
 
     ftrain.close()
     fvalid.close()
@@ -90,7 +110,8 @@ def build(opt):
         # build_data.download(url, dpath, 'OpenSubtitles.tar.gz')
         # build_data.untar(dpath, 'OpenSubtitles.tar.gz', deleteTar=False)
 
-        create_fb_format(os.path.join(dpath, 'result_data_01.xls'), dpath)
+        #create_fb_format(os.path.join(dpath, 'OpenSubwithemotion2018.csv'), dpath)
+        create_fb_format(dpath, dpath)
 
         # Mark the data as built.
         build_data.mark_done(dpath, version_string=version)
