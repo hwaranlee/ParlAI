@@ -56,14 +56,15 @@ python setup.py develop
 
 
 6. Copy files  
-- Bot  
+  - Bot  
 cc/exp-ko_multi_20180316/dict_file_100000.dict  
 cc/exp-opensub_ko_nlg/dict_file_100000.dict  
 cc/exp/exp-emb200-hs2048-lr0.0001-multi2018_30000/exp-emb200-hs2048-lr0.0001-multi2018_30000  
 cc/exp/exp-emb200-hs1024-lr0.0001-oknlg/exp-emb200-hs1024-lr0.0001-oknlg  
 data/word2vec_ko/ko.bin  
 
-- Emotional Bot  
+
+  - Emotional Bot  
 cc/exp-opensub_kemo/dict_file_100000.dict
 cc/exp-opensub_ko_nlg/dict_file_100000.dict
 cc/exp/exp-emb200-hs2048-lr0.0001-d2018/exp-emb200-hs2048-lr0.0001-d2018
@@ -92,7 +93,7 @@ bot = Bot('exp/exp-emb200-hs2048-lr0.0001-multi2018_30000/exp-emb200-hs2048-lr0.
 answer = bot.reply('안녕')
 ```
 - Emotional Bot  
-``` python
+```python
 from examples.bot import Bot
 
 bot = Bot('exp/exp-emb200-hs2048-lr0.0001-d2018/exp-emb200-hs2048-lr0.0001-d2018', 'exp-opensub_kemo/dict_file_100000.dict', True)
