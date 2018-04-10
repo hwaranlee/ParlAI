@@ -3,7 +3,7 @@ exp_dir='exp'
 gpuid=0
 model='seq2seq_v2'
 emb=200
-hs=1024
+hs=2048
 lr=0.0001
 dr=0.5
 wd=0 #.00002
@@ -17,13 +17,14 @@ split_gpus=False
 lt=unique
 bi=False
 embed='data/word2vec_ko/ko.bin'
-dict_dir='exp-opensub_ko'
+dict_dir='exp-opensub_kemo_all'
 
 
 ############### CUSTOM
 gradClip=-1
 
-tag='double'  #'-gc0.5' #'-bs128' #'-bs128'
+tag="allK" #'-gc0.5' #'-bs128' #'-bs128'
+#tag="d2018" #'-gc0.5' #'-bs128' #'-bs128'
 ############### EVALUATION
 beam_size=5 #set 0 for greedy search
 
