@@ -15,6 +15,7 @@ __pycache__/
 
 # Distribution / packaging
 .Python
+.vector_cache/
 env/
 build/
 data/*
@@ -30,6 +31,7 @@ parts/
 sdist/
 var/
 parlai_internal/
+parlai_external/
 *.egg-info/
 .installed.cfg
 *.egg
@@ -113,6 +115,11 @@ tmp/
 # Heroku things
 heroku-cli-*
 
+# IntelliJ IDEA
 .idea
 
 *.out
+*.iml
+
+# VSCode
+*.vscode

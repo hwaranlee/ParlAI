@@ -8,12 +8,8 @@ from parlai.mturk.tasks.qa_data_collection.worlds import \
     QADataCollectionOnboardWorld, QADataCollectionWorld
 from parlai.mturk.core.mturk_manager import MTurkManager
 from task_config import task_config
-import time
 import os
 import importlib
-import copy
-from itertools import product
-from joblib import Parallel, delayed
 
 
 def main():
@@ -36,7 +32,7 @@ def main():
     mturk_agent_id = 'Worker'
     mturk_manager = MTurkManager(
         opt=opt,
-        mturk_agent_ids = [mturk_agent_id]
+        mturk_agent_ids=[mturk_agent_id]
     )
     mturk_manager.setup_server()
 
@@ -54,13 +50,19 @@ def main():
 
         mturk_manager.ready_to_accept_workers()
 
-        def check_worker_eligibility(worker):
-            return True
+        def check_workers_eligibility(workers):
+            return workers
+
+        eligibility_function = {
+            'func': check_workers_eligibility,
+            'multiple': True,
+        }
 
         def assign_worker_roles(worker):
             worker[0].id = mturk_agent_id
 
         global run_conversation
+
         def run_conversation(mturk_manager, opt, workers):
             task = task_class(task_opt)
             mturk_agent = workers[0]
@@ -75,15 +77,16 @@ def main():
             world.review_work()
 
         mturk_manager.start_task(
-            eligibility_function=check_worker_eligibility,
+            eligibility_function=eligibility_function,
             assign_role_function=assign_worker_roles,
             task_function=run_conversation
         )
-    except:
+    except BaseException:
         raise
     finally:
         mturk_manager.expire_all_unassigned_hits()
         mturk_manager.shutdown()
+
 
 if __name__ == '__main__':
     main()

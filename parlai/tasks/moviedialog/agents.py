@@ -4,7 +4,7 @@
 # LICENSE file in the root directory of this source tree. An additional grant
 # of patent rights can be found in the PATENTS file in the same directory.
 
-from parlai.core.fbdialog_teacher import FbDialogTeacher
+from parlai.core.teachers import FbDialogTeacher
 from parlai.core.agents import MultiTaskTeacher
 from .build import build
 
@@ -12,7 +12,7 @@ import copy
 import os
 
 tasks = {}
-tasks[1] = os.path.join('task1_qa', 'task1_qa_')
+tasks[1] = os.path.join('task1_qa', 'task1_qa_pipe_')
 tasks[2] = os.path.join('task2_recs', 'task2_recs_')
 tasks[3] = os.path.join('task3_qarecs', 'task3_qarecs_')
 tasks[4] = os.path.join('task4_reddit', 'task4_reddit', 'task4_reddit_')
