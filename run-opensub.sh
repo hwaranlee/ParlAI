@@ -1,22 +1,31 @@
 #!/bin/bash
-exp_dir='exp-opensub'
-#emb='data/glove.840B.300d.txt'
-exp=
-gpuid= 
+exp_dir='exp'
+gpuid=0
 model='seq2seq_v2'
-emb=300
-hs=1024
+emb=400
+hs=4096
 lr=0.0001
+dr=0.5
 wd=0 #.00002
 attn=false #true # true / fase
 attType=concat  #general concat dot
+enc=gru
+dict_maxexs=0
+dict_nwords=100000
+no_cuda=False
+split_gpus=False
+lt=unique
+bi=False
+embed=''
+dict_dir='exp-opensubtitles'
+dict_class='parlai.tasks.ko_multi.dict:Dictionary'
 
 ############### CUSTOM
 gradClip=-1
 
-tag=''  #'-gc0.5' #'-bs128' #'-bs128'
+tag='projection'  #'-gc0.5' #'-bs128' #'-bs128'
 ############### EVALUATION
-beam_size=50 #set 0 for greedy search
+beam_size=5 #set 0 for greedy search
 
 ###############
 
@@ -48,7 +57,7 @@ if [ $(awk 'BEGIN{ print ('$wd' > '0') }') -eq 1 ]; then
 fi
 
 
-exp=${exp}${tag}
+exp=${exp}-${tag}
 
 ### '-' options are defined in parlai/core/params.py 
 ### -m --model : should match parlai/agents/<model> (model:model_class)
@@ -57,13 +66,28 @@ exp=${exp}${tag}
 if [ $train -eq 1 ]; then # train
 	script='examples/train_model_seq2seq_ldecay.py'
 	script=${script}' --log-file '$exp_dir'/exp-'${exp}'/exp-'${exp}'.log'
-	script=${script}' -bs 128' # training option
-	script=${script}' -vparl 34436 -vp 5' #validation option
+	script=${script}' -bs 100' # training option
+	script=${script}' -vparl 18000 -vp 5' #validation option
 	script=${script}' -vmt nll -vme -1' #validation measure
 	script=${script}' --optimizer adam -lr '${lr}
+        script=${script}' --dropout '${dr}
+        script=${script}' -enc '${enc}
+        script=${script}' -lt '${lt}
+        script=${script}' -bi '${bi}
+        script=${script}' --dict-class '${dict_class}
+        if [ $split_gpus = 'True' ]; then
+            script=${script}' --split-gpus'
+        fi
+        if [ $no_cuda = 'True' ]; then
+            script=${script}' --no-cuda'
+        fi
+        if [ $embed ]; then
+            script=${script}' --embed '${embed}
+        fi
 	
 	#Dictionary arguments
-	script=${script}' -dbf True --dict-minfreq 5'
+        script=${script}' -dbf True --dict-maxexs '${dict_maxexs}
+        script=${script}' --dict-nwords '${dict_nwords}
 fi
 
 if [ $train -eq 0 ]; then # eval
@@ -71,14 +95,16 @@ if [ $train -eq 0 ]; then # eval
 	script=${script}' --datatype valid'
 	script=${script}' --log-file '$exp_dir'/exp-'${exp}'/exp-'${exp}'_eval.log'
 	script=${script}' --beam_size '$beam_size
+        script=${script}' -bi '${bi}
+	script=${script}' --optimizer adam -lr '${lr}
+        script=${script}' -lt '${lt}
 fi
 
-script=${script}' --dict-file exp-opensub/dict_file_th5.dict' # built dict (word)
-
-#script=${script}' --embedding_file '$emb #validation option
+mkdir -p $dict_dir
+script=${script}' --dict-file '$dict_dir'/dict_file_'${dict_nwords}'.dict' # built dict (word)
 
 if [ ! -d ${exp_dir}/exp-${exp} ]; then
-	mkdir ${exp_dir}/exp-${exp}
+	mkdir -p ${exp_dir}/exp-${exp}
 fi
 
 script=${script}' -m '${model}' -t opensubtitles -mf '${exp_dir}/exp-${exp}/exp-${exp}
@@ -87,12 +113,11 @@ if [ -n "$gpuid" ]; then
 	script=${script}' --gpu '${gpuid}
 fi
 
-python ${script} -hs ${hs} -emb ${emb} -att ${attn} -attType ${attType} -gradClip ${gradClip} -wd ${wd}
-
+# python -u -m cProfile -s "tottime" ${script} -hs ${hs} -emb ${emb} -att ${attn} -attType ${attType} -gradClip ${gradClip} -wd ${wd}
+python -u ${script} -hs ${hs} -emb ${emb} -att ${attn} -attType ${attType} -gradClip ${gradClip} -wd ${wd}
 
 case "$exp" in
 	e300-h2048) python ${script} -hs 1024 -emb 300 -att 0
 		;;
 esac
-
 
