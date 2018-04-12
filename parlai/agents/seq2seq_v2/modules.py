@@ -241,11 +241,9 @@ class Seq2seq(nn.Module):
         dec_xes = xe.expand(xe.size(0), batchsize, xe.size(2))
 
         output_lines = None
-
         scores, preds = self._decode_and_train(batchsize, dec_xes, xlen_t, xs, ys, hidden)
 
         return scores, preds
-
 
 class Linear(nn.Module):
     """Custom Linear layer which allows for sharing weights (e.g. with an
