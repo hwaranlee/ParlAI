@@ -58,7 +58,7 @@ def run_eval(agent, opt, datatype, max_exs=-1, write_log=False, valid_world=None
         agent.generating = True
         print("Generating:")
     
-    for _ in valid_world:
+    while not valid_world.epoch_done():
         if isinstance(valid_world, BatchWorld):
             valid_world.batch_observations[0] = None
         valid_world.parley()
@@ -67,7 +67,7 @@ def run_eval(agent, opt, datatype, max_exs=-1, write_log=False, valid_world=None
             logger.info(valid_world.display() + '\n~~')
             logger.info(valid_world.report())
         cnt += opt['batchsize']
-        if valid_world.epoch_done() or (max_exs > 0 and cnt >= max_exs):
+        if max_exs > 0 and cnt > max_exs + opt.get('numthreads', 1):
             # note this max_exs is approximate--some batches won't always be
             # full depending on the structure of the data
             break
@@ -143,7 +143,7 @@ def main():
     train.add_argument('--split-gpus', type=bool, default=False, help='Split gpus for a large model.')
 
     opt = parser.parse_args()
-    
+
     # Set logging
     logger = logging.getLogger('Seq2seq')
     logger.setLevel(logging.INFO)

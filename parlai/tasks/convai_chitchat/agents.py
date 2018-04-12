@@ -5,10 +5,11 @@
 # of patent rights can be found in the PATENTS file in the same directory.
 
 from .build import build
-from parlai.core.dialog_teacher import DialogTeacher
+from parlai.core.teachers import DialogTeacher
 
 import json
 import os
+
 
 class DefaultTeacher(DialogTeacher):
     def __init__(self, opt, shared=None):
@@ -28,7 +29,7 @@ class DefaultTeacher(DialogTeacher):
         elif dt == 'test':
             path = os.path.join(opt['datapath'], 'ConvAIChitChat', 'test.json')
         elif dt == 'valid':
-            path = os.path.join(opt['datapath'], 'ConvAIChitChat', 'valid.json')
+            raise RuntimeError('warning: validation is not supported')
         else:
             raise RuntimeError('Not valid datatype.')
 
@@ -36,12 +37,9 @@ class DefaultTeacher(DialogTeacher):
 
     @staticmethod
     def _fold_utterances(raw_dialog):
-        dialog = [] 
-        ### exclude H-B, consider only H-H
-        ### consider only long (#turns of each speaker > 3)
-         
+        dialog = []
         for utterance in raw_dialog:
-            if len(dialog) > 0 and dialog[-1]['userId'] == utterance['userId']: ### ??
+            if len(dialog) > 0 and dialog[-1]['userId'] == utterance['userId']:
                 dialog[-1]['text'] = dialog[-1]['text'] + '\n' + utterance['text']
             else:
                 dialog.append({'text': utterance['text'], 'userId': utterance['userId']})
@@ -58,9 +56,7 @@ class DefaultTeacher(DialogTeacher):
         for dialog in dialogs_dict:
             folded_dialog = DefaultTeacher._fold_utterances(dialog['thread'])
             context = dialog['context']
-            
-            # pdb.set_trace()
-            # 
+
             if len(folded_dialog) < 2:
                 continue
 
@@ -68,7 +64,7 @@ class DefaultTeacher(DialogTeacher):
             u2_utterances = folded_dialog[1::2]
 
             for second_user_examples in [((context, ['']), True)] + \
-                    DefaultTeacher._create_learning_examples(u1_utterances, u2_utterances):##################??? context???
+                    DefaultTeacher._create_learning_examples(u1_utterances, u2_utterances):
                 yield second_user_examples
 
             if len(u1_utterances) > 1:
@@ -91,4 +87,3 @@ class DefaultTeacher(DialogTeacher):
             dialogs = json.load(data_file)
 
         return DefaultTeacher._data_generator(dialogs)
-    

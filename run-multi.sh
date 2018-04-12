@@ -1,6 +1,6 @@
 #!/bin/bash
 exp_dir='exp'
-gpuid=1
+gpuid=0
 model='seq2seq_v2'
 emb=200
 hs=2048
@@ -17,12 +17,13 @@ split_gpus=False
 lt=unique
 bi=False
 embed='data/word2vec_ko/ko.bin'
-dict_dir='exp-ko_multi_20180316'
+dict_dir='exp-ko_multi_20180330'
+dict_class='parlai.tasks.ko_multi.dict:Dictionary'
 
 ############### CUSTOM
 gradClip=-1
 
-tag='multi2018_30000'  #'-gc0.5' #'-bs128' #'-bs128'
+tag='word_parsing'  #'-gc0.5' #'-bs128' #'-bs128'
 ############### EVALUATION
 beam_size=5 #set 0 for greedy search
 
@@ -73,6 +74,7 @@ if [ $train -eq 1 ]; then # train
         script=${script}' -enc '${enc}
         script=${script}' -lt '${lt}
         script=${script}' -bi '${bi}
+        script=${script}' --dict-class '${dict_class}
         if [ $split_gpus = 'True' ]; then
             script=${script}' --split-gpus'
         fi
@@ -96,6 +98,7 @@ if [ $train -eq 0 ]; then # eval
         script=${script}' -bi '${bi}
 	script=${script}' --optimizer adam -lr '${lr}
         script=${script}' -lt '${lt}
+        script=${script}' --dict-class '${dict_class}
 fi
 
 mkdir -p $dict_dir

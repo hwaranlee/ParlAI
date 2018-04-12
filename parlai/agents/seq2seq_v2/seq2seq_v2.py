@@ -8,7 +8,7 @@
 
 from parlai.core.agents import Agent
 from parlai.core.dict import DictionaryAgent
-from .beam import Beam
+from parlai.core.params import str2class
 from .beam_diverse import Beam
 from .modules import Seq2seq
 
@@ -127,7 +127,10 @@ class Seq2seqV2Agent(Agent):
                 # override options with stored ones
                 opt = self.override_opt(new_opt)
                 
-            self.dict = DictionaryAgent(opt)
+            if opt.get('dict_class'):
+                self.dict = str2class(opt['dict_class'])(opt)
+            else:
+                self.dict = DictionaryAgent(opt)
             self.id = 'Seq2Seq'
             # we use START markers to start our output
             self.START = self.dict.start_token

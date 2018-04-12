@@ -17,33 +17,73 @@ import torch
 from parlai.core.agents import create_agent
 from parlai.core.worlds import create_task
 from parlai.core.params import ParlaiParser
+from parlai.core.utils import Timer
 
 import random
+import os
 
-def main():
-    random.seed(42)
-
+def setup_args(parser=None):
+    if parser is None:
+        parser = ParlaiParser(True, True)
     # Get command line arguments
-    parser = ParlaiParser(True, True)
-    parser.add_argument('-n', '--num-examples', default=100000000)
+    parser.add_argument('-ne', '--num-examples', type=int, default=-1)
     parser.add_argument('-d', '--display-examples', type='bool', default=False)
+    parser.add_argument('-ltim', '--log-every-n-secs', type=float, default=2)
     parser.set_defaults(datatype='valid')
-    opt = parser.parse_args()
+    return parser
+
+def eval_model(parser, printargs=True):
+    random.seed(42)
+    opt = parser.parse_args(print_args=False)
+
+    nomodel = False
+    # check to make sure the model file exists
+    if opt.get('model_file') is None:
+        nomodel = True
+    elif not os.path.isfile(opt['model_file']):
+        raise RuntimeError('WARNING: Model file does not exist, check to make '
+                           'sure it is correct: {}'.format(opt['model_file']))
+
     # Create model and assign it to the specified task
     agent = create_agent(opt)
+    if nomodel and hasattr(agent, 'load'):
+        # double check that we didn't forget to set model_file on loadable model
+        raise RuntimeError('Stopping evaluation because model_file unset but '
+                           'model has a `load` function.')
     world = create_task(opt, agent)
+    # Show arguments after loading model
+    parser.opt = agent.opt
+    if (printargs):
+        parser.print_args()
+    log_every_n_secs = opt.get('log_every_n_secs', -1)
+    if log_every_n_secs <= 0:
+        log_every_n_secs = float('inf')
+    log_time = Timer()
+    tot_time = 0
 
     # Show some example dialogs:
-    for k in range(int(opt['num_examples'])):
+    cnt = 0
+    while not world.epoch_done():
+        cnt += 1
         world.parley()
-        print("---")
         if opt['display_examples']:
+            print("---")
             print(world.display() + "\n~~")
-        print(world.report())
-        if world.epoch_done():
-            print("EPOCH DONE")
+        if log_time.time() > log_every_n_secs:
+            tot_time += log_time.time()
+            print(str(int(tot_time)) + "s elapsed: " + str(world.report()))
+            log_time.reset()
+        if opt['num_examples'] > 0 and cnt >= opt['num_examples']:
             break
-    world.shutdown()
+    if world.epoch_done():
+        print("EPOCH DONE")
+    report = world.report()
+    print(report)
+    return report
+
+
+def main():
+    eval_model(setup_args())
 
 if __name__ == '__main__':
     main()
