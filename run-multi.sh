@@ -30,7 +30,7 @@ beam_size=5 #set 0 for greedy search
 ###############
 
 
-train=1 # train=1, eval=0
+train=0 # train=1, eval=0
 OPTIND=1
 while getopts "e:g:t:m:h:b:l:a:w:z:" opt; do
 	case "$opt" in
@@ -98,6 +98,7 @@ if [ $train -eq 0 ]; then # eval
         script=${script}' -bi '${bi}
 	script=${script}' --optimizer adam -lr '${lr}
         script=${script}' -lt '${lt}
+        script=${script}' --dict-class '${dict_class}
 fi
 
 mkdir -p $dict_dir

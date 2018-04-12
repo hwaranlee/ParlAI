@@ -18,6 +18,7 @@ class Bot:
         opt['cuda'] = cuda
         opt['no_cuda'] = (not cuda)
         opt['batchsize'] = 1
+        opt['dict_class'] = 'parlai.tasks.ko_multi.dict:Dictionary'
 
         self.opt = opt
         self.agent = create_agent(opt)        
