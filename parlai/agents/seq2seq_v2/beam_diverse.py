@@ -23,7 +23,7 @@ debug=False
 class Beam(object):
     """Ordered beam of candidate outputs."""
 
-    def __init__(self, size, vocab, group=10, hold_step=1, cuda=False):
+    def __init__(self, size, vocab, group=1, hold_step=1, cuda=False):
         """Initialize params."""
         ## vocab = self.dict.tok2ind
         self.size = size

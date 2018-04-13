@@ -9,7 +9,6 @@
 from parlai.core.agents import Agent
 from parlai.core.dict import DictionaryAgent
 from parlai.core.params import str2class
-# from .beam import Beam
 from .beam_diverse import Beam
 from .modules import Seq2seq
 
@@ -143,6 +142,11 @@ class Seq2seqV2Agent(Agent):
 
             opt['dict'] = self.dict
 
+
+            self.START_TENSOR = torch.LongTensor(self.dict.parse(self.START))
+            # we use END markers to end our output
+            self.END_TENSOR = torch.LongTensor(self.dict.parse(self.END))
+
             # store important params directly
             hsz = opt['hiddensize']
             emb = opt['embeddingsize']
@@ -165,6 +169,7 @@ class Seq2seqV2Agent(Agent):
             self.model = Seq2seq(opt, len(self.dict), self.START_IDX, self.NULL_IDX, longest_label=self.longest_label)
             # self.model = nn.DataParallel(Seq2seq(opt, len(self.dict), self.START_IDX, self.NULL_IDX, longest_label=self.states.get('longest_label', 1)), [0])
             
+            self.zeros_dec = torch.zeros(self.num_layers, 1, hsz)
             self.use_attention = False
 
             # initialization
@@ -280,6 +285,10 @@ class Seq2seqV2Agent(Agent):
         else:
             self.ys = self.ys.cuda(async=True)
             self.criterion.cuda()
+        self.START_TENSOR = self.START_TENSOR.cuda(async=True)
+        self.END_TENSOR = self.END_TENSOR.cuda(async=True)
+        self.START_TENSOR = self.START_TENSOR.cuda(async=True)
+        self.END_TENSOR = self.END_TENSOR.cuda(async=True)
 
     def reset(self):
         """Reset observation and episode_done."""
@@ -343,27 +352,51 @@ class Seq2seqV2Agent(Agent):
             xlen_t = xlen_t.cuda()
         xlen_t = Variable(xlen_t)
 
-        scores, preds = self.model(xs, self.training, xlen_t, ys)
+        #if self.training:
+        #    scores, preds = self.model(xs, self.training, xlen_t, ys)
+        #else:
+        #    encoder_output, scores, preds, dec_xes = self.model.forwardforbeam(xs, self.training, xlen_t, ys)
 
-        if ys is not None:
-            loss = 0
-            for i, score in enumerate(scores):
-                y = ys.select(1, i)
-                loss += self.criterion(score, y)
+        #if ys is not None:
+        #    loss = 0
+        #    for i, score in enumerate(scores):
+        #        y = ys.select(1, i)
+        #        loss += self.criterion(score, y)
     
-            if self.training:
-                self.loss = loss.data[0] / sum(ylen)
-                self.ndata += batchsize
-            else:
-                self.loss_valid += loss.data[0]
-                self.ndata_valid += sum(ylen)
+        #    if self.training:
+        #        self.loss = loss.data[0] / sum(ylen)
+        #        self.ndata += batchsize
+        #    else:
+        #        self.loss_valid += loss.data[0]
+        #        self.ndata_valid += sum(ylen)
             
-        output_lines = [[] for _ in range(batchsize)]
-        for b in range(batchsize):
+        #output_lines = [[] for _ in range(batchsize)]
+        #for b in range(batchsize):
             # convert the output scores to tokens
-            output_lines[b] = self.v2t(preds.data[b])
+        #    output_lines[b] = self.v2t(preds.data[b])
         
         if self.training:
+            scores, preds = self.model(xs, self.training, xlen_t, ys)
+
+            if ys is not None:
+                loss = 0
+                for i, score in enumerate(scores):
+                    y = ys.select(1, i)
+                    loss += self.criterion(score, y)
+
+                if self.training:
+                    self.loss = loss.data[0] / sum(ylen)
+                    self.ndata += batchsize
+                else:
+                    self.loss_valid += loss.data[0]
+                    self.ndata_valid += sum(ylen)
+
+            output_lines = [[] for _ in range(batchsize)]
+            for b in range(batchsize):
+                # convert the output scores to tokens
+                output_lines[b] = self.v2t(preds.data[b])
+
+
             loss.backward()
             if self.opt['grad_clip'] > 0:
                 torch.nn.utils.clip_grad_norm(self.model.lt.parameters(), self.opt['grad_clip'])
@@ -371,15 +404,48 @@ class Seq2seqV2Agent(Agent):
                 torch.nn.utils.clip_grad_norm(self.model.encoder.parameters(), self.opt['grad_clip'])
                 torch.nn.utils.clip_grad_norm(self.model.decoder.parameters(), self.opt['grad_clip'])
             self.update_params()
+#HEM Start
+            self.display_predict(xs, ys, output_lines, 0)
+        else:
+            if cands is not None:
+                text_cand_inds = self._score_candidates(cands, xe, encoder_output)
+													 
+            if self.opt['beam_size'] > 0:
+                scores, preds = self.model(xs, self.training, xlen_t, ys)
+                encoder_output, hidden = self.model._encode(xs, xlen_t, self.training)
+                x = Variable(self.model.START, requires_grad = False)
+                xe = self.model.lt(x).unsqueeze(1)
+                dec_xes = xe.expand(xe.size(0), batchsize, xe.size(2))
 
+                output_lines, beam_cands = self._beam_search(batchsize, dec_xes, xlen_t, xs, encoder_output, hidden)
+            else:
+                beam_cands = []
+                scores, preds = self.model(xs, self.training, xlen_t, ys)
+
+                if ys is not None:
+                    loss = 0
+                    for i, score in enumerate(scores):
+                        y = ys.select(1, i)
+                        loss += self.criterion(score, y)
+
+                    self.loss_valid += loss.data[0]
+                    self.ndata_valid += sum(ylen)
+
+                output_lines = [[] for _ in range(batchsize)]
+                for b in range(batchsize):
+                    # convert the output scores to tokens
+                    output_lines[b] = self.v2t(preds.data[b])
+                self.display_predict(xs, ys, output_lines, 1)
+
+#HEM End
 #        try:
 #            print(output_lines[0].split().index('__END__'))
 #        except ValueError:
 #            print(len(output_lines[0].split()))
         
-        self.display_predict(xs, ys, output_lines, 0)
-
-        return output_lines, text_cand_inds
+        #self.display_predict(xs, ys, output_lines, 0)
+  
+        return output_lines, text_cand_inds, beam_cands
 
     def display_predict(self, xs, ys, output_lines, freq=0.01):
         if random.random() < freq:
@@ -466,8 +532,41 @@ class Seq2seqV2Agent(Agent):
                 ys = Variable(self.ys)
             else:
                 ys = Variable(ys)
-                
-        return xs, ys, valid_inds, xlen, ylen
+#HEM Stret        
+        # set up candidates
+        cands = None
+        valid_cands = None
+        if ys is None and self.rank:
+            # only do ranking when no targets available and ranking flag set
+            parsed = []
+            valid_cands = []
+            for i in valid_inds:
+                if 'label_candidates' in observations[i]:
+                    # each candidate tuple is a pair of the parsed version and
+                    # the original full string
+                    cs = list(observations[i]['label_candidates'])
+                    parsed.append([self.parse(c) for c in cs])
+                    valid_cands.append((i, cs))
+            if len(parsed) > 0:
+                # TODO: store lengths of cands separately, so don't have zero
+                # padding for varying number of cands per example
+                # found cands, pack them into tensor
+                max_c_len = max(max(len(c) for c in cs) for cs in parsed)
+                max_c_cnt = max(len(cs) for cs in parsed)
+                cands = torch.LongTensor(len(parsed), max_c_cnt, max_c_len).fill_(0)
+                for i, cs in enumerate(parsed):
+                    for j, c in enumerate(cs):
+                        for k, idx in enumerate(c):
+                            cands[i][j][k] = idx
+                if self.use_cuda:
+                    # copy to gpu
+                    self.cands.resize_(cands.size())
+                    self.cands.copy_(cands, async=True)
+                    cands = Variable(self.cands)
+                else:
+                    cands = Variable(cands)
+#HEM End                
+        return xs, ys, valid_inds, cands, valid_cands, xlen, ylen
 
     def batch_act(self, observations):
         batchsize = len(observations)
@@ -478,7 +577,8 @@ class Seq2seqV2Agent(Agent):
         # valid_inds tells us the indices of all valid examples
         # e.g. for input [{}, {'text': 'hello'}, {}, {}], valid_inds is [1]
         # since the other three elements had no 'text' field
-        xs, ys, valid_inds, xlen, ylen = self.batchify(observations)
+#        xs, ys, valid_inds, xlen, ylen = self.batchify(observations)
+        xs, ys, valid_inds, cands, valid_cands, xlen, ylen = self.batchify(observations)
 
         if xs is None:
             # no valid examples, just return the empty responses we set up
@@ -486,7 +586,7 @@ class Seq2seqV2Agent(Agent):
 
         # produce predictions either way, but use the targets if available
         
-        predictions, text_cand_inds = self.predict(xs, xlen, ylen, ys)
+        predictions, text_cand_inds, beam_cands = self.predict(xs, xlen, ylen, ys, cands)
 
         if self.local_human:
             print(self.postprocess(predictions[0]))
@@ -506,14 +606,14 @@ class Seq2seqV2Agent(Agent):
                 curr['text_candidates'] = [curr_cands[idx] for idx in order
                                            if idx < len(curr_cands)]
         
-        return batch_reply
+        return batch_reply, beam_cands
 
     def act(self):
         # call batch_act with this batch of one
-        return self.batch_act([self.observation])[0]
+        return self.batch_act([self.observation])[0][0]
 
     def act_beam_cands(self):
-        return self.batch_act([self.observation])[1]
+        return self.batch_act([self.observation])[0][1]
     
     def save(self, path=None):
         path = self.opt.get('model_file', None) if path is None else path
@@ -589,3 +689,118 @@ class Seq2seqV2Agent(Agent):
             print('{:30}'.format(module_name) + ' {:5} x{:5}'.format(weight.size(0), weight.size(1))
                    + ' : w {0:.2e} | '.format((norm_w / nparam).sqrt().data[0]) + 'dw {0:.2e}'.format((norm_dw / nparam).sqrt().data[0]))
     
+    def _get_context(self, batchsize, xlen_t, encoder_output):
+        " return initial hidden of decoder and encoder context (last_state)"
+        
+        ## The initial of decoder is the hidden (last states) of encoder --> put zero!       
+        if self.zeros_dec.size(1) != batchsize:
+            self.zeros_dec.resize_(self.model.num_layers, batchsize, self.model.hidden_size).fill_(0)
+        hidden = Variable(self.zeros_dec.fill_(0))
+        
+        last_state = None
+        if not self.use_attention:
+            last_state = torch.gather(encoder_output, 1, xlen_t.view(-1,1,1).expand(encoder_output.size(0),1,encoder_output.size(2)))
+            if self.opt['bi_encoder']:
+#                last_state = torch.cat((encoder_output[:,0,:self.hidden_size], last_state[:,0,self.hidden_size:]),1)        
+                last_state = torch.cat((encoder_output[:,0,self.hidden_size:], last_state[:,0,:self.hidden_size]),1)        
+        
+        return hidden, last_state
+
+    def _beam_search(self, batchsize, dec_xes, xlen_t, xs, encoder_output, hidden, n_best=20):
+        # Code borrowed from PyTorch OpenNMT example`
+        # https://github.com/MaximumEntropy/Seq2Seq-PyTorch/blob/master/decode.py
+        
+        print('(beam search {})'.format(self.beamsize))
+        
+        # just produce a prediction without training the model
+        done = [False for _ in range(batchsize)]
+        total_done = 0
+        max_len = 0
+        output_lines = [[] for _ in range(batchsize)]
+                
+        #hidden, last_state = self._get_context(batchsize, xlen_t, encoder_output)  ## hidden = 2(#layer)x1x2048 / last_state = 1x4096
+                
+        # exapnd tensors for each beam
+        beamsize = self.beamsize
+        #if not self.use_attention:
+        #    context = Variable(last_state.data.repeat(1, beamsize, 1))
+            
+        dec_states = [
+            Variable(hidden.data.repeat(1, beamsize, 1)) # 2x3x2048
+        ]
+     
+        beam = [ Beam(beamsize, self.dict.tok2ind, cuda = self.use_cuda) for k in range(batchsize) ]        
+        
+        batch_idx = list(range(batchsize))
+        remaining_sents = batchsize
+        
+        input = Variable(dec_xes.data.repeat(1, beamsize, 1))
+        encoder_output = Variable(encoder_output.data.repeat(beamsize,1, 1))
+       
+        if self.model.split_gpus:
+            output = output.cuda(1)
+            hidden = hidden.cuda(1)
+
+        
+        #while max_len < self.model.max_seq_len:
+        while total_done < batchsize and max_len < self.model.longest_label:
+        
+            
+            # keep producing tokens until we hit END or max length for each
+            #if self.model.use_attention: 
+            #    output = self._apply_attention(input, encoder_output, dec_states[0][-1], xs)
+            #else:                
+            #output = torch.cat((input, context), 2)         
+            
+            output, hidden = self.model.decoder(input, dec_states[0]) 
+            preds, scores = self.model.hidden_to_idx(output, dropout=False)
+            #output, hidden = self.model.decoder(dec_xes, hidden)
+            #preds, scores = self.model.hidden_to_idx(output, dropout=False)
+            
+            dec_states = [hidden]
+            word_lk = scores.view(beamsize, remaining_sents, -1).transpose(0, 1).contiguous()     
+            
+            active = []
+            for b in range(batchsize):
+                if beam[b].done:
+                    continue
+
+                idx = batch_idx[b]
+                if not beam[b].advance_diverse(word_lk.data[idx]):
+                    active += [b]
+
+                for dec_state in dec_states:  # iterate over h, c
+                    # layers x beam*sent x dim
+                    sent_states = dec_state.view(-1, beamsize, remaining_sents, dec_state.size(2))[:, :, idx]
+                    sent_states.data.copy_(sent_states.data.index_select( 1, beam[b].get_current_origin()))
+
+            if not active:
+                break
+            
+            input = torch.stack([b.get_current_state() for b in beam if not b.done]).t().contiguous().view(1, -1)
+            input = self.model.lt(Variable(input))    
+
+            max_len += 1
+            
+        all_preds, allScores = [], []
+        for b in range(batchsize):        ## TODO :: does it provide batchsize > 1 ?
+            hyps = []
+            scores, ks = beam[b].sort_best()
+            #scores, ks = beam[b].sort_best_normlen()
+
+            allScores += [scores[:self.beamsize]]
+            hyps += [beam[b].get_hyp(k) for k in ks[:self.beamsize]]
+            
+            all_preds += [' '.join([self.dict.ind2tok[y] for y in x if not y is 0]) for x in hyps] # self.dict.null_token = 0
+            
+            if n_best == 1:
+                print('\n    input:', self.dict.vec2txt(xs[0].data.cpu()).replace(self.dict.null_token+' ', ''),
+                  '\n    pred :', ''.join(all_preds[b]), '\n')
+            else:
+                print('\n    input:', self.dict.vec2txt(xs[0].data.cpu()).replace(self.dict.null_token+' ', '\n'))
+                for hyps in range(len(hyps)):
+                    print('   {:3f} '.format(scores[hyps]), ''.join(all_preds[hyps]))
+
+            #print('the first: '+ ' '.join([self.dict.ind2tok[y] for y in beam[0].nextYs[1]]))
+
+        return [all_preds[0]], all_preds # 1-best
