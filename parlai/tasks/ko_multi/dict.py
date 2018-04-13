@@ -4,7 +4,6 @@ class Dictionary(DictionaryAgent):
     def __init__(self, opt, shared=None):
         super().__init__(opt, shared)
 
-        print('Using ko_multi dictionary.')
         special_tokens = [self.null_token, self.end_token,
                 self.unk_token, self.start_token]
 

@@ -20,6 +20,7 @@ from parlai.core.worlds import BatchWorld
 from parlai.core.params import ParlaiParser
 from parlai.core.utils import Timer
 from torch.optim.lr_scheduler import ReduceLROnPlateau
+from examples.build_dict import setup_args as setup_dict_args
 import build_dict
 import math
 import logging, sys
@@ -93,12 +94,8 @@ def run_eval(agent, opt, datatype, max_exs=-1, write_log=False, valid_world=None
     
     return valid_report, valid_world
 
-def get_n_data(world):
-    return len(world.world.get_agents()[0].data.data)
-
-def select_batch(world):
-    n_data = get_n_data(world)
-    world.batch_observations = [[random.randrange(n_data)], None]
+def get_n_batches(world):
+    return len(world.world.get_agents()[0].batches)
 
 def main():
     torch.cuda.manual_seed_all(0)
@@ -142,6 +139,8 @@ def main():
     train.add_argument('-dn', '--dict-nwords', type=int, default=1000000, help='The number of words for dictionary')
     train.add_argument('--split-gpus', type=bool, default=False, help='Split gpus for a large model.')
 
+    parser = setup_dict_args(parser)
+
     opt = parser.parse_args()
 
     # Set logging
@@ -180,8 +179,7 @@ def main():
     logger.info('[ training... ]')
     parleys = 0
     total_exs = 0
-    max_exs = opt['num_epochs'] * get_n_data(world)
-    max_parleys = math.ceil(max_exs / opt['batchsize'])
+    max_parleys = opt['num_epochs'] * get_n_batches(world)
     impatience = 0
     saved = False
     valid_world = None
@@ -194,7 +192,6 @@ def main():
     while True:
         if not agent.training:
             agent.training = True
-        select_batch(world)
             
         world.parley()
         parleys += 1
