@@ -18,6 +18,7 @@ lt=unique
 bi=False
 embed='data/word2vec_ko/ko.bin'
 dict_dir='exp-opensub_kemo_all'
+dict_class='parlai.tasks.ko_multi.dict:Dictionary'
 
 
 ############### CUSTOM
@@ -75,6 +76,7 @@ if [ $train -eq 1 ]; then # train
         script=${script}' -enc '${enc}
         script=${script}' -lt '${lt}
         script=${script}' -bi '${bi}
+        script=${script}' --dict-class '${dict_class}
         if [ $split_gpus = 'True' ]; then
             script=${script}' --split-gpus'
         fi
@@ -98,6 +100,7 @@ if [ $train -eq 0 ]; then # eval
         script=${script}' -bi '${bi}
 	script=${script}' --optimizer adam -lr '${lr}
         script=${script}' -lt '${lt}
+        script=${script}' --dict-class '${dict_class}
 fi
 
 
