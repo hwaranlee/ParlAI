@@ -374,6 +374,8 @@ class Seq2seqV2Agent(Agent):
         #for b in range(batchsize):
             # convert the output scores to tokens
         #    output_lines[b] = self.v2t(preds.data[b])
+
+        beam_cands = None
         
         if self.training:
             scores, preds = self.model(xs, self.training, xlen_t, ys)
@@ -435,7 +437,7 @@ class Seq2seqV2Agent(Agent):
                 for b in range(batchsize):
                     # convert the output scores to tokens
                     output_lines[b] = self.v2t(preds.data[b])
-                self.display_predict(xs, ys, output_lines, 1)
+                self.display_predict(xs, ys, output_lines, 0)
 
 #HEM End
 #        try:
@@ -606,7 +608,7 @@ class Seq2seqV2Agent(Agent):
                 curr['text_candidates'] = [curr_cands[idx] for idx in order
                                            if idx < len(curr_cands)]
         
-        return batch_reply, beam_cands
+        return batch_reply
 
 
     def batch_beam_act(self, observations):
@@ -636,10 +638,10 @@ class Seq2seqV2Agent(Agent):
 
     def act(self):
         # call batch_act with this batch of one
-        return self.batch_act([self.observation])[0][0]
+        return self.batch_act([self.observation])[0]
 
     def act_beam_cands(self):
-        return self.batch_act([self.observation])[0][1]
+        return self.batch_act([self.observation])[1]
     
     def save(self, path=None):
         path = self.opt.get('model_file', None) if path is None else path

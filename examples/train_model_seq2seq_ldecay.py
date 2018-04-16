@@ -142,6 +142,7 @@ def main():
     parser = setup_dict_args(parser)
 
     opt = parser.parse_args()
+    model_save_path = opt.get('model_file', None)
 
     # Set logging
     logger = logging.getLogger('Seq2seq')
@@ -236,7 +237,7 @@ def main():
                 best_loss = valid_report[opt['validation_metric']]
                 impatience = 0
                 logger.info('[ new best loss(nll): ' + str(best_loss) +  ' ]')
-                world.save_agents()
+                agent.save(model_save_path)
                 saved = True
                 if best_loss == 1:
                     logger.info('[ task solved! stopping. ]')
