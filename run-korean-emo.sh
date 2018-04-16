@@ -11,7 +11,7 @@ attn=false #true # true / fase
 attType=concat  #general concat dot
 enc=gru
 dict_maxexs=0
-dict_nwords=100000
+dict_maxtokens=25004
 no_cuda=False
 split_gpus=False
 lt=unique
@@ -19,6 +19,7 @@ bi=False
 embed='data/word2vec_ko/ko.bin'
 dict_dir='exp-opensub_kemo_all'
 dict_class='parlai.tasks.ko_multi.dict:Dictionary'
+context_length=1
 
 
 ############### CUSTOM
@@ -77,6 +78,7 @@ if [ $train -eq 1 ]; then # train
         script=${script}' -lt '${lt}
         script=${script}' -bi '${bi}
         script=${script}' --dict-class '${dict_class}
+        script=${script}' --context-length '${context_length}
         if [ $split_gpus = 'True' ]; then
             script=${script}' --split-gpus'
         fi

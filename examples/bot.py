@@ -24,6 +24,8 @@ class Bot:
         self.agent = create_agent(opt)        
         self.agent.training= False
         self.agent.generating = True
+
+        user_history = dict()
         
     def reply(self, message, *args):
         observation = {}

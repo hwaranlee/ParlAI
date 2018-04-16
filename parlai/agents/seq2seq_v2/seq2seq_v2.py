@@ -608,6 +608,32 @@ class Seq2seqV2Agent(Agent):
         
         return batch_reply, beam_cands
 
+
+    def batch_beam_act(self, observations):
+        batchsize = len(observations)
+        # initialize a table of replies with this agent's id
+        batch_reply = [{'id': self.getID()} for _ in range(batchsize)]
+
+        # convert the observations into batches of inputs and targets
+        # valid_inds tells us the indices of all valid examples
+        # e.g. for input [{}, {'text': 'hello'}, {}, {}], valid_inds is [1]
+        # since the other three elements had no 'text' field
+#        xs, ys, valid_inds, xlen, ylen = self.batchify(observations)
+        xs, ys, valid_inds, cands, valid_cands, xlen, ylen = self.batchify(observations)
+
+        if xs is None:
+            # no valid examples, just return the empty responses we set up
+            return batch_reply
+
+        # produce predictions either way, but use the targets if available
+
+        predictions, text_cand_inds, beam_cands = self.predict(xs, xlen, ylen, ys, cands)
+
+        if self.local_human:
+            print(self.postprocess(predictions[0]))
+        
+        return  beam_cands
+
     def act(self):
         # call batch_act with this batch of one
         return self.batch_act([self.observation])[0][0]

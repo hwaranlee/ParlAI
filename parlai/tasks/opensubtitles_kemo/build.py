@@ -26,6 +26,7 @@ def preprocess(sent):
 
 def postprocess(sent):
     sent = sent.replace(' __END__', '')
+    sent = re.sub('^- ', '', sent)
     sent = re.sub(' (.)$', '\\1', sent)
     wordlist = sent.split()
     if wordlist[-1] in ('Happiness', 'Neutral', 'Anger', 'Disgust', 'Sadness', 'surprised', 'Fear'):

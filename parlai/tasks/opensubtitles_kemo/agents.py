@@ -40,6 +40,26 @@ class DefaultTeacher(FbDialogTeacher):
             self.unpack_data()
             self.sort_data()
 
+
+    def setup_data(self, path):
+        def rebuild(entries):
+            return [(entries[i][1][0],
+                [entries[i+1][0]]) for i in range(len(entries) - 1)]
+
+        # this shows conversations in both directions
+        alternate = []
+        for entry, new in super().setup_data(path):
+            if new:
+                for i, e in enumerate(rebuild(alternate)):
+                    yield e, i == 0
+                alternate.clear()
+            else:
+                alternate.append(entry)
+            yield entry, new
+        if alternate:
+            for i, e in enumerate(rebuild(alternate)):
+                yield e, i == 0
+
     def label_candidates(self):
         return None
 
