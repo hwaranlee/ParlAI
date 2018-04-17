@@ -105,6 +105,8 @@ class Seq2seqV2Agent(Agent):
                                 'weights. '
                                 'All shares all three weights.')
         agent.add_argument('--embed', type=str, default=None, help='pretrained embedding')
+        agent.add_argument('--psize', type=int, default=2048,
+                help='projection size before the classifier')
                 
     def __init__(self, opt, shared=None):
         """Set up model if shared params not set, otherwise no work to do."""

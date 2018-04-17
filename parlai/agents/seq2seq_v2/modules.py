@@ -71,14 +71,18 @@ class Seq2seq(nn.Module):
         if opt['embed'] is not None:
             self.load_pretrained()
 
-        if opt['hiddensize'] == opt['embeddingsize']:
+        if 'psize' not in opt:
+            opt['psize'] = opt['embeddingsize']
+
+        if opt['hiddensize'] == opt['psize']:
             self.o2e = lambda x: x
         else:
-            self.o2e = nn.Linear(opt['hiddensize'], opt['embeddingsize'])
+            self.o2e = nn.Linear(opt['hiddensize'], opt['psize'])
 
-        share_output = opt['lookuptable'] in ['dec_out', 'all']
+        share_output = opt['lookuptable'] in ['dec_out', 'all'] and \
+                opt['psize'] == opt['embeddingsize']
         shared_weight = self.lt.weight if share_output else None
-        self.e2s = Linear(opt['embeddingsize'], num_features, bias=False, shared_weight=shared_weight)
+        self.e2s = Linear(opt['psize'], num_features, bias=False, shared_weight=shared_weight)
         self.dropout = nn.Dropout(opt['dropout'])
 
         self.use_attention = False
@@ -116,7 +120,8 @@ class Seq2seq(nn.Module):
             self.lt.cuda(0)
             self.encoder.cuda(0)
             self.decoder.cuda(1)
-            self.o2e.cuda(1)
+            if type(self.o2e) is nn.Linear:
+                self.o2e.cuda(1)
             self.e2s.cuda(1)
             self.dropout.cuda(1)
         else:
