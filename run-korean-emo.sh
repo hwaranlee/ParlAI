@@ -11,7 +11,7 @@ attn=false #true # true / fase
 attType=concat  #general concat dot
 enc=gru
 dict_maxexs=0
-dict_maxtokens=25004
+dict_maxtokens=100000
 no_cuda=False
 split_gpus=False
 lt=unique
@@ -91,7 +91,7 @@ if [ $train -eq 1 ]; then # train
 	
 	#Dictionary arguments
         script=${script}' -dbf True --dict-maxexs '${dict_maxexs}
-        script=${script}' --dict-nwords '${dict_nwords}
+        script=${script}' --dict-nwords '${dict_maxtokens}
 fi
 
 if [ $train -eq 0 ]; then # eval
@@ -106,7 +106,7 @@ if [ $train -eq 0 ]; then # eval
 fi
 
 
-script=${script}' --dict-file '$dict_dir'/dict_file_'${dict_nwords}'.dict' # built dict (word)
+script=${script}' --dict-file '$dict_dir'/dict_file_'${dict_maxtokens}'.dict' # built dict (word)
 
 if [ ! -d ${exp_dir}/exp-${exp} ]; then
 	mkdir -p ${exp_dir}/exp-${exp}

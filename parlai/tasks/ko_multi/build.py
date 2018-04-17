@@ -25,7 +25,6 @@ def preprocess(sent):
 def postprocess(sent):
     sent = sent.replace(' __END__', '')
     sent = re.sub(' (.)$', '\\1', sent)
-    print(sent)
     return nlg.reply(sent)
 
 def create_fb_format(inpaths, outpath):

@@ -413,7 +413,6 @@ class Seq2seqV2Agent(Agent):
                 text_cand_inds = self._score_candidates(cands, xe, encoder_output)
 													 
             if self.opt['beam_size'] > 0:
-                scores, preds = self.model(xs, self.training, xlen_t, ys)
                 encoder_output, hidden = self.model._encode(xs, xlen_t, self.training)
                 x = Variable(self.model.START, requires_grad = False)
                 xe = self.model.lt(x).unsqueeze(1)
@@ -641,7 +640,7 @@ class Seq2seqV2Agent(Agent):
         return self.batch_act([self.observation])[0]
 
     def act_beam_cands(self):
-        return self.batch_act([self.observation])[1]
+        return self.batch_beam_act([self.observation])
     
     def save(self, path=None):
         path = self.opt.get('model_file', None) if path is None else path
@@ -738,7 +737,7 @@ class Seq2seqV2Agent(Agent):
         # Code borrowed from PyTorch OpenNMT example`
         # https://github.com/MaximumEntropy/Seq2Seq-PyTorch/blob/master/decode.py
         
-        print('(beam search {})'.format(self.beamsize))
+        #print('(beam search {})'.format(self.beamsize))
         
         # just produce a prediction without training the model
         done = [False for _ in range(batchsize)]
@@ -821,13 +820,13 @@ class Seq2seqV2Agent(Agent):
             
             all_preds += [' '.join([self.dict.ind2tok[y] for y in x if not y is 0]) for x in hyps] # self.dict.null_token = 0
             
-            if n_best == 1:
-                print('\n    input:', self.dict.vec2txt(xs[0].data.cpu()).replace(self.dict.null_token+' ', ''),
-                  '\n    pred :', ''.join(all_preds[b]), '\n')
-            else:
-                print('\n    input:', self.dict.vec2txt(xs[0].data.cpu()).replace(self.dict.null_token+' ', '\n'))
-                for hyps in range(len(hyps)):
-                    print('   {:3f} '.format(scores[hyps]), ''.join(all_preds[hyps]))
+            #if n_best == 1:
+            #    print('\n    input:', self.dict.vec2txt(xs[0].data.cpu()).replace(self.dict.null_token+' ', ''),
+            #      '\n    pred :', ''.join(all_preds[b]), '\n')
+            #else:
+            #    print('\n    input:', self.dict.vec2txt(xs[0].data.cpu()).replace(self.dict.null_token+' ', '\n'))
+            #    for hyps in range(len(hyps)):
+            #        print('   {:3f} '.format(scores[hyps]), ''.join(all_preds[hyps]))
 
             #print('the first: '+ ' '.join([self.dict.ind2tok[y] for y in beam[0].nextYs[1]]))
 

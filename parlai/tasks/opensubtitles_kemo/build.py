@@ -31,7 +31,6 @@ def postprocess(sent):
     wordlist = sent.split()
     if wordlist[-1] in ('Happiness', 'Neutral', 'Anger', 'Disgust', 'Sadness', 'surprised', 'Fear'):
         sent = ' '.join(wordlist[:-1])
-    print(sent)
     return nlg.reply(sent) + ' ' + wordlist[-1]
 
 def create_fb_format(inpath, outpath):
