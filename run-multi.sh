@@ -4,6 +4,7 @@ gpuid=0
 model='seq2seq_v2'
 emb=200
 hs=2048
+psize=2048
 lr=0.0001
 dr=0.5
 wd=0 #.00002
@@ -11,9 +12,9 @@ attn=false #true # true / fase
 attType=concat  #general concat dot
 enc=gru
 dict_maxexs=0
-dict_maxtokens=25004
+dict_maxtokens=100000
 no_cuda=False
-split_gpus=False
+split_gpus=True
 lt=unique
 bi=False
 embed='data/word2vec_ko/ko.bin'
@@ -24,7 +25,7 @@ context_length=1
 ############### CUSTOM
 gradClip=-1
 
-tag='update1'  #'-gc0.5' #'-bs128' #'-bs128'
+tag='psize'  #'-gc0.5' #'-bs128' #'-bs128'
 ############### EVALUATION
 beam_size=5 #set 0 for greedy search
 
@@ -77,8 +78,9 @@ if [ $train -eq 1 ]; then # train
         script=${script}' -bi '${bi}
         script=${script}' --dict-class '${dict_class}
         script=${script}' --context-length '${context_length}
+        script=${script}' --psize '${psize}
         if [ $split_gpus = 'True' ]; then
-            script=${script}' --split-gpus'
+            script=${script}' --split-gpus True'
         fi
         if [ $no_cuda = 'True' ]; then
             script=${script}' --no-cuda'
