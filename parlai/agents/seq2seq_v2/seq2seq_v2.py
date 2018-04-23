@@ -56,7 +56,7 @@ class Seq2seqV2Agent(Agent):
                            help='general=bilinear dotproduct, concat=bahdanau\'s implemenation')        
         agent.add_argument('--no-cuda', action='store_true', default=False,
                            help='disable GPUs even if available')
-        agent.add_argument('--gpu', type=int, default=-1,
+        agent.add_argument('--gpu', type=str, default='-1',
                            help='which GPU device to use')
         agent.add_argument('-rc', '--rank-candidates', type='bool',
                            default=False,
@@ -119,7 +119,10 @@ class Seq2seqV2Agent(Agent):
             self.use_cuda = not opt.get('no_cuda') and torch.cuda.is_available()
             if self.use_cuda:
                 print('[ Using CUDA ]')
-                torch.cuda.set_device(opt['gpu'])
+                try:
+                    torch.cuda.set_device(int(opt['gpu']))
+                except ValueError:
+                    pass
 
             self.states = {}
             if opt.get('model_file') and os.path.isfile(opt['model_file']):
@@ -281,9 +284,10 @@ class Seq2seqV2Agent(Agent):
         """Push parameters to the GPU."""
         self.model.cuda()
         self.xs = self.xs.cuda(async=True)
-        if self.opt['split_gpus']:
-            self.criterion.cuda(1)
-            self.ys = self.ys.cuda(1, async=True)
+        if type(self.opt['gpu']) is str and ',' in self.opt['gpu']:
+            last_index = int(self.opt['gpu'].split(',')[-1])
+            self.criterion.cuda(last_index)
+            self.ys = self.ys.cuda(last_index, async=True)
         else:
             self.ys = self.ys.cuda(async=True)
             self.criterion.cuda()
@@ -388,12 +392,8 @@ class Seq2seqV2Agent(Agent):
                     y = ys.select(1, i)
                     loss += self.criterion(score, y)
 
-                if self.training:
-                    self.loss = loss.data[0] / sum(ylen)
-                    self.ndata += batchsize
-                else:
-                    self.loss_valid += loss.data[0]
-                    self.ndata_valid += sum(ylen)
+                self.loss = loss.data[0] / sum(ylen)
+                self.ndata += batchsize
 
             output_lines = [[] for _ in range(batchsize)]
             for b in range(batchsize):
@@ -766,11 +766,6 @@ class Seq2seqV2Agent(Agent):
         input = Variable(dec_xes.data.repeat(1, beamsize, 1))
         encoder_output = Variable(encoder_output.data.repeat(beamsize,1, 1))
        
-        if self.model.split_gpus:
-            output = output.cuda(1)
-            hidden = hidden.cuda(1)
-
-        
         #while max_len < self.model.max_seq_len:
         while total_done < batchsize and max_len < self.model.longest_label:
         

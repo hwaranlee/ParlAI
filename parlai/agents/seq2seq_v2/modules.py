@@ -52,7 +52,10 @@ class Seq2seq(nn.Module):
         self.truncate = opt['truncate']
         self.attention = opt['attention']
         self.dirs = 2 if opt['bi_encoder'] else 1
-        self.split_gpus = opt['split_gpus']
+        if type(opt['gpu']) is str:
+            self.gpu = [int(index) for index in opt['gpu'].split(',')]
+        else:
+            self.gpu = [opt['gpu']]
         
         # set up tensors
         self.zeros_decs = {}
@@ -115,15 +118,15 @@ class Seq2seq(nn.Module):
         print('unk_num: {}'.format(n_unk))
 
     def cuda(self):
-        if self.split_gpus:
-            self.START = self.START.cuda(0)
-            self.lt.cuda(0)
-            self.encoder.cuda(0)
-            self.decoder.cuda(1)
+        if len(self.gpu) > 1:
+            self.START = self.START.cuda(self.gpu[0])
+            self.lt.cuda(self.gpu[0])
+            self.encoder.cuda(self.gpu[0])
+            self.decoder.cuda(self.gpu[1])
+            self.dropout.cuda(self.gpu[1])
             if type(self.o2e) is nn.Linear:
-                self.o2e.cuda(1)
-            self.e2s.cuda(1)
-            self.dropout.cuda(1)
+                self.o2e.cuda(self.gpu[1])
+            self.e2s.cuda(self.gpu[-1])
         else:
             super().cuda()
 
@@ -175,9 +178,9 @@ class Seq2seq(nn.Module):
     def _decode_and_train(self, batchsize, output, xlen_t, xs, ys, hidden):
         # update the model based on the labels
         scores = []
-        if self.split_gpus:
-            output = output.cuda(1)
-            hidden = hidden.cuda(1)
+        if len(self.gpu) > 1:
+            output = output.cuda(self.gpu[1])
+            hidden = hidden.cuda(self.gpu[1])
 
         preds = []
         if ys is None:
@@ -191,8 +194,8 @@ class Seq2seq(nn.Module):
                 preds.append(pred)
                 scores.append(score)
     
-                if self.split_gpus:
-                    pred = pred.cuda(0)
+                if len(self.gpu) > 1:
+                    pred = pred.cuda(self.gpu[0])
 
                 output = self.lt(pred).unsqueeze(0)
                 
@@ -214,13 +217,13 @@ class Seq2seq(nn.Module):
                 preds.append(pred)
                 scores.append(score)
                 y = ys.select(1, i)
-                if self.split_gpus:
-                    y = y.cuda(0)
+                if len(self.gpu) > 1:
+                    y = y.cuda(self.gpu[0])
     
                 output = self.lt(y).unsqueeze(0)
     
-                if self.split_gpus:
-                    output = output.cuda(1)
+                if len(self.gpu) > 1:
+                    output = output.cuda(self.gpu[1])
         preds = torch.stack(preds, 1)
 
         return scores, preds
@@ -233,6 +236,8 @@ class Seq2seq(nn.Module):
         if dropout:
             hidden = self.dropout(hidden)  # dropout over the last hidden
         scores = self.o2e(hidden)
+        if len(self.gpu) > 2:
+            scores = scores.cuda(self.gpu[-1])
         scores = self.e2s(scores)
         scores = F.log_softmax(scores, 1)
         _max_score, idx = scores.max(1)

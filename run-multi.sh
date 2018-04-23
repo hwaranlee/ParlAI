@@ -3,7 +3,7 @@ exp_dir='exp'
 gpuid=0
 model='seq2seq_v2'
 emb=200
-hs=2048
+hs=4096
 psize=2048
 lr=0.0001
 dr=0.5
@@ -14,7 +14,6 @@ enc=gru
 dict_maxexs=0
 dict_maxtokens=100000
 no_cuda=False
-split_gpus=True
 lt=unique
 bi=False
 embed='data/word2vec_ko/ko.bin'
@@ -25,14 +24,14 @@ context_length=1
 ############### CUSTOM
 gradClip=-1
 
-tag='psize'  #'-gc0.5' #'-bs128' #'-bs128'
+tag='psize2'  #'-gc0.5' #'-bs128' #'-bs128'
 ############### EVALUATION
 beam_size=5 #set 0 for greedy search
 
 ###############
 
 
-train=1 # train=1, eval=0
+train=0 # train=1, eval=0
 OPTIND=1
 while getopts "e:g:t:m:h:b:l:a:w:z:" opt; do
 	case "$opt" in
@@ -79,9 +78,6 @@ if [ $train -eq 1 ]; then # train
         script=${script}' --dict-class '${dict_class}
         script=${script}' --context-length '${context_length}
         script=${script}' --psize '${psize}
-        if [ $split_gpus = 'True' ]; then
-            script=${script}' --split-gpus True'
-        fi
         if [ $no_cuda = 'True' ]; then
             script=${script}' --no-cuda'
         fi
