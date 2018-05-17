@@ -18,11 +18,11 @@ def _path(opt, filtered):
     #return os.path.join(opt['datapath'], 'KoreanWithEmotion', 'result_data.txt')
 
     if dt == 'train':
-        path = os.path.join(opt['datapath'], 'KoreanWithEmotion', 'train.txt')
+        path = os.path.join(opt['datapath'], 'AcrylKorean2', 'train.txt')
     elif dt == 'test':
-        path = os.path.join(opt['datapath'], 'KoreanWithEmotion', 'test.txt')
+        path = os.path.join(opt['datapath'], 'AcrylKorean2', 'test.txt')
     elif dt == 'valid':
-        path = os.path.join(opt['datapath'], 'KoreanWithEmotion', 'valid.txt')
+        path = os.path.join(opt['datapath'], 'AcrylKorean2', 'valid.txt')
     else:
         raise RuntimeError('Not valid datatype.')
 
@@ -36,9 +36,9 @@ class DefaultTeacher(FbDialogTeacher):
         opt['datafile'] = _path(opt, '')
         opt['cands_datafile'] = opt['datafile']
         super().__init__(opt, shared)
-        if shared is None:
-            self.unpack_data()
-            self.sort_data()
+        #if shared is None:
+        #    self.unpack_data()
+        #    self.sort_data()
 
 
     def setup_data(self, path):
@@ -88,11 +88,11 @@ class DefaultTeacher(FbDialogTeacher):
         # Sort based on the number of words in sentences.
         self.data.data.sort(key=DefaultTeacher.get_key)
 
-    def batch_act(self, batch_observation):
-        num_eps = self.data.num_episodes()
-        batch_actions = []
-        for i in range(self.opt['batchsize']):
-            batch_actions.append(self.data.get((batch_observation[0] + i) % num_eps, 0)[0])
-
-        return batch_actions
+    #def batch_act(self, batch_observation):
+    #    num_eps = self.data.num_episodes()
+    #    batch_actions = []
+    #    for i in range(self.opt['batchsize']):
+    #        batch_actions.append(self.data.get((batch_observation[0] + i) % num_eps, 0)[0])
+   #
+    #    return batch_actions
 
