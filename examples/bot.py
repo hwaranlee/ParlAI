@@ -1,111 +1,49 @@
-import torch
+import os
 import sys
-
-from parlai.core.agents import create_agent
-from parlai.core.worlds import validate
-from parlai.core.params import ParlaiParser
-
+import editdistance
 import random
-import logging, sys, os
+
+from openpyxl import load_workbook
 
 class Bot:
-    def __init__(self, model_path, dict_dir, cuda=False):
-        opt = get_opt(model_path, cuda)
-        opt['model_file'] = model_path        
-        opt['datatype'] = 'valid'
-        opt['dict_file'] = dict_dir
-        opt['gpu'] = 0 if cuda else -1 # use cpu
-        opt['cuda'] = cuda
-        opt['no_cuda'] = (not cuda)
-        opt['batchsize'] = 1
-        opt['dict_class'] = 'parlai.tasks.ko_multi.dict:Dictionary'
-        opt['beam_size'] = 7
+    def __init__(self, inpath):
+        self.data = {}
 
-        self.opt = opt
-        self.agent = create_agent(opt)        
-        self.agent.training= False
-        self.agent.generating = True
+        for root, _, files in os.walk(inpath):
+            for f in files:
+                if f.endswith('.xlsx'):
+                    wb = load_workbook(os.path.join(root, f))
+                    for ws in wb:
+                        for row_idx, row in enumerate(ws.rows):
+                            if row_idx == 0:
+                                continue
 
-        self.user_history = {}
+                            if row[1].value is None:
+                                user_emotion = row[0].value
+                            else:
+                                try:
+                                    pairs = self.data[user_emotion]
+                                except KeyError:
+                                    pairs = {}
+                                    self.data[user_emotion] = pairs
+                                
+                                try:
+                                    sentences = pairs[row[1].value]
+                                except KeyError:
+                                    sentences = []
+                                    pairs[row[1].value] = sentences
+
+                                sentences.append((row[3].value, row[2].value))
         
     def reply(self, message, *args):
-        observation = {}
-        message = self.agent.preprocess(message)
-        observation['episode_done'] = True  ### TODO: for history
-        if len(args) > 0:
-            if args[0] == 'Surprise':
-                emotion = 'surprised'
-            else:
-                emotion = args[0]
-            observation['text'] = message + ' ' + emotion
+        emotion = args[0]
+        pairs = self.data[emotion]
+        min_distance = sys.maxsize
+        for sentence in pairs:
+            distance = editdistance.eval(sentence, message)
+            if distance < min_distance:
+                min_distance = distance
+                min_sentence = sentence
 
-            self.agent.observe(validate(observation))
-            response = self.agent.act_beam_cands()
-
-            if(message in self.user_history):
-                idx = self.user_history[message] % 7
-                response = self.agent.postprocess(response[idx])
-                self.user_history[message] = idx + 1
-            else :
-                self.user_history[message] = 1
-                response = self.agent.postprocess(response[0])
-
-        else:
-            observation['text'] = message
-            
-            self.agent.observe(validate(observation))
-            response = self.agent.act()        
-            response = self.agent.postprocess(response['text'])
-            
-        if len(args) > 0 and response != '':
-            splited = response.split()
-            emotion = splited[-1]
-            if emotion == 'surprised':
-                emotion = 'Surprise'
-            if emotion in ('Neutral', 'Surprise', 'Anger', 'Sadness', 'Fear', 'Happiness', 'Disgust'):
-                response = ' '.join(splited[:-1])
-            else:
-                emotion = 'Neutral'
-
-            return response, emotion
-        else:
-            return response
-
-def get_opt(model_path, cuda=False):
-    if cuda: 
-        mdl = torch.load(model_path)
-    else:
-        mdl = torch.load(model_path, map_location=lambda storage, loc: storage)
-        
-    opt = mdl['opt']
-    del mdl
-
-    return opt
-    
-if __name__ == "__main__":
-    
-    root_dir = '../ParlAI-v2'
-    model_name = 'exp-emb200-hs2048-lr0.0001-allK'
-    pretrained_mdl_path = os.path.join(root_dir, 'exp/', model_name, model_name)  # release ver
-    dict_dir = os.path.join(root_dir, 'exp-opensub_kemo_all/dict_file_100000.dict')
-
-    cc = Bot(pretrained_mdl_path, dict_dir, cuda=True)
-
-    print(cc.reply('지금 모하는 거니?', 'Neutral'))
-    print(cc.reply('지금 모하는 거니?', 'surprised'))
-    print(cc.reply('지금 모하는 거니?', 'Sadness'))
-    print(cc.reply('지금 모하는 거니?', 'Happiness'))
-    print(cc.reply('지금 모하는 거니?', 'Fear'))
-    print(cc.reply('지금 모하는 거니?', 'Disgusting'))
-    print(cc.reply('지금 모하는 거니?', 'Anger'))
-    print(cc.reply('지금 모하는 거니?', 'Neutral'))
- 
-    print(cc.reply('나는 홍길동 이야', 'Neutral'))
-    print(cc.reply('나는 홍길동 이야', 'surprised'))
-    print(cc.reply('나는 홍길동 이야', 'Sadness'))
-    print(cc.reply('나는 홍길동 이야', 'Happiness'))
-    print(cc.reply('나는 홍길동 이야', 'Fear'))
-    print(cc.reply('나는 홍길동 이야', 'Disgusting'))
-    print(cc.reply('나는 홍길동 이야', 'Anger'))
-    print(cc.reply('나는 홍길동 이야', 'Neutral'))
+        return random.choice(pairs[min_sentence])
 
