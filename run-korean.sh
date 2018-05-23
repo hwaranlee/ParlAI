@@ -11,12 +11,15 @@ attn=false #true # true / fase
 attType=concat  #general concat dot
 enc=gru
 dict_maxexs=0
-dict_nwords=100000
+dict_maxtokens=100000
 no_cuda=False
 split_gpus=False
 lt=unique
 bi=False
 embed='data/word2vec_ko/ko.bin'
+dict_dir=exp-acryl_korean_180504
+dict_class=parlai.tasks.ko_multi.dict:Dictionary
+context_length=1
 
 ############### CUSTOM
 gradClip=-1
@@ -72,6 +75,8 @@ if [ $train -eq 1 ]; then # train
         script=${script}' -enc '${enc}
         script=${script}' -lt '${lt}
         script=${script}' -bi '${bi}
+        script=${script}' --dict-class '${dict_class}
+        script=${script}' --context-length '${context_length}
         if [ $split_gpus = 'True' ]; then
             script=${script}' --split-gpus'
         fi
@@ -84,7 +89,7 @@ if [ $train -eq 1 ]; then # train
 	
 	#Dictionary arguments
         script=${script}' -dbf True --dict-maxexs '${dict_maxexs}
-        script=${script}' --dict-nwords '${dict_nwords}
+        script=${script}' --dict-nwords '${dict_maxtokens}
 fi
 
 if [ $train -eq 0 ]; then # eval
@@ -97,7 +102,8 @@ if [ $train -eq 0 ]; then # eval
         script=${script}' -lt '${lt}
 fi
 
-script=${script}' --dict-file exp-acryl_korean/dict_file_'${dict_nwords}'.dict' # built dict (word)
+mkdir -p $dict_dir
+script=${script}' --dict-file '$dict_dir'/dict_file_'${dict_maxtokens}'.dict' # built dict (word)
 
 if [ ! -d ${exp_dir}/exp-${exp} ]; then
 	mkdir -p ${exp_dir}/exp-${exp}

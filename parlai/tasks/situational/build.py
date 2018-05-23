@@ -33,62 +33,42 @@ def postprocess(sent):
         sent = ' '.join(wordlist[1:])
     return nlg.reply(sent) + ' ' + wordlist[0]
 
-def create_fb_format(inpath, outpath):
+def create_fb_format(domain_inpath, inpaths, outpath):
     print('[building fbformat]')
-    ftrain = open(os.path.join(outpath, 'train.txt'), 'w')
-    fvalid = open(os.path.join(outpath, 'valid.txt'), 'w')
-    ftest = open(os.path.join(outpath, 'test.txt'), 'w')
+    filenames = ['train.txt', 'valid.txt', 'test.txt']
+
+    for fname in filenames:
+        with open(os.path.join(outpath, fname), 'w') as outfile:
+            for inpath in inpaths:
+                with open(os.path.join(inpath, fname)) as infile:
+                    for line in infile:
+                        outfile.write(line)
+
+    ftrain = open(os.path.join(outpath, 'train_domain.txt'), 'w')
 
     conv_id = 0
-    dialog = None
-    dialogtemp = None
-    # find all the files.
-
-    for root, _subfolder, files in os.walk(inpath):
+    for root, _subfolder, files in os.walk(domain_inpath):
         for f in files:
             if f.endswith('.xlsx') :
                 wb = load_workbook(os.path.join(root, f))
-                ws = wb.active
-                for row_idx, row in enumerate(ws.rows):
-                    preSentence = ''
-                    if row_idx == 0:
-                        continue
+                for ws in wb:
+                    for row_idx, row in enumerate(ws.rows):
+                        if row_idx == 0 :
+                            continue
 
-                    if row[0].value == "S":
-                        if dialog:
-                            handle = ftrain
-                            if conv_id % 10 == 0:
-                                handle = ftest
-                            elif conv_id % 10 == 1:
-                                handle = fvalid
-                            handle.write(dialog + '\n')
-                        conv_id = conv_id + 1
-                        dialog = ''
-                        line_id = 1
-                        turn_id = 0
-
-                    if row[2].value == 'surprised':
-                        row[2].value = 'Surprise'
-
-                    value = row[2].value + ' ' + preprocess(row[1].value)
-                    if turn_id % 2 == 0:
-                        preSentence = row[1].value  
-                        dialogtemp = '{} {}'.format(line_id, value)
-                        turn_id += 1
-                    else:
-                        if(preSentence != row[1].value):
-                            dialogtemp += '\t{}\n'.format(value)
-                            line_id += 1
-                            turn_id += 1
-                            dialog += dialogtemp
-
+                        if row[1].value is None:
+                            user_emotion = row[0].value
+                        else:
+                            ftrain.write('1 {} {}\t{} {}\n'.format(
+                                user_emotion, preprocess(row[1].value),
+                                row[2].value, preprocess(row[3].value)))
+                            conv_id = conv_id + 1
+    
     ftrain.close()
-    fvalid.close()
-    ftest.close()
-
 
 def build(opt):
-    dpath = os.path.join(opt['datapath'], 'KoreanWithEmotion')
+    inpaths = [os.path.join(opt['datapath'], 'KoreanWithEmotion')]
+    dpath = os.path.join(opt['datapath'], 'Situational')
     version = None
 
     if not build_data.built(dpath, version_string=version):
@@ -104,7 +84,7 @@ def build(opt):
         # build_data.untar(dpath, 'OpenSubtitles.tar.gz', deleteTar=False)
 
         #create_fb_format(os.path.join(dpath, 'OpenSubwithemotion2018.csv'), dpath)
-        create_fb_format(dpath, dpath)
+        create_fb_format(dpath, inpaths, dpath)
 
         # Mark the data as built.
         build_data.mark_done(dpath, version_string=version)

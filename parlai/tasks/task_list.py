@@ -383,6 +383,13 @@ task_list = [
         "description": "Korean with Emotion"
     },
     {
+        "id": "situational",
+        "display_name": "Situational",
+        "task": "situatinoal",
+        "tags": ["All", "ChitChat"],
+        "description": "Situational"
+    },
+    {
         "id": "opensubtitles_ko_nlg",
         "display_name": "OpenSubtitles Korean NLG",
         "task": "opensubtitles_ko_nlg",

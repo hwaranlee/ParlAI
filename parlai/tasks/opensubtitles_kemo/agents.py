@@ -18,11 +18,11 @@ def _path(opt, filtered):
     #return os.path.join(opt['datapath'], 'KoreanWithEmotion', 'result_data.txt')
 
     if dt == 'train':
-        path = os.path.join(opt['datapath'], 'AcrylKorean2', 'train.txt')
+        path = os.path.join(opt['datapath'], 'KoreanWithEmotion', 'train.txt')
     elif dt == 'test':
-        path = os.path.join(opt['datapath'], 'AcrylKorean2', 'test.txt')
+        path = os.path.join(opt['datapath'], 'KoreanWithEmotion', 'test.txt')
     elif dt == 'valid':
-        path = os.path.join(opt['datapath'], 'AcrylKorean2', 'valid.txt')
+        path = os.path.join(opt['datapath'], 'KoreanWithEmotion', 'valid.txt')
     else:
         raise RuntimeError('Not valid datatype.')
 

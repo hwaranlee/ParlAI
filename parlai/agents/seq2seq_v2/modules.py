@@ -30,9 +30,10 @@ class Seq2seq(nn.Module):
     
     RNN_OPTS = {'rnn': nn.RNN, 'gru': nn.GRU, 'lstm': nn.LSTM}
 
-    def __init__(self, opt, num_features, start_idx, padding_idx=0, longest_label=1):
+    def __init__(self, opt, num_features, start_idx, dict, padding_idx=0, longest_label=1):
         super().__init__()
         self.opt = opt
+        self.dict = dict
 
         self.longest_label = longest_label
         
@@ -108,7 +109,7 @@ class Seq2seq(nn.Module):
             if i == 0:
                 self.lt.weight.data[i].zero_()
             else:
-                word = self.opt['dict'].vec2txt([i])
+                word = self.dict.vec2txt([i])
 
                 try:
                     self.lt.weight.data[i] = torch.from_numpy(model[word])

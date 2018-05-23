@@ -145,9 +145,6 @@ class Seq2seqV2Agent(Agent):
             # get index of null token from dictionary (probably 0)
             self.NULL_IDX = self.dict.txt2vec(self.dict.null_token)[0]
 
-            opt['dict'] = self.dict
-
-
             self.START_TENSOR = torch.LongTensor(self.dict.parse(self.START))
             # we use END markers to end our output
             self.END_TENSOR = torch.LongTensor(self.dict.parse(self.END))
@@ -171,7 +168,7 @@ class Seq2seqV2Agent(Agent):
             self.criterion = nn.NLLLoss(size_average=False, ignore_index=0)
 
             # set up modules
-            self.model = Seq2seq(opt, len(self.dict), self.START_IDX, self.NULL_IDX, longest_label=self.longest_label)
+            self.model = Seq2seq(opt, len(self.dict), self.START_IDX, self.dict, self.NULL_IDX, longest_label=self.longest_label)
             # self.model = nn.DataParallel(Seq2seq(opt, len(self.dict), self.START_IDX, self.NULL_IDX, longest_label=self.states.get('longest_label', 1)), [0])
             
             self.zeros_dec = torch.zeros(self.num_layers, 1, hsz)
@@ -203,9 +200,8 @@ class Seq2seqV2Agent(Agent):
                 self.cuda()
 
             self.loss = 0
-            self.loss_valid = 0
             self.ndata = 0
-            self.ndata_valid = 0
+            self.reset_valid_report()
                 
             kwargs = {'lr': opt['learning_rate']}
             if opt['optimizer'] == 'sgd':
@@ -400,7 +396,6 @@ class Seq2seqV2Agent(Agent):
                 # convert the output scores to tokens
                 output_lines[b] = self.v2t(preds.data[b])
 
-
             loss.backward()
             if self.opt['grad_clip'] > 0:
                 torch.nn.utils.clip_grad_norm(self.model.lt.parameters(), self.opt['grad_clip'])
@@ -409,7 +404,7 @@ class Seq2seqV2Agent(Agent):
                 torch.nn.utils.clip_grad_norm(self.model.decoder.parameters(), self.opt['grad_clip'])
             self.update_params()
 #HEM Start
-            self.display_predict(xs, ys, output_lines, 0)
+            self.display_predict(xs, ys, output_lines, 0.01)
         else:
             if cands is not None:
                 text_cand_inds = self._score_candidates(cands, xe, encoder_output)
@@ -424,13 +419,17 @@ class Seq2seqV2Agent(Agent):
             else:
                 beam_cands = []
                 scores, preds = self.model(xs, self.training, xlen_t, ys)
+                corrects = torch.LongTensor(len(scores), batchsize)
 
                 if ys is not None:
                     loss = 0
                     for i, score in enumerate(scores):
                         y = ys.select(1, i)
                         loss += self.criterion(score, y)
+                        corrects[i] = (((score.max(1)[1] == y) == 0).long() * y).data
 
+                    self.n_correct += (corrects.sum(0) == 0).sum()
+                    self.n_sentence += batchsize
                     self.loss_valid += loss.data[0]
                     self.ndata_valid += sum(ylen)
 
@@ -453,10 +452,12 @@ class Seq2seqV2Agent(Agent):
     def display_predict(self, xs, ys, output_lines, freq=0.01):
         if random.random() < freq:
             # sometimes output a prediction for debugging
-            print('\n    input:', self.dict.vec2txt(xs[0].data.cpu()).replace(self.dict.null_token + ' ', ''),
-                  '\n    pred :', ' '.join(output_lines[0]), '\n')
+            print('\n    input:', self.dict.vec2txt(
+                xs[0].data.cpu()).replace(self.dict.null_token, '').strip(),
+                  '\n    pred :', output_lines[0], '\n')
             if ys is not None:
-                print('    label:', self.dict.vec2txt(ys[0].data.cpu()).replace(self.dict.null_token + ' ', ''), '\n')
+                print('    label:', self.dict.vec2txt(
+                    ys[0].data.cpu()).replace(self.dict.null_token, '').strip(), '\n')
 
     def batchify(self, observations):
         """Convert a list of observations into input & target tensors."""
@@ -689,6 +690,7 @@ class Seq2seqV2Agent(Agent):
                 m['nll'] = self.loss_valid / self.ndata_valid
                 m['ppl'] = math.exp(self.loss_valid / self.ndata_valid)
                 m['ndata'] = self.ndata_valid
+                m['accuracy'] = self.n_correct / self.n_sentence
                             
             m['lr'] = self.optimizer.param_groups[0]['lr'] 
             # self.print_weight_state()
@@ -698,6 +700,8 @@ class Seq2seqV2Agent(Agent):
     def reset_valid_report(self):
         self.ndata_valid = 0
         self.loss_valid = 0
+        self.n_correct = 0
+        self.n_sentence = 0
         
     def print_weight_state(self):
         self._print_grad_weight(getattr(self, 'lt').weight, 'lookup')

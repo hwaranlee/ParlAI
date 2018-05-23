@@ -20,13 +20,10 @@ embed='data/word2vec_ko/ko.bin'
 dict_dir='exp-situational'
 dict_class='parlai.tasks.ko_multi.dict:Dictionary'
 context_length=1
-
-############### CUSTOM
 gradClip=-1
-
-tag='situational_test'  #'-gc0.5' #'-bs128' #'-bs128'
+tag=situational #'-gc0.5' #'-bs128' #'-bs128'
 ############### EVALUATION
-beam_size=5 #set 0 for greedy search
+beam_size=0 #set 0 for greedy search
 
 ###############
 
@@ -65,10 +62,10 @@ exp=${exp}-${tag}
 ### -mf --model-file : model file name for loading and saving models
 
 if [ $train -eq 1 ]; then # train
-	script='examples/train_model_seq2seq_ldecay.py'
+	script='examples/train_situational.py'
 	script=${script}' --log-file '$exp_dir'/exp-'${exp}'/exp-'${exp}'.log'
 	script=${script}' -bs 100' # training option
-	script=${script}' -vparl 30000 -vp 5' #validation option
+	script=${script}' -vparl 95 -vp 500' #validation option
 	script=${script}' -vmt nll -vme -1' #validation measure
 	script=${script}' --optimizer adam -lr '${lr}
         script=${script}' --dropout '${dr}
@@ -87,12 +84,12 @@ if [ $train -eq 1 ]; then # train
 	
 	#Dictionary arguments
         script=${script}' -dbf True --dict-maxexs '${dict_maxexs}
-        script=${script}' --dict-maxtokens '${dict_maxtokens}
+        script=${script}' --dict-nwords '${dict_maxtokens}
 fi
 
 if [ $train -eq 0 ]; then # eval
 	script='examples/eval_model_human.py'
-	script=${script}' --datatype valid'
+	script=${script}' --datatype train'
 	script=${script}' --log-file '$exp_dir'/exp-'${exp}'/exp-'${exp}'_eval.log'
 	script=${script}' --beam_size '$beam_size
         script=${script}' -bi '${bi}
@@ -108,7 +105,7 @@ if [ ! -d ${exp_dir}/exp-${exp} ]; then
 	mkdir -p ${exp_dir}/exp-${exp}
 fi
 
-script=${script}' -m '${model}' -t ko_multi -mf '${exp_dir}/exp-${exp}/exp-${exp}
+script=${script}' -m '${model}' -t situational -mf '${exp_dir}/exp-${exp}/exp-${exp}
 
 if [ -n "$gpuid" ]; then
 	script=${script}' --gpu '${gpuid}

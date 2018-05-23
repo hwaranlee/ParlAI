@@ -21,7 +21,6 @@ dict_dir='exp-opensub_kemo_all'
 dict_class='parlai.tasks.ko_multi.dict:Dictionary'
 context_length=1
 
-
 ############### CUSTOM
 gradClip=-1
 
@@ -33,7 +32,7 @@ beam_size=5 #set 0 for greedy search
 ###############
 
 
-train=0 # train=1, eval=0
+train=1 # train=1, eval=0
 OPTIND=1
 while getopts "e:g:t:m:h:b:l:a:w:z:" opt; do
 	case "$opt" in
@@ -105,7 +104,7 @@ if [ $train -eq 0 ]; then # eval
         script=${script}' --dict-class '${dict_class}
 fi
 
-
+mkdir -p $dict_dir
 script=${script}' --dict-file '$dict_dir'/dict_file_'${dict_maxtokens}'.dict' # built dict (word)
 
 if [ ! -d ${exp_dir}/exp-${exp} ]; then
