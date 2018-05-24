@@ -1,6 +1,6 @@
 #!/bin/bash
 exp_dir='exp'
-gpuid=0
+gpuid=1
 model='seq2seq_v2'
 emb=200
 hs=2048
@@ -21,7 +21,8 @@ dict_dir='exp-situational'
 dict_class='parlai.tasks.ko_multi.dict:Dictionary'
 context_length=1
 gradClip=-1
-tag=situational #'-gc0.5' #'-bs128' #'-bs128'
+tag=situational2 #'-gc0.5' #'-bs128' #'-bs128'
+# model_file=exp/exp-emb200-hs2048-lr0.0001-situational_copy/exp-emb200-hs2048-lr0.0001-situational
 ############### EVALUATION
 beam_size=0 #set 0 for greedy search
 
@@ -75,6 +76,11 @@ if [ $train -eq 1 ]; then # train
         script=${script}' --dict-class '${dict_class}
         script=${script}' --context-length '${context_length}
         script=${script}' --psize '${psize}
+        if [ $model_file ]; then
+            script=${script}' --model-file '$model_file
+        else
+            script=${script}' --model-file '$exp_dir/exp-$exp/exp-$exp
+        fi
         if [ $no_cuda = 'True' ]; then
             script=${script}' --no-cuda'
         fi
@@ -105,7 +111,7 @@ if [ ! -d ${exp_dir}/exp-${exp} ]; then
 	mkdir -p ${exp_dir}/exp-${exp}
 fi
 
-script=${script}' -m '${model}' -t situational -mf '${exp_dir}/exp-${exp}/exp-${exp}
+script=${script}' -m '${model}' -t situational'
 
 if [ -n "$gpuid" ]; then
 	script=${script}' --gpu '${gpuid}

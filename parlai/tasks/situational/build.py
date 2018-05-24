@@ -16,8 +16,7 @@ from openpyxl import load_workbook
 
 
 komoran = Komoran()
-nlg = Bot('exp/exp-emb200-hs1024-lr0.0001-oknlg/exp-emb200-hs1024-lr0.0001-oknlg'
-        ,'exp-opensub_ko_nlg/dict_file_100000.dict', True)
+nlg = None
 
 def preprocess(sent):
     """ text preprocessing using a parser
@@ -67,6 +66,9 @@ def create_fb_format(domain_inpath, inpaths, outpath):
     ftrain.close()
 
 def build(opt):
+    nlg = Bot('exp/exp-emb200-hs1024-lr0.0001-oknlg/exp-emb200-hs1024-lr0.0001-oknlg'
+            ,'exp-opensub_ko_nlg/dict_file_100000.dict', True, opt['gpu'])
+
     inpaths = [os.path.join(opt['datapath'], 'KoreanWithEmotion')]
     dpath = os.path.join(opt['datapath'], 'Situational')
     version = None

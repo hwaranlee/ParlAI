@@ -9,12 +9,12 @@ import random
 import logging, sys, os
 
 class Bot:
-    def __init__(self, model_path, dict_dir, cuda=False):
-        opt = get_opt(model_path, cuda)
+    def __init__(self, model_path, dict_dir, cuda=False, gpu=0):
+        opt = get_opt(model_path, cuda, gpu)
         opt['model_file'] = model_path        
         opt['datatype'] = 'valid'
         opt['dict_file'] = dict_dir
-        opt['gpu'] = 0 if cuda else -1 # use cpu
+        opt['gpu'] = gpu if cuda else -1 # use cpu
         opt['cuda'] = cuda
         opt['no_cuda'] = (not cuda)
         opt['batchsize'] = 1
@@ -71,9 +71,13 @@ class Bot:
         else:
             return response
 
-def get_opt(model_path, cuda=False):
+def get_opt(model_path, cuda=False, gpu=0):
     if cuda: 
-        mdl = torch.load(model_path)
+        if gpu == 0:
+            mdl = torch.load(model_path)
+        else:
+            mdl = torch.load(model_path,
+                    map_location={'cuda:0':'cuda:{}'.format(gpu)})
     else:
         mdl = torch.load(model_path, map_location=lambda storage, loc: storage)
         
