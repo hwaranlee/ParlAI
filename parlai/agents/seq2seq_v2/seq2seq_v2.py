@@ -671,7 +671,8 @@ class Seq2seqV2Agent(Agent):
         with open(path, 'rb') as read:
             if self.use_cuda:
                 if self.opt['gpu'] == 0:
-                    model = torch.load(read)
+                    model = torch.load(read,
+                            map_location={'cuda:1':'cuda:{}'.format(self.opt['gpu'])})
                 else:
                     model = torch.load(
                             read,

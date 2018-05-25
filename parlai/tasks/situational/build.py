@@ -23,13 +23,20 @@ def preprocess(sent):
     """
     return ' '.join(komoran.morphs(sent))
 
-def postprocess(sent):
+def postprocess(sent, gpu):
     sent = sent.replace(' __END__', '')
     sent = re.sub('^- ', '', sent)
     sent = re.sub(' (.)$', '\\1', sent)
     wordlist = sent.split()
     if wordlist[0] in ('Happiness', 'Neutral', 'Anger', 'Disgust', 'Sadness', 'surprised', 'Fear'):
         sent = ' '.join(wordlist[1:])
+    global nlg
+    if nlg is None:
+        nlg = Bot(
+                'exp/exp-emb200-hs1024-lr0.0001-oknlg/' + \
+                        'exp-emb200-hs1024-lr0.0001-oknlg'
+                , 'exp-opensub_ko_nlg/dict_file_100000.dict', True, gpu)
+
     return nlg.reply(sent) + ' ' + wordlist[0]
 
 def create_fb_format(domain_inpath, inpaths, outpath):

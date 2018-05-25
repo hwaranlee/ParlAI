@@ -61,12 +61,7 @@ def main():
     
     run_eval(agent, opt, 'valid', write_log=True, logger=logger, generate=True, local_human=opt['local_human'])
     world.shutdown()
-        
     
 if __name__ == '__main__':
     main()
-
-
-
-
 

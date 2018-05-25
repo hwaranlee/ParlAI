@@ -74,7 +74,8 @@ class Bot:
 def get_opt(model_path, cuda=False, gpu=0):
     if cuda: 
         if gpu == 0:
-            mdl = torch.load(model_path)
+            mdl = torch.load(model_path,
+                    map_location={'cuda:1':'cuda:{}'.format(gpu)})
         else:
             mdl = torch.load(model_path,
                     map_location={'cuda:0':'cuda:{}'.format(gpu)})
