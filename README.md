@@ -61,21 +61,21 @@ cc/exp-ko_multi_20180316/dict_file_100000.dict
 cc/exp-opensub_ko_nlg/dict_file_100000.dict  
 cc/exp/exp-emb200-hs2048-lr0.0001-multi2018_30000/exp-emb200-hs2048-lr0.0001-multi2018_30000  
 cc/exp/exp-emb200-hs1024-lr0.0001-oknlg/exp-emb200-hs1024-lr0.0001-oknlg  
-data/word2vec_ko/ko.bin  
+cc/data/word2vec_ko/ko.bin  
   - Emotional Bot  
 cc/exp-opensub_kemo_all/dict_file_100000.dict  
 cc/exp-opensub_ko_nlg/dict_file_100000.dict  
 cc/exp/exp-emb200-hs2048-lr0.0001-allK/exp-emb200-hs2048-lr0.0001-allK  
 cc/exp/exp-emb200-hs1024-lr0.0001-oknlg/exp-emb200-hs1024-lr0.0001-oknlg  
-data/word2vec_ko/ko.bin  
+cc/data/word2vec_ko/ko.bin  
   - Script Bot  
-data/Situational/situations.xlsx
+cc/data/Situational/situations.xlsx
   - Situational Bot  
 cc/exp-situational/dict_file_100000.dict  
 cc/exp-opensub_ko_nlg/dict_file_100000.dict  
 cc/exp/exp-emb200-hs2048-lr0.0001-situational2/exp-emb200-hs2048-lr0.0001-situational2  
 cc/exp/exp-emb200-hs1024-lr0.0001-oknlg/exp-emb200-hs1024-lr0.0001-oknlg  
-data/word2vec_ko/ko.bin  
+cc/data/word2vec_ko/ko.bin  
   - Mixed Bot: Script Bot + Situational Bot
 
 7. Install KoNLPy
