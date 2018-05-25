@@ -110,6 +110,7 @@ answer, emotion = bot.reply('안녕', 'Neutral') # The second parameter can be o
 ```
 
 * Script Bot  
+
 ```python
 from examples.bot import Bot
 
