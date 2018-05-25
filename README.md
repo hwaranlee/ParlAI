@@ -71,13 +71,12 @@ data/word2vec_ko/ko.bin
   - Script Bot  
 data/Situational/situations.xlsx
   - Situational Bot  
-cc/exp-situational/dict_file_100000.dict
-cc/exp-opensub_ko_nlg/dict_file_100000.dict
-cc/exp/exp-emb200-hs2048-lr0.0001-situational2/exp-emb200-hs2048-lr0.0001-situational2
-cc/exp/exp-emb200-hs1024-lr0.0001-oknlg/exp-emb200-hs1024-lr0.0001-oknlg
-data/word2vec_ko/ko.bin
-  - Mixed Bot  
-    - Script Bot + Situational Bot
+cc/exp-situational/dict_file_100000.dict  
+cc/exp-opensub_ko_nlg/dict_file_100000.dict  
+cc/exp/exp-emb200-hs2048-lr0.0001-situational2/exp-emb200-hs2048-lr0.0001-situational2  
+cc/exp/exp-emb200-hs1024-lr0.0001-oknlg/exp-emb200-hs1024-lr0.0001-oknlg  
+data/word2vec_ko/ko.bin  
+  - Mixed Bot: Script Bot + Situational Bot
 
 7. Install KoNLPy
 ```bash
