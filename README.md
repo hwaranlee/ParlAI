@@ -68,6 +68,16 @@ cc/exp-opensub_ko_nlg/dict_file_100000.dict
 cc/exp/exp-emb200-hs2048-lr0.0001-allK/exp-emb200-hs2048-lr0.0001-allK  
 cc/exp/exp-emb200-hs1024-lr0.0001-oknlg/exp-emb200-hs1024-lr0.0001-oknlg  
 data/word2vec_ko/ko.bin  
+  - Script Bot
+data/Situational/situations.xlsx
+  - Situational Bot
+cc/exp-situational/dict_file_100000.dict
+cc/exp-opensub_ko_nlg/dict_file_100000.dict
+cc/exp/exp-emb200-hs2048-lr0.0001-situational2/exp-emb200-hs2048-lr0.0001-situational2
+cc/exp/exp-emb200-hs1024-lr0.0001-oknlg/exp-emb200-hs1024-lr0.0001-oknlg
+data/word2vec_ko/ko.bin
+  - Mixed Bot
+    - Script Bot + Situational Bot
 
 7. Install KoNLPy
 ```bash
@@ -88,7 +98,7 @@ pip install gensim
 ```python
 from examples.bot import Bot
 
-bot = Bot('exp/exp-emb200-hs2048-lr0.0001-multi2018_30000/exp-emb200-hs2048-lr0.0001-multi2018_30000', 'exp-ko_multi_20180316/dict_file_100000.dict', True)
+bot = Bot('exp/exp-emb200-hs2048-lr0.0001-multi2018_30000/exp-emb200-hs2048-lr0.0001-multi2018_30000', 'exp-ko_multi_20180316/dict_file_100000.dict', cuda=True)
 answer = bot.reply('안녕')
 ```
 * Emotional Bot  
@@ -96,8 +106,35 @@ answer = bot.reply('안녕')
 ```python
 from examples.bot import Bot
 
-bot = Bot('exp/exp-emb200-hs2048-lr0.0001-allK/exp-emb200-hs2048-lr0.0001-allK', 'exp-opensub_kemo_all/dict_file_100000.dict', True)
+bot = Bot('exp/exp-emb200-hs2048-lr0.0001-allK/exp-emb200-hs2048-lr0.0001-allK', 'exp-opensub_kemo_all/dict_file_100000.dict', cuda=True)
 answer, emotion = bot.reply('안녕', 'Neutral') # The second parameter can be one of these: Neutral, Happiness, Anger, Sadness, Surprise, Fear, Disgust.
 ```
+
+* Script Bot
+```python
+from examples.bot import Bot
+
+bot = Bot('data/Situational')
+answer, emotion = bot.reply('안녕', 'Neutral') # The second parameter can be one of these: Neutral, Happiness, Anger, Sadness, Surprise, Fear, Disgust.
+```
+
+* Situational Bot
+
+```python
+from examples.bot import Bot
+
+bot = Bot('exp/exp-emb200-hs2048-lr0.0001-situational2/exp-emb200-hs2048-lr0.0001-situational2', 'exp-situational/dict_file_100000.dict', cuda=True)
+answer, emotion = bot.reply('안녕', 'Neutral') # The second parameter can be one of these: Neutral, Happiness, Anger, Sadness, Surprise, Fear, Disgust.
+```
+
+* Mixed Bot
+
+```python
+from examples.bot import Bot
+
+bot = Bot('exp/exp-emb200-hs2048-lr0.0001-situational2/exp-emb200-hs2048-lr0.0001-situational2', 'exp-situational/dict_file_100000.dict', 'data/Situational', cuda=True)
+answer, emotion = bot.reply('안녕', 'Neutral') # The second parameter can be one of these: Neutral, Happiness, Anger, Sadness, Surprise, Fear, Disgust.
+```
+
 The last parameter of the Bot constructor determines whether to use CUDA or not.  
 False is not tested.
