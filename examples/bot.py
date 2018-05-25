@@ -4,31 +4,58 @@ import sys
 from parlai.core.agents import create_agent
 from parlai.core.worlds import validate
 from parlai.core.params import ParlaiParser
+from examples import script
 
 import random
 import logging, sys, os
 
 class Bot:
-    def __init__(self, model_path, dict_dir, cuda=False, gpu=0):
-        opt = get_opt(model_path, cuda, gpu)
-        opt['model_file'] = model_path        
-        opt['datatype'] = 'valid'
-        opt['dict_file'] = dict_dir
-        opt['gpu'] = gpu if cuda else -1 # use cpu
-        opt['cuda'] = cuda
-        opt['no_cuda'] = (not cuda)
-        opt['batchsize'] = 1
-        opt['dict_class'] = 'parlai.tasks.ko_multi.dict:Dictionary'
-        opt['beam_size'] = 7
+    def __init__(self, *inpaths, cuda=False, gpu=0):
+        if len(inpaths) == 1:
+            inpath = inpaths[0]
+        elif len(inpaths) == 2:
+            model_path = inpaths[0]
+            dict_dir = inpaths[1]
+        elif len(inpaths) == 3:
+            model_path = inpaths[0]
+            dict_dir = inpaths[1]
+            inpath = inpaths[2]
 
-        self.opt = opt
-        self.agent = create_agent(opt)        
-        self.agent.training= False
-        self.agent.generating = True
+        try:
+            opt = get_opt(model_path, cuda, gpu)
+            opt['model_file'] = model_path        
+            opt['datatype'] = 'valid'
+            opt['dict_file'] = dict_dir
+            opt['gpu'] = gpu if cuda else -1 # use cpu
+            opt['cuda'] = cuda
+            opt['no_cuda'] = (not cuda)
+            opt['batchsize'] = 1
+            opt['dict_class'] = 'parlai.tasks.ko_multi.dict:Dictionary'
+            opt['beam_size'] = 7
+    
+            self.opt = opt
+            self.agent = create_agent(opt)        
+            self.agent.training= False
+            self.agent.generating = True
+    
+            self.user_history = {}
+        except NameError:
+            pass
 
-        self.user_history = {}
-        
+        try:
+            self.script = script.Bot(inpath, 0.67 if hasattr(self, 'agent') else 1)
+        except NameError:
+            pass
+
     def reply(self, message, *args):
+        if hasattr(self, 'script'):
+            ret = self.script.reply(message, *args)
+            if ret is not None:
+                return ret
+
+        return self.ml_reply(message, *args)
+        
+    def ml_reply(self, message, *args):
         observation = {}
         message = self.agent.preprocess(message)
         observation['episode_done'] = True  ### TODO: for history

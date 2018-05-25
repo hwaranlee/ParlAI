@@ -23,7 +23,7 @@ def preprocess(sent):
     """
     return ' '.join(komoran.morphs(sent))
 
-def postprocess(sent, gpu):
+def postprocess(sent, gpu=0):
     sent = sent.replace(' __END__', '')
     sent = re.sub('^- ', '', sent)
     sent = re.sub(' (.)$', '\\1', sent)
@@ -35,7 +35,7 @@ def postprocess(sent, gpu):
         nlg = Bot(
                 'exp/exp-emb200-hs1024-lr0.0001-oknlg/' + \
                         'exp-emb200-hs1024-lr0.0001-oknlg'
-                , 'exp-opensub_ko_nlg/dict_file_100000.dict', True, gpu)
+                , 'exp-opensub_ko_nlg/dict_file_100000.dict', cuda=True, gpu=gpu)
 
     return nlg.reply(sent) + ' ' + wordlist[0]
 

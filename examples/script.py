@@ -6,8 +6,9 @@ import random
 from openpyxl import load_workbook
 
 class Bot:
-    def __init__(self, inpath):
+    def __init__(self, inpath, threshold=0.67):
         self.data = {}
+        self.threshold = threshold
 
         for root, _, files in os.walk(inpath):
             for f in files:
@@ -45,5 +46,10 @@ class Bot:
                 min_distance = distance
                 min_sentence = sentence
 
-        return random.choice(pairs[min_sentence])
+        print('min distance: {}'.format(min_distance))
+
+        if min_distance / len(message) <= self.threshold: 
+            return random.choice(pairs[min_sentence])
+        else:
+            return None
 

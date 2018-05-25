@@ -17,7 +17,7 @@ from openpyxl import load_workbook
 
 komoran = Komoran()
 nlg = Bot('exp/exp-emb200-hs1024-lr0.0001-oknlg/exp-emb200-hs1024-lr0.0001-oknlg'
-        ,'exp-opensub_ko_nlg/dict_file_100000.dict', True)
+        ,'exp-opensub_ko_nlg/dict_file_100000.dict', cuda=True)
 
 def preprocess(sent):
     """ text preprocessing using a parser
