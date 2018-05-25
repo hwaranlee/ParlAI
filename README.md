@@ -68,15 +68,15 @@ cc/exp-opensub_ko_nlg/dict_file_100000.dict
 cc/exp/exp-emb200-hs2048-lr0.0001-allK/exp-emb200-hs2048-lr0.0001-allK  
 cc/exp/exp-emb200-hs1024-lr0.0001-oknlg/exp-emb200-hs1024-lr0.0001-oknlg  
 data/word2vec_ko/ko.bin  
-  - Script Bot
+  - Script Bot  
 data/Situational/situations.xlsx
-  - Situational Bot
+  - Situational Bot  
 cc/exp-situational/dict_file_100000.dict
 cc/exp-opensub_ko_nlg/dict_file_100000.dict
 cc/exp/exp-emb200-hs2048-lr0.0001-situational2/exp-emb200-hs2048-lr0.0001-situational2
 cc/exp/exp-emb200-hs1024-lr0.0001-oknlg/exp-emb200-hs1024-lr0.0001-oknlg
 data/word2vec_ko/ko.bin
-  - Mixed Bot
+  - Mixed Bot  
     - Script Bot + Situational Bot
 
 7. Install KoNLPy
@@ -110,7 +110,7 @@ bot = Bot('exp/exp-emb200-hs2048-lr0.0001-allK/exp-emb200-hs2048-lr0.0001-allK',
 answer, emotion = bot.reply('안녕', 'Neutral') # The second parameter can be one of these: Neutral, Happiness, Anger, Sadness, Surprise, Fear, Disgust.
 ```
 
-* Script Bot
+* Script Bot  
 ```python
 from examples.bot import Bot
 
@@ -118,7 +118,7 @@ bot = Bot('data/Situational')
 answer, emotion = bot.reply('안녕', 'Neutral') # The second parameter can be one of these: Neutral, Happiness, Anger, Sadness, Surprise, Fear, Disgust.
 ```
 
-* Situational Bot
+* Situational Bot  
 
 ```python
 from examples.bot import Bot
