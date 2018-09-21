@@ -4,7 +4,7 @@
 # LICENSE file in the root directory of this source tree. An additional grant
 # of patent rights can be found in the PATENTS file in the same directory.
 # Download and build the data if it does not exist.
-import pandas as pd
+#import pandas as pd
 import parlai.core.build_data as build_data
 import gzip
 import os
@@ -32,6 +32,7 @@ def postprocess(sent):
     if wordlist[-1] in ('Happiness', 'Neutral', 'Anger', 'Disgust', 'Sadness', 'surprised', 'Fear'):
         sent = ' '.join(wordlist[:-1])
     return nlg.reply(sent) + ' ' + wordlist[-1]
+    #return wordlist[0] + ' ' + nlg.reply(sent) 
 
 def create_fb_format(inpath, outpath):
     print('[building fbformat]')
@@ -41,6 +42,7 @@ def create_fb_format(inpath, outpath):
 
     conv_id = 0
     dialog = None
+    dialogtemp = None
     # find all the files.
 
     for root, _subfolder, files in os.walk(inpath):
@@ -50,8 +52,7 @@ def create_fb_format(inpath, outpath):
                 ws = wb.active
                 for row_idx, row in enumerate(ws.rows):
                     preSentence = ''
-                    if row_idx == 0 :
-                        print(row_idx)
+                    if row_idx == 0:
                         continue
 
                     if row[0].value == "S":
@@ -68,24 +69,26 @@ def create_fb_format(inpath, outpath):
                         turn_id = 0
 
                     value = preprocess(row[1].value) + ' ' + row[2].value
+                    #value = row[2].value + ' ' + preprocess(row[1].value)
                     if turn_id % 2 == 0:
                         preSentence = row[1].value  
-                        dialog += '{} {}'.format(line_id, value)
+                        dialogtemp = '{} {}'.format(line_id, value)
                         turn_id += 1
                     else:
                         if(preSentence != row[1].value):
-                            dialog += '\t{}\n'.format(value)
+                            dialogtemp += '\t{}\n'.format(value)
                             line_id += 1
                             turn_id += 1
+                            dialog += dialogtemp
                     
 
-                if dialog != '':
-                    handle = ftrain
-                    if conv_id % 10 == 0:
-                        handle = ftest
-                    elif conv_id % 10 == 1:
-                        handle = fvalid
-                    handle.write(dialog + '\n')
+                    #if dialog != '':
+                    #    handle = ftrain
+                    #    if conv_id % 10 == 0:
+                    #        handle = ftest
+                    #    elif conv_id % 10 == 1:
+                    #        handle = fvalid
+                    #    handle.write(dialog + '\n')
 
  
 
@@ -95,7 +98,8 @@ def create_fb_format(inpath, outpath):
 
 
 def build(opt):
-    dpath = os.path.join(opt['datapath'], 'KoreanWithEmotion')
+    #dpath = os.path.join(opt['datapath'], 'KoreanWithEmotion')
+    dpath = os.path.join(opt['datapath'], 'AcrylKorean2')
     version = None
 
     if not build_data.built(dpath, version_string=version):
