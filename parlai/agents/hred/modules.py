@@ -11,11 +11,10 @@ from torch import optim
 import torch.nn as nn
 from torch.nn.parameter import Parameter
 from torch.autograd import Variable
-from torch.nn.utils.rnn import pad_packed_sequence, pack_padded_sequence
 import torch.nn.functional as F
 
 
-class Seq2seq(nn.Module):
+class Hred(nn.Module):
   OPTIM_OPTS = {
       'adadelta': optim.Adadelta,
       'adagrad': optim.Adagrad,
@@ -48,7 +47,6 @@ class Seq2seq(nn.Module):
     self.emb_size = emb
     self.num_layers = opt['numlayers']
     self.learning_rate = opt['learning_rate']
-    self.rank = opt['rank_candidates']
     self.truncate = opt['truncate']
     self.attention = opt['attention']
     self.dirs = 2 if opt['bi_encoder'] else 1
@@ -60,14 +58,22 @@ class Seq2seq(nn.Module):
     # set up tensors
     self.zeros_decs = {}
 
-    rnn_class = Seq2seq.RNN_OPTS[opt['encoder']]
+    rnn_class = Hred.RNN_OPTS[opt['encoder']]
     self.encoder = rnn_class(opt['embeddingsize'], opt['hiddensize'],
-                             opt['numlayers'], bidirectional=opt['bi_encoder'], dropout=opt['dropout'])
+                             opt['numlayers'], bidirectional=opt['bi_encoder'],
+                             dropout=opt['dropout'])
 
-    if opt['decoder'] != 'same':
-      rnn_class = Seq2seq.RNN_OPTS[opt['decoder']]
+    if opt['context'] != 'same':
+      rnn_class = Hred.RNN_OPTS[opt['context']]
 
     dec_isz = opt['embeddingsize']
+
+    self.context = rnn_class(
+        opt['numlayers'] * opt['hiddensize'], opt['contexthiddensize'],
+        opt['numlayers'], dropout=opt['dropout'])
+
+    if opt['decoder'] != 'same':
+      rnn_class = Hred.RNN_OPTS[opt['decoder']]
 
     self.decoder = rnn_class(
         dec_isz, opt['hiddensize'], opt['numlayers'], dropout=opt['dropout'])
@@ -84,6 +90,11 @@ class Seq2seq(nn.Module):
       self.o2e = lambda x: x
     else:
       self.o2e = nn.Linear(opt['hiddensize'], opt['psize'])
+
+    self.ch2h = nn.Linear(
+        self.num_layers * opt['contexthiddensize'],
+        self.num_layers * opt['hiddensize'])
+    self.tanh = nn.Tanh()
 
     share_output = opt['lookuptable'] in ['dec_out', 'all'] and \
         opt['psize'] == opt['embeddingsize']
@@ -126,11 +137,22 @@ class Seq2seq(nn.Module):
       self.START = self.START.cuda(self.gpu[0])
       self.lt.cuda(self.gpu[0])
       self.encoder.cuda(self.gpu[0])
-      self.decoder.cuda(self.gpu[1])
-      self.dropout.cuda(self.gpu[1])
-      if type(self.o2e) is nn.Linear:
-        self.o2e.cuda(self.gpu[1])
-      self.e2s.cuda(self.gpu[-1])
+      if len(self.gpu) == 4:
+        self.context.cuda(self.gpu[1])
+        self.ch2h.cuda(self.gpu[1])
+        self.decoder.cuda(self.gpu[2])
+        self.dropout.cuda(self.gpu[2])
+        if type(self.o2e) is nn.Linear:
+          self.o2e.cuda(self.gpu[2])
+        self.e2s.cuda(self.gpu[3])
+      else:
+        self.context.cuda(self.gpu[0])
+        self.ch2h.cuda(self.gpu[0])
+        self.decoder.cuda(self.gpu[1])
+        self.dropout.cuda(self.gpu[1])
+        if type(self.o2e) is nn.Linear:
+          self.o2e.cuda(self.gpu[1])
+        self.e2s.cuda(self.gpu[-1])
     else:
       super().cuda()
 
@@ -143,51 +165,63 @@ class Seq2seq(nn.Module):
 
     return ret
 
-  def _encode(self, xs, xlen, dropout=False, packed=True):
+  def _encode(self, xs, xlen, hidden, dropout=False):
     """Call encoder and return output and hidden states."""
+    encoder_device = next(self.encoder.parameters()).get_device()
     batchsize = len(xs)
+
+    if len(self.gpu) > 1 and hidden is not None:
+      hidden = hidden.cuda(encoder_device)
 
     # first encode context
     xes = self.lt(xs).transpose(0, 1)
-    # if dropout:
-    #    xes = self.dropout(xes)
 
-    # forward
-    if packed:
-      xes = torch.nn.utils.rnn.pack_padded_sequence(
-          xes, (xlen + 1).data.cpu().numpy())
-
-    zeros = self.zeros(xs.get_device())
-    if list(zeros.size()) != [self.dirs * self.num_layers, batchsize, self.hidden_size]:
-      zeros.resize_(self.dirs * self.num_layers,
-                    batchsize, self.hidden_size).fill_(0)
-    h0 = Variable(zeros, requires_grad=False)
+    if hidden is None:
+      zeros = self.zeros(encoder_device)
+      if list(zeros.size()) != [self.dirs * self.num_layers, batchsize, self.hidden_size]:
+        zeros.resize_(self.dirs * self.num_layers,
+                      batchsize, self.hidden_size).fill_(0)
+      hidden = Variable(zeros, requires_grad=False)
 
     # self.encoder.flatten_parameters()
-    encoder_output, hidden = self.encoder(xes, h0)
+    _, hidden = self.encoder(xes, hidden)
     hidden = hidden.view(-1, self.dirs, batchsize, self.hidden_size).max(1)[0]
 
-    if packed:
-      encoder_output, _ = torch.nn.utils.rnn.pad_packed_sequence(
-          encoder_output)
+    return hidden
 
-    encoder_output = encoder_output.transpose(0, 1)  # batch first
+  def _context(self, hidden, context_hidden):
+    batchsize = hidden.size(1)
+    context_device = next(self.context.parameters()).get_device()
 
-    """
-        if self.use_attention:
-            if encoder_output.size(1) > self.max_length:
-                offset = encoder_output.size(1) - self.max_length
-                encoder_output = encoder_output.narrow(1, offset, self.max_length)
-        """
+    hidden = hidden.transpose(0, 1).contiguous().view(1, batchsize, -1)
 
-    return encoder_output, hidden
+    if len(self.gpu) > 1:
+      hidden = hidden.cuda(context_device)
 
-  def _decode_and_train(self, batchsize, output, xlen_t, xs, ys, hidden):
+    if context_hidden is None:
+      zeros = self.zeros(context_device)
+      if list(zeros.size()) != [self.dirs * self.num_layers, batchsize,
+                                self.opt['contexthiddensize']]:
+        zeros.resize_(self.dirs * self.num_layers,
+                      batchsize, self.opt['contexthiddensize']).fill_(0)
+      context_hidden = Variable(zeros, requires_grad=False)
+
+    _, context_hidden = self.context(hidden, context_hidden)
+    hidden = context_hidden.transpose(0, 1).contiguous().view(batchsize, -1)
+
+    hidden = self.tanh(self.ch2h(hidden).view(
+        batchsize, self.num_layers, -1).transpose(0, 1))
+
+    return hidden, context_hidden
+
+  def _decode(self, batchsize, output, ys, hidden):
+    decoder_device = next(self.decoder.parameters()).get_device()
+    lt_device = next(self.lt.parameters()).get_device()
     # update the model based on the labels
     scores = []
     if len(self.gpu) > 1:
-      output = output.cuda(self.gpu[1])
-      hidden = hidden.cuda(self.gpu[1])
+      output = output.cuda(decoder_device)
+      hidden = hidden.cuda(decoder_device)
 
     preds = []
     if ys is None:
@@ -202,7 +236,7 @@ class Seq2seq(nn.Module):
         scores.append(score)
 
         if len(self.gpu) > 1:
-          pred = pred.cuda(self.gpu[0])
+          pred = pred.cuda(lt_device)
 
         output = self.lt(pred).unsqueeze(0)
 
@@ -225,18 +259,19 @@ class Seq2seq(nn.Module):
         scores.append(score)
         y = ys.select(1, i)
         if len(self.gpu) > 1:
-          y = y.cuda(self.gpu[0])
+          y = y.cuda(lt_device)
 
         output = self.lt(y).unsqueeze(0)
 
         if len(self.gpu) > 1:
-          output = output.cuda(self.gpu[1])
+          output = output.cuda(decoder_device)
     preds = torch.stack(preds, 1)
 
     return scores, preds
 
   def hidden_to_idx(self, hidden, dropout=False):
     """Convert hidden state vectors into indices into the dictionary."""
+    e2s_device = next(self.e2s.parameters()).get_device()
     if hidden.size(0) > 1:
       raise RuntimeError('bad dimensions of tensor:', hidden)
     hidden = hidden.squeeze(0)
@@ -244,22 +279,26 @@ class Seq2seq(nn.Module):
       hidden = self.dropout(hidden)  # dropout over the last hidden
     scores = self.o2e(hidden)
     if len(self.gpu) > 2:
-      scores = scores.cuda(self.gpu[-1])
+      scores = scores.cuda(e2s_device)
     scores = self.e2s(scores)
     scores = F.log_softmax(scores, 1)
     _max_score, idx = scores.max(1)
     return idx, scores
 
-  def forward(self, xs, dropout, xlen_t, ys):
-    batchsize = len(xs)
-    encoder_output, hidden = self._encode(xs, xlen_t, dropout)
+  def forward(self, xses, dropout, xlen_ts, ys):
+    batchsize = len(xses[0])
+
+    context_hidden = None
+    hidden = None
+    for idx in range(0, len(xses)):
+      hidden = self._encode(xses[idx], xlen_ts[idx], hidden, dropout)
+      hidden, context_hidden = self._context(hidden, context_hidden)
+
     x = Variable(self.START, requires_grad=False)
     xe = self.lt(x).unsqueeze(1)
     dec_xes = xe.expand(xe.size(0), batchsize, xe.size(2))
 
-    output_lines = None
-    scores, preds = self._decode_and_train(
-        batchsize, dec_xes, xlen_t, xs, ys, hidden)
+    scores, preds = self._decode(batchsize, dec_xes, ys, hidden)
 
     return scores, preds
 

@@ -29,39 +29,17 @@ class DefaultTeacher(FbDialogTeacher):
     super().__init__(opt, shared)
 
   def setup_data(self, path):
-    def rebuild(entries):
-      return [(entries[i][1][0],
-               [entries[i + 1][0]]) for i in range(len(entries) - 1)]
-
-    # this shows conversations in both directions
-    alternate = []
+    previous_entry = None
     for entry, new in super().setup_data(path):
-      if new:
-        for i, e in enumerate(rebuild(alternate)):
-          yield e, i == 0
-        alternate.clear()
-      else:
-        alternate.append(entry)
-      yield entry, new
-    if alternate:
-      for i, e in enumerate(rebuild(alternate)):
-        yield e, i == 0
+      if not new:
+        yield (previous_entry[1][0], [entry[0]]), False
+
+      previous_entry = entry
+      if entry[1] is not None:
+        yield entry, new
 
   def label_candidates(self):
     return None
-
-  def unpack_data(self):
-    temp = []
-    for episode in self.data.data:
-      previous_label = None
-      for entry in episode:
-        if previous_label is not None:
-          temp.append([(previous_label, (entry[0],), 0)])
-        if entry[1] is not None:
-          temp.append([entry])
-          previous_label = entry[1][0]
-
-    self.data.data = temp
 
   @staticmethod
   def get_key(data):

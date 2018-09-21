@@ -7,6 +7,7 @@ from parlai.core.params import ParlaiParser
 
 import random
 import logging, sys, os
+import time
 
 class Bot:
     def __init__(self, model_path, dict_dir, cuda=False):
@@ -29,6 +30,7 @@ class Bot:
         self.user_history = {}
         
     def reply(self, message, *args):
+        start_time = time.process_time()
         observation = {}
         message = self.agent.preprocess(message)
         observation['episode_done'] = True  ### TODO: for history
@@ -66,6 +68,8 @@ class Bot:
                 response = ' '.join(splited[:-1])
             else:
                 emotion = 'Neutral'
+
+            print('time: {}'.format(start_time - time.process_time()))
 
             return response, emotion
         else:

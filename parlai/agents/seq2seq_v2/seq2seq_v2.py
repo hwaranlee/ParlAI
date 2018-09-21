@@ -53,7 +53,7 @@ class Seq2seqV2Agent(Agent):
                            help='if True, use attention')
         agent.add_argument('-attType', '--attn-type', default='general',
                            choices=['general', 'concat', 'dot'],
-                           help='general=bilinear dotproduct, concat=bahdanau\'s implemenation')        
+                           help='general=bilinear dotproduct, concat=bahdanau\'s implemenation')
         agent.add_argument('--no-cuda', action='store_true', default=False,
                            help='disable GPUs even if available')
         agent.add_argument('--gpu', type=str, default='-1',
@@ -107,7 +107,7 @@ class Seq2seqV2Agent(Agent):
         agent.add_argument('--embed', type=str, default=None, help='pretrained embedding')
         agent.add_argument('--psize', type=int, default=2048,
                 help='projection size before the classifier')
-                
+
     def __init__(self, opt, shared=None):
         """Set up model if shared params not set, otherwise no work to do."""
         super().__init__(opt, shared)
@@ -131,7 +131,7 @@ class Seq2seqV2Agent(Agent):
                 new_opt, self.states = self.load(opt['model_file'])
                 # override options with stored ones
                 opt = self.override_opt(new_opt)
-                
+
             if opt.get('dict_class'):
                 self.dict = str2class(opt['dict_class'])(opt)
             else:
@@ -173,7 +173,7 @@ class Seq2seqV2Agent(Agent):
             # set up modules
             self.model = Seq2seq(opt, len(self.dict), self.START_IDX, self.NULL_IDX, longest_label=self.longest_label)
             # self.model = nn.DataParallel(Seq2seq(opt, len(self.dict), self.START_IDX, self.NULL_IDX, longest_label=self.states.get('longest_label', 1)), [0])
-            
+
             self.zeros_dec = torch.zeros(self.num_layers, 1, hsz)
             self.use_attention = False
 
@@ -185,16 +185,16 @@ class Seq2seqV2Agent(Agent):
                         weight.data.normal_(0, 0.05)
                     #for bias in getattr(self, module).parameters():
                     #    bias.data.fill_(0)
-                        
+
                 for module in {'h2o', 'attn'}:
                     if hasattr(self, module):
                         getattr(self, module).weight.data.normal_(0, 0.01)
                         #getattr(self, module).bias.data.fill_(0)
             """
-            
+
             # set up optims for each module
             self.wd = opt['weight_decay']
-            
+
             if self.states:
                 # set loaded states if applicable
                 self.set_states(self.states)
@@ -206,12 +206,12 @@ class Seq2seqV2Agent(Agent):
             self.loss_valid = 0
             self.ndata = 0
             self.ndata_valid = 0
-                
+
             kwargs = {'lr': opt['learning_rate']}
             if opt['optimizer'] == 'sgd':
                 kwargs['momentum'] = 0.95
                 kwargs['nesterov'] = True
-            
+
             optim_class = Seq2seq.OPTIM_OPTS[opt['optimizer']]
             self.optimizer = optim_class(self.model.parameters(), **kwargs)
 
@@ -221,32 +221,36 @@ class Seq2seqV2Agent(Agent):
                           'changed.')
                 else:
                     self.optimizer.load_state_dict(self.states['optimizer'])
-            
+
             if opt['beam_size'] > 0:
-                self.beamsize = opt['beam_size'] 
-            
+                self.beamsize = opt['beam_size']
+
         self.episode_concat = opt['episode_concat']
         self.training = True
         self.generating = False
         self.local_human = False
-        
+
         if opt.get('max_seq_len') is not None:
             self.max_seq_len = opt['max_seq_len']
         else:
             self.max_seq_len = opt['max_seq_len'] = 50
         self.reset()
-        
-        task_module = importlib.import_module(
-                'parlai.tasks.{}.build'.format(self.opt['task']))
-        self.preprocess = task_module.preprocess
-        if self.opt['task'] == 'opensubtitles_ko_nlg' and self.local_human:
-            self.syllable = self.preprocess
-            self.morphs = task_module.morphs
-            self.preprocess = lambda x: self.syllable(self.morphs(x))
+
         try:
-            self.postprocess = importlib.import_module(
-                    'parlai.tasks.{}.build'.format(self.opt['task'])).postprocess
-        except AttributeError:
+            task_module = importlib.import_module(
+                    'parlai.tasks.{}.build'.format(self.opt['task']))
+            self.preprocess = task_module.preprocess
+            if self.opt['task'] == 'opensubtitles_ko_nlg' and self.local_human:
+                self.syllable = self.preprocess
+                self.morphs = task_module.morphs
+                self.preprocess = lambda x: self.syllable(self.morphs(x))
+            try:
+                self.postprocess = importlib.import_module(
+                        'parlai.tasks.{}.build'.format(self.opt['task'])).postprocess
+            except AttributeError:
+                self.postprocess = lambda x: x
+        except ModuleNotFoundError:
+            self.preprocess = lambda x: x
             self.postprocess = lambda x: x
 
     def override_opt(self, new_opt):
@@ -300,7 +304,7 @@ class Seq2seqV2Agent(Agent):
         """Reset observation and episode_done."""
         self.observation = None
         self.episode_done = True
-    
+
     def observe(self, observation):
         """Save observation for act.
         If multiple observations are from the same episode, concatenate them.
@@ -314,7 +318,7 @@ class Seq2seqV2Agent(Agent):
                 reply_text = '디코딩 에러가 났습니다.'
             reply_text = self.preprocess(reply_text)
             observation['episode_done'] = True  # ## TODO: for history
-            
+
             """
             if '[DONE]' in reply_text:
                 reply['episode_done'] = True
@@ -325,15 +329,15 @@ class Seq2seqV2Agent(Agent):
         else:
             # shallow copy observation (deep copy can be expensive)
             observation = observation.copy()
-            if not self.episode_done and self.episode_concat: 
+            if not self.episode_done and self.episode_concat:
                 # if the last example wasn't the end of an episode, then we need to
                 # recall what was said in that example
                 prev_dialogue = self.observation['text']
                 observation['text'] = prev_dialogue + '\n' + observation['text']  #### TODO!!!! # DATA is concatenated!!
-  
+
         self.observation = observation
-        self.episode_done = observation['episode_done']          
-        
+        self.episode_done = observation['episode_done']
+
         return observation
 
     def update_params(self):
@@ -346,13 +350,13 @@ class Seq2seqV2Agent(Agent):
         Update the model using the targets if available, otherwise rank
         candidates as well if they are available.
         """
-        
+
         self.model.train(self.training)
         self.zero_grad()
-        
+
         batchsize = len(xs)
         text_cand_inds = None
-        
+
         xlen_t = torch.LongTensor(xlen) - 1
         if self.use_cuda:
             xlen_t = xlen_t.cuda()
@@ -368,21 +372,21 @@ class Seq2seqV2Agent(Agent):
         #    for i, score in enumerate(scores):
         #        y = ys.select(1, i)
         #        loss += self.criterion(score, y)
-    
+
         #    if self.training:
         #        self.loss = loss.data[0] / sum(ylen)
         #        self.ndata += batchsize
         #    else:
         #        self.loss_valid += loss.data[0]
         #        self.ndata_valid += sum(ylen)
-            
+
         #output_lines = [[] for _ in range(batchsize)]
         #for b in range(batchsize):
             # convert the output scores to tokens
         #    output_lines[b] = self.v2t(preds.data[b])
 
         beam_cands = None
-        
+
         if self.training:
             scores, preds = self.model(xs, self.training, xlen_t, ys)
 
@@ -404,7 +408,7 @@ class Seq2seqV2Agent(Agent):
             loss.backward()
             if self.opt['grad_clip'] > 0:
                 torch.nn.utils.clip_grad_norm(self.model.lt.parameters(), self.opt['grad_clip'])
-                torch.nn.utils.clip_grad_norm(self.model.h2o.parameters(), self.opt['grad_clip'])                    
+                torch.nn.utils.clip_grad_norm(self.model.h2o.parameters(), self.opt['grad_clip'])
                 torch.nn.utils.clip_grad_norm(self.model.encoder.parameters(), self.opt['grad_clip'])
                 torch.nn.utils.clip_grad_norm(self.model.decoder.parameters(), self.opt['grad_clip'])
             self.update_params()
@@ -413,7 +417,7 @@ class Seq2seqV2Agent(Agent):
         else:
             if cands is not None:
                 text_cand_inds = self._score_candidates(cands, xe, encoder_output)
-													 
+
             if self.opt['beam_size'] > 0:
                 encoder_output, hidden = self.model._encode(xs, xlen_t, self.training)
                 x = Variable(self.model.START, requires_grad = False)
@@ -445,9 +449,9 @@ class Seq2seqV2Agent(Agent):
 #            print(output_lines[0].split().index('__END__'))
 #        except ValueError:
 #            print(len(output_lines[0].split()))
-        
+
         #self.display_predict(xs, ys, output_lines, 0)
-  
+
         return output_lines, text_cand_inds, beam_cands
 
     def display_predict(self, xs, ys, output_lines, freq=0.01):
@@ -472,17 +476,17 @@ class Seq2seqV2Agent(Agent):
         xlen = None
         if batchsize > 0:
             parsed = [self.START_IDX + self.parse(ex['text']) + self.dict.parse(self.END) for ex in exs]
-            max_x_len = max([len(x) for x in parsed])            
+            max_x_len = max([len(x) for x in parsed])
             if self.truncate:
                 # shrink xs to to limit batch computation
                 max_x_len = min(max_x_len, self.max_seq_len)
                 parsed = [x[-max_x_len:] for x in parsed]
-        
+
             # sorting for unpack in encoder
-            parsed_x = sorted(parsed, key=lambda p: len(p), reverse=True)            
-            xlen = [len(x) for x in parsed_x]            
+            parsed_x = sorted(parsed, key=lambda p: len(p), reverse=True)
+            xlen = [len(x) for x in parsed_x]
             xs = torch.LongTensor(batchsize, max_x_len).fill_(0)
-            
+
             """
             # pack the data to the right side of the tensor for this model
             for i, x in enumerate(parsed):
@@ -492,7 +496,7 @@ class Seq2seqV2Agent(Agent):
                     """
             for i, x in enumerate(parsed_x):
                 for j, idx in enumerate(x):
-                    xs[i][j] = idx        
+                    xs[i][j] = idx
             if self.use_cuda:
                 # copy to gpu
                 self.xs.resize_(xs.size())
@@ -500,11 +504,11 @@ class Seq2seqV2Agent(Agent):
                 xs = Variable(self.xs)
             else:
                 xs = Variable(xs)
-            
+
         # set up the target tensors
         ys = None
         ylen = None
-        
+
         if batchsize > 0 and not self.generating:
             # randomly select one of the labels to update on, if multiple
             # append END to each label
@@ -512,17 +516,17 @@ class Seq2seqV2Agent(Agent):
                 labels = [random.choice(ex.get('labels', [''])) + ' ' + self.END for ex in exs]
             else:
                 labels = [random.choice(ex.get('eval_labels', [''])) + ' ' + self.END for ex in exs]
-                
+
             parsed_y = [self.parse(y) for y in labels]
             max_y_len = max(len(y) for y in parsed_y)
             if self.truncate:
                 # shrink ys to to limit batch computation
                 max_y_len = min(max_y_len, self.max_seq_len)
                 parsed_y = [y[:max_y_len] for y in parsed_y]
-            
+
             seq_pairs = sorted(zip(parsed, parsed_y), key=lambda p: len(p[0]), reverse=True)
             _, parsed_y = zip(*seq_pairs)
-                            
+
             ylen = [len(x) for x in parsed_y]
             ys = torch.LongTensor(batchsize, max_y_len).fill_(0)
             for i, y in enumerate(parsed_y):
@@ -535,7 +539,7 @@ class Seq2seqV2Agent(Agent):
                 ys = Variable(self.ys)
             else:
                 ys = Variable(ys)
-#HEM Stret        
+#HEM Stret
         # set up candidates
         cands = None
         valid_cands = None
@@ -568,7 +572,7 @@ class Seq2seqV2Agent(Agent):
                     cands = Variable(self.cands)
                 else:
                     cands = Variable(cands)
-#HEM End                
+#HEM End
         return xs, ys, valid_inds, cands, valid_cands, xlen, ylen
 
     def batch_act(self, observations):
@@ -588,12 +592,12 @@ class Seq2seqV2Agent(Agent):
             return batch_reply
 
         # produce predictions either way, but use the targets if available
-        
+
         predictions, text_cand_inds, beam_cands = self.predict(xs, xlen, ylen, ys, cands)
 
         if self.local_human:
             print(self.postprocess(predictions[0]))
-        
+
         for i in range(len(predictions)):
             # map the predictions back to non-empty examples in the batch
             # we join with spaces since we produce tokens one at a time
@@ -608,7 +612,7 @@ class Seq2seqV2Agent(Agent):
                 curr = batch_reply[batch_idx]
                 curr['text_candidates'] = [curr_cands[idx] for idx in order
                                            if idx < len(curr_cands)]
-        
+
         return batch_reply
 
 
@@ -634,7 +638,7 @@ class Seq2seqV2Agent(Agent):
 
         if self.local_human:
             print(self.postprocess(predictions[0]))
-        
+
         return  beam_cands
 
     def act(self):
@@ -643,7 +647,7 @@ class Seq2seqV2Agent(Agent):
 
     def act_beam_cands(self):
         return self.batch_beam_act([self.observation])
-    
+
     def save(self, path=None):
         path = self.opt.get('model_file', None) if path is None else path
 
@@ -689,27 +693,27 @@ class Seq2seqV2Agent(Agent):
                 m['nll'] = self.loss_valid / self.ndata_valid
                 m['ppl'] = math.exp(self.loss_valid / self.ndata_valid)
                 m['ndata'] = self.ndata_valid
-                            
-            m['lr'] = self.optimizer.param_groups[0]['lr'] 
+
+            m['lr'] = self.optimizer.param_groups[0]['lr']
             # self.print_weight_state()
-        
+
         return m
-    
+
     def reset_valid_report(self):
         self.ndata_valid = 0
         self.loss_valid = 0
-        
+
     def print_weight_state(self):
         self._print_grad_weight(getattr(self, 'lt').weight, 'lookup')
         for module in {'encoder', 'decoder'}:
             layer = getattr(self, module)
-            for weights in layer._all_weights:  
+            for weights in layer._all_weights:
                 for weight_name in weights:
                     self._print_grad_weight(getattr(layer, weight_name), module + ' ' + weight_name)
         self._print_grad_weight(getattr(self, 'h2o').weight, 'h2o')
         if self.use_attention:
            self._print_grad_weight(getattr(self, 'attn').weight, 'attn')
-                
+
     def _print_grad_weight(self, weight, module_name):
         if weight.dim() == 2:
             nparam = weight.size(0) * weight.size(1)
@@ -717,73 +721,76 @@ class Seq2seqV2Agent(Agent):
             norm_dw = weight.grad.norm(2).pow(2)
             print('{:30}'.format(module_name) + ' {:5} x{:5}'.format(weight.size(0), weight.size(1))
                    + ' : w {0:.2e} | '.format((norm_w / nparam).sqrt().data[0]) + 'dw {0:.2e}'.format((norm_dw / nparam).sqrt().data[0]))
-    
+
     def _get_context(self, batchsize, xlen_t, encoder_output):
         " return initial hidden of decoder and encoder context (last_state)"
-        
-        ## The initial of decoder is the hidden (last states) of encoder --> put zero!       
+
+        ## The initial of decoder is the hidden (last states) of encoder --> put zero!
         if self.zeros_dec.size(1) != batchsize:
             self.zeros_dec.resize_(self.model.num_layers, batchsize, self.model.hidden_size).fill_(0)
         hidden = Variable(self.zeros_dec.fill_(0))
-        
+
         last_state = None
         if not self.use_attention:
             last_state = torch.gather(encoder_output, 1, xlen_t.view(-1,1,1).expand(encoder_output.size(0),1,encoder_output.size(2)))
             if self.opt['bi_encoder']:
-#                last_state = torch.cat((encoder_output[:,0,:self.hidden_size], last_state[:,0,self.hidden_size:]),1)        
-                last_state = torch.cat((encoder_output[:,0,self.hidden_size:], last_state[:,0,:self.hidden_size]),1)        
-        
+#                last_state = torch.cat((encoder_output[:,0,:self.hidden_size], last_state[:,0,self.hidden_size:]),1)
+                last_state = torch.cat((encoder_output[:,0,self.hidden_size:], last_state[:,0,:self.hidden_size]),1)
+
         return hidden, last_state
 
     def _beam_search(self, batchsize, dec_xes, xlen_t, xs, encoder_output, hidden, n_best=20):
         # Code borrowed from PyTorch OpenNMT example`
         # https://github.com/MaximumEntropy/Seq2Seq-PyTorch/blob/master/decode.py
-        
+
         #print('(beam search {})'.format(self.beamsize))
-        
+
         # just produce a prediction without training the model
         done = [False for _ in range(batchsize)]
         total_done = 0
         max_len = 0
         output_lines = [[] for _ in range(batchsize)]
-                
+
         #hidden, last_state = self._get_context(batchsize, xlen_t, encoder_output)  ## hidden = 2(#layer)x1x2048 / last_state = 1x4096
-                
+
         # exapnd tensors for each beam
         beamsize = self.beamsize
         #if not self.use_attention:
         #    context = Variable(last_state.data.repeat(1, beamsize, 1))
-            
+
         dec_states = [
             Variable(hidden.data.repeat(1, beamsize, 1)) # 2x3x2048
         ]
-     
-        beam = [ Beam(beamsize, self.dict.tok2ind, cuda = self.use_cuda) for k in range(batchsize) ]        
-        
+
+        beam = [ Beam(beamsize, self.dict.tok2ind, cuda = self.use_cuda) for k in range(batchsize) ]
+
         batch_idx = list(range(batchsize))
         remaining_sents = batchsize
-        
+
         input = Variable(dec_xes.data.repeat(1, beamsize, 1))
         encoder_output = Variable(encoder_output.data.repeat(beamsize,1, 1))
-       
+
         #while max_len < self.model.max_seq_len:
         while total_done < batchsize and max_len < self.model.longest_label:
-        
-            
+
+
             # keep producing tokens until we hit END or max length for each
-            #if self.model.use_attention: 
+            #if self.model.use_attention:
             #    output = self._apply_attention(input, encoder_output, dec_states[0][-1], xs)
-            #else:                
-            #output = torch.cat((input, context), 2)         
-            
-            output, hidden = self.model.decoder(input, dec_states[0]) 
+            #else:
+            #output = torch.cat((input, context), 2)
+
+            decoder_gpu = next(self.model.decoder.parameters()).get_device()
+            if decoder_gpu != input.get_device():
+                input = input.cuda(decoder_gpu)
+            output, hidden = self.model.decoder(input, dec_states[0])
             preds, scores = self.model.hidden_to_idx(output, dropout=False)
             #output, hidden = self.model.decoder(dec_xes, hidden)
             #preds, scores = self.model.hidden_to_idx(output, dropout=False)
-            
+
             dec_states = [hidden]
-            word_lk = scores.view(beamsize, remaining_sents, -1).transpose(0, 1).contiguous()     
-            
+            word_lk = scores.view(beamsize, remaining_sents, -1).transpose(0, 1).contiguous()
+
             active = []
             for b in range(batchsize):
                 if beam[b].done:
@@ -800,12 +807,12 @@ class Seq2seqV2Agent(Agent):
 
             if not active:
                 break
-            
+
             input = torch.stack([b.get_current_state() for b in beam if not b.done]).t().contiguous().view(1, -1)
-            input = self.model.lt(Variable(input))    
+            input = self.model.lt(Variable(input))
 
             max_len += 1
-            
+
         all_preds, allScores = [], []
         for b in range(batchsize):        ## TODO :: does it provide batchsize > 1 ?
             hyps = []
@@ -814,9 +821,9 @@ class Seq2seqV2Agent(Agent):
 
             allScores += [scores[:self.beamsize]]
             hyps += [beam[b].get_hyp(k) for k in ks[:self.beamsize]]
-            
+
             all_preds += [' '.join([self.dict.ind2tok[y] for y in x if not y is 0]) for x in hyps] # self.dict.null_token = 0
-            
+
             #if n_best == 1:
             #    print('\n    input:', self.dict.vec2txt(xs[0].data.cpu()).replace(self.dict.null_token+' ', ''),
             #      '\n    pred :', ''.join(all_preds[b]), '\n')

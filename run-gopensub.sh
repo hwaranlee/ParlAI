@@ -1,4 +1,7 @@
 #!/bin/bash
+
+# export CUDA_LAUNCH_BLOCKING=1
+
 exp_dir='exp'
 gpuid=0,1,2
 model='seq2seq_v2'
@@ -12,7 +15,7 @@ attn=false #true # true / fase
 attType=concat  #general concat dot
 enc=gru
 dict_maxexs=0
-dict_maxtokens=100000
+dict_nwords=100000
 no_cuda=False
 split_gpus=False
 lt=unique
@@ -25,7 +28,7 @@ context_length=1
 ############### CUSTOM
 gradClip=-1
 
-tag='projection'  #'-gc0.5' #'-bs128' #'-bs128'
+tag=gopensub  #'-gc0.5' #'-bs128' #'-bs128'
 ############### EVALUATION
 beam_size=5 #set 0 for greedy search
 
@@ -61,7 +64,7 @@ fi
 
 exp=${exp}-${tag}
 
-### '-' options are defined in parlai/core/params.py 
+### '-' options are defined in parlai/core/params.py
 ### -m --model : should match parlai/agents/<model> (model:model_class)
 ### -mf --model-file : model file name for loading and saving models
 
@@ -69,7 +72,7 @@ if [ $train -eq 1 ]; then # train
 	script='examples/train_model_seq2seq_ldecay.py'
 	script=${script}' --log-file '$exp_dir'/exp-'${exp}'/exp-'${exp}'.log'
 	script=${script}' -bs 100' # training option
-	script=${script}' -vparl 18000 -vp 5' #validation option
+	script=${script}' -vparl 30000 -vp 5' #validation option
 	script=${script}' -vmt nll -vme -1' #validation measure
 	script=${script}' --optimizer adam -lr '${lr}
         script=${script}' --dropout '${dr}
@@ -90,10 +93,10 @@ if [ $train -eq 1 ]; then # train
         if [ $embed ]; then
             script=${script}' --embed '${embed}
         fi
-	
+
 	#Dictionary arguments
         script=${script}' -dbf True --dict-maxexs '${dict_maxexs}
-        script=${script}' --dict-maxtokens '${dict_maxtokens}
+        script=${script}' --dict-nwords '${dict_nwords}
 fi
 
 if [ $train -eq 0 ]; then # eval
@@ -107,13 +110,13 @@ if [ $train -eq 0 ]; then # eval
 fi
 
 mkdir -p $dict_dir
-script=${script}' --dict-file '$dict_dir'/dict_file_'${dict_maxtokens}'.dict' # built dict (word)
+script=${script}' --dict-file '$dict_dir'/dict_file_'${dict_nwords}'.dict' # built dict (word)
 
 if [ ! -d ${exp_dir}/exp-${exp} ]; then
 	mkdir -p ${exp_dir}/exp-${exp}
 fi
 
-script=${script}' -m '${model}' -t opensubtitles:V2009Teacher -mf '${exp_dir}/exp-${exp}/exp-${exp}
+script=${script}' -m '${model}' -t google_opensubtitles -mf '${exp_dir}/exp-${exp}/exp-${exp}
 
 if [ -n "$gpuid" ]; then
 	script=${script}' --gpu '${gpuid}
@@ -126,4 +129,3 @@ case "$exp" in
 	e300-h2048) python ${script} -hs 1024 -emb 300 -att 0
 		;;
 esac
-

@@ -1,9 +1,10 @@
 #!/bin/bash
 exp_dir='exp'
-gpuid=0,1,2
-model='seq2seq_v2'
+gpuid=0,1,2,3
+model='hred'
 emb=400
 hs=4096
+chs=4096
 psize=2048
 lr=0.0001
 dr=0.5
@@ -19,12 +20,13 @@ bi=False
 embed=
 dict_dir='exp-ko_multi_20180330'
 dict_class='parlai.tasks.ko_multi.dict:Dictionary'
-context_length=1
+context_length=2
+include_labels=False
 
 ############### CUSTOM
 gradClip=-1
 
-tag='psize2'  #'-gc0.5' #'-bs128' #'-bs128'
+tag='hred'  #'-gc0.5' #'-bs128' #'-bs128'
 ############### EVALUATION
 beam_size=5 #set 0 for greedy search
 
@@ -65,7 +67,7 @@ exp=${exp}-${tag}
 ### -mf --model-file : model file name for loading and saving models
 
 if [ $train -eq 1 ]; then # train
-  script='examples/train_model_seq2seq_ldecay.py'
+  script='examples/train_model_hred.py'
   script=${script}' --log-file '$exp_dir'/exp-'${exp}'/exp-'${exp}'.log'
   script=${script}' -bs 100' # training option
   script=${script}' -vparl 30000 -vp 5' #validation option
@@ -77,6 +79,7 @@ if [ $train -eq 1 ]; then # train
   script=${script}' -bi '${bi}
   script=${script}' --dict-class '${dict_class}
   script=${script}' --context-length '${context_length}
+  script=${script}' --include-labels '${include_labels}
   script=${script}' --psize '${psize}
   if [ $no_cuda = 'True' ]; then
     script=${script}' --no-cuda'
@@ -108,14 +111,14 @@ if [ ! -d ${exp_dir}/exp-${exp} ]; then
   mkdir -p ${exp_dir}/exp-${exp}
 fi
 
-script=${script}' -m '${model}' -t ko_multi -mf '${exp_dir}/exp-${exp}/exp-${exp}
+script=${script}' -m '${model}' -t ko_history -mf '${exp_dir}/exp-${exp}/exp-${exp}
 
 if [ -n "$gpuid" ]; then
   script=${script}' --gpu '${gpuid}
 fi
 
 # python -u -m cProfile -s "tottime" ${script} -hs ${hs} -emb ${emb} -att ${attn} -attType ${attType} -gradClip ${gradClip} -wd ${wd}
-python -u ${script} -hs ${hs} -emb ${emb} -att ${attn} -attType ${attType} -gradClip ${gradClip} -wd ${wd}
+python -u ${script} -hs ${hs} -chs ${chs} -emb ${emb} -att ${attn} -attType ${attType} -gradClip ${gradClip} -wd ${wd}
 
 
 case "$exp" in
