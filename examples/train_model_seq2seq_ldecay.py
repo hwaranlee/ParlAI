@@ -20,6 +20,7 @@ from parlai.core.worlds import BatchWorld
 from parlai.core.params import ParlaiParser
 from parlai.core.utils import Timer
 from torch.optim.lr_scheduler import ReduceLROnPlateau
+from examples.build_dict import setup_args as setup_dict_args
 import build_dict
 import math
 import logging, sys
@@ -58,7 +59,7 @@ def run_eval(agent, opt, datatype, max_exs=-1, write_log=False, valid_world=None
         agent.generating = True
         print("Generating:")
     
-    for _ in valid_world:
+    while not valid_world.epoch_done():
         if isinstance(valid_world, BatchWorld):
             valid_world.batch_observations[0] = None
         valid_world.parley()
@@ -67,7 +68,7 @@ def run_eval(agent, opt, datatype, max_exs=-1, write_log=False, valid_world=None
             logger.info(valid_world.display() + '\n~~')
             logger.info(valid_world.report())
         cnt += opt['batchsize']
-        if valid_world.epoch_done() or (max_exs > 0 and cnt >= max_exs):
+        if max_exs > 0 and cnt > max_exs + opt.get('numthreads', 1):
             # note this max_exs is approximate--some batches won't always be
             # full depending on the structure of the data
             break
@@ -93,12 +94,8 @@ def run_eval(agent, opt, datatype, max_exs=-1, write_log=False, valid_world=None
     
     return valid_report, valid_world
 
-def get_n_data(world):
-    return len(world.world.get_agents()[0].data.data)
-
-def select_batch(world):
-    n_data = get_n_data(world)
-    world.batch_observations = [[random.randrange(n_data)], None]
+def get_n_batches(world):
+    return len(world.world.get_agents()[0].batches)
 
 def main():
     torch.cuda.manual_seed_all(0)
@@ -142,8 +139,11 @@ def main():
     train.add_argument('-dn', '--dict-nwords', type=int, default=1000000, help='The number of words for dictionary')
     train.add_argument('--split-gpus', type=bool, default=False, help='Split gpus for a large model.')
 
+    parser = setup_dict_args(parser)
+
     opt = parser.parse_args()
-    
+    model_save_path = opt.get('model_file', None)
+
     # Set logging
     logger = logging.getLogger('Seq2seq')
     logger.setLevel(logging.INFO)
@@ -180,8 +180,7 @@ def main():
     logger.info('[ training... ]')
     parleys = 0
     total_exs = 0
-    max_exs = opt['num_epochs'] * get_n_data(world)
-    max_parleys = math.ceil(max_exs / opt['batchsize'])
+    max_parleys = opt['num_epochs'] * get_n_batches(world)
     impatience = 0
     saved = False
     valid_world = None
@@ -194,7 +193,6 @@ def main():
     while True:
         if not agent.training:
             agent.training = True
-        select_batch(world)
             
         world.parley()
         parleys += 1
@@ -239,7 +237,7 @@ def main():
                 best_loss = valid_report[opt['validation_metric']]
                 impatience = 0
                 logger.info('[ new best loss(nll): ' + str(best_loss) +  ' ]')
-                world.save_agents()
+                agent.save(model_save_path)
                 saved = True
                 if best_loss == 1:
                     logger.info('[ task solved! stopping. ]')
