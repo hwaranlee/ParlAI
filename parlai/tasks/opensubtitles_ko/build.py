@@ -29,6 +29,9 @@ def create_fb_format(inpath, outpath):
     # find all the files.
     for root, _subfolder, files in os.walk(inpath):
         for f in files:
+            if root.endswith('ko/2016/5833686') and f == '6769905.xml.gz':
+                continue
+
             if f.endswith('.gz'):
                 dialog = ''
                 conv_id = conv_id + 1
