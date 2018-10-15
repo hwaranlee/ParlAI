@@ -365,6 +365,9 @@ class HredAgent(Agent):
     self.model.train(self.training)
     self.zero_grad()
 
+    # from .mem_report import mem_report
+    # mem_report()
+
     batchsize = len(xses[0])
 
     xlen_ts = [torch.LongTensor(xlen) - 1 for xlen in xlens]
@@ -383,7 +386,7 @@ class HredAgent(Agent):
           y = ys.select(1, i)
           loss += self.criterion(score, y)
 
-        self.loss = loss.data[0] / sum(ylen)
+        self.loss = loss.item() / sum(ylen)
         self.ndata += batchsize
 
       output_lines = [[] for _ in range(batchsize)]
@@ -424,7 +427,7 @@ class HredAgent(Agent):
             y = ys.select(1, i)
             loss += self.criterion(score, y)
 
-          self.loss_valid += loss.data[0]
+          self.loss_valid += loss.item()
           self.ndata_valid += sum(ylen)
 
         output_lines = [[] for _ in range(batchsize)]
@@ -461,9 +464,9 @@ class HredAgent(Agent):
                  self.dict.parse(self.END) for text in ex['text'].split('\n')]
                 for ex in exs]
       max_xes_len = max([len(xes) for xes in parsed])
-      for xes in parsed:
+      for idx, xes in enumerate(parsed):
         if len(xes) < max_xes_len:
-          xes = [[]] * (max_xes_len - len(xes)) + xes
+          parsed[idx] = [[]] * (max_xes_len - len(xes)) + xes
       max_x_len = max([len(x) for x in xes for xes in parsed])
       if self.truncate:
         # shrink xs to to limit batch computation

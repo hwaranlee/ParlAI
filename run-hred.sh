@@ -2,10 +2,10 @@
 exp_dir='exp'
 gpuid=0,1,2,3
 model='hred'
-emb=400
+emb=200
 hs=4096
 chs=4096
-psize=2048
+psize=1028
 lr=0.0001
 dr=0.5
 wd=0 #.00002
@@ -17,7 +17,7 @@ dict_maxtokens=100000
 no_cuda=False
 lt=unique
 bi=False
-embed=
+embed='data/word2vec_ko/ko.bin'
 dict_dir='exp-ko_multi_20180330'
 dict_class='parlai.tasks.ko_multi.dict:Dictionary'
 context_length=2
@@ -26,7 +26,7 @@ include_labels=False
 ############### CUSTOM
 gradClip=-1
 
-tag='hred'  #'-gc0.5' #'-bs128' #'-bs128'
+tag='hred4'  #'-gc0.5' #'-bs128' #'-bs128'
 ############### EVALUATION
 beam_size=5 #set 0 for greedy search
 

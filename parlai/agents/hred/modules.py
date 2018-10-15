@@ -7,11 +7,14 @@
 import math
 import torch
 import gensim
-from torch import optim
+
 import torch.nn as nn
-from torch.nn.parameter import Parameter
-from torch.autograd import Variable
 import torch.nn.functional as F
+
+from torch import optim
+from torch.nn.parameter import Parameter
+from torch.nn.utils.rnn import pad_packed_sequence, pack_padded_sequence
+from torch.autograd import Variable
 
 
 class Hred(nn.Module):
@@ -183,9 +186,35 @@ class Hred(nn.Module):
                       batchsize, self.hidden_size).fill_(0)
       hidden = Variable(zeros, requires_grad=False)
 
+    xlen, idx = xlen.sort(descending=True)
+    zero_len = (xlen == -1).nonzero()
+    hidden = hidden.index_select(1, idx)
+    if len(zero_len):
+      first_zero_idx = zero_len[0].item()
+      xes = xes.index_select(1, idx[:first_zero_idx])
+      xes = pack_padded_sequence(
+          xes, (xlen[:first_zero_idx] + 1).data.cpu().numpy())
+      hidden, hidden_left = hidden.split(
+          [first_zero_idx, batchsize - first_zero_idx], 1)
+    else:
+      xes = xes.index_select(1, idx)
+      xes = pack_padded_sequence(xes, (xlen + 1).data.cpu().numpy())
+
     # self.encoder.flatten_parameters()
-    _, hidden = self.encoder(xes, hidden)
-    hidden = hidden.view(-1, self.dirs, batchsize, self.hidden_size).max(1)[0]
+    _, hidden = self.encoder(xes, hidden.contiguous())
+
+    hidden = hidden.view(
+        -1, self.dirs,
+        batchsize - len(zero_len), self.hidden_size).max(1)[0]
+
+    if len(zero_len):
+      hidden = torch.cat((hidden, hidden_left), 1)
+
+    undo_idx = idx.clone()
+    for i in range(len(idx)):
+      undo_idx[idx[i]] = i
+
+    hidden = hidden.index_select(1, undo_idx)
 
     return hidden
 
