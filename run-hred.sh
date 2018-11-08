@@ -5,7 +5,7 @@ model='hred'
 emb=200
 hs=4096
 chs=4096
-psize=1028
+psize=1024
 lr=0.0001
 dr=0.5
 wd=0 #.00002
@@ -22,11 +22,13 @@ dict_dir='exp-ko_multi_20180330'
 dict_class='parlai.tasks.ko_multi.dict:Dictionary'
 context_length=2
 include_labels=False
+pretrained_exp=exp-emb200-hs4096-lr0.0001-psize2_1024
+pretrained_model_file=${exp_dir}/${pretrained_exp}/${pretrained_exp}
 
 ############### CUSTOM
 gradClip=-1
 
-tag='hred4'  #'-gc0.5' #'-bs128' #'-bs128'
+tag='pretrained'  #'-gc0.5' #'-bs128' #'-bs128'
 ############### EVALUATION
 beam_size=5 #set 0 for greedy search
 
@@ -86,6 +88,9 @@ if [ $train -eq 1 ]; then # train
   fi
   if [ $embed ]; then
     script=${script}' --embed '${embed}
+  fi
+  if [ $pretrained_model_file ]; then
+    script=${script}' --pretrained_model_file '$pretrained_model_file
   fi
 
   #Dictionary arguments

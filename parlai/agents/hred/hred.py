@@ -11,6 +11,7 @@ from parlai.core.dict import DictionaryAgent
 from parlai.core.params import str2class
 from .beam_diverse import Beam
 from .modules import Hred
+from ..seq2seq_v2.modules import Seq2seq
 
 from torch.autograd import Variable
 import torch.nn as nn
@@ -56,7 +57,8 @@ class HredAgent(Agent):
                        help='if True, use attention')
     agent.add_argument('-attType', '--attn-type', default='general',
                        choices=['general', 'concat', 'dot'],
-                       help='general=bilinear dotproduct, concat=bahdanau\'s implemenation')
+                       help='general=bilinear dotproduct, ' +
+                       'concat=bahdanau\'s implemenation')
     agent.add_argument('--no-cuda', action='store_true', default=False,
                        help='disable GPUs even if available')
     agent.add_argument('--gpu', type=str, default='-1',
@@ -99,9 +101,11 @@ class HredAgent(Agent):
     agent.add_argument('-gradClip', '--grad-clip', type=float, default=-1,
                        help='gradient clip, default = -1 (no clipping)')
     agent.add_argument('-epi', '--episode-concat', type='bool', default=False,
-                       help='If multiple observations are from the same episode, concatenate them.')
+                       help='If multiple observations are ' +
+                       'from the same episode, concatenate them.')
     agent.add_argument('--beam_size', type=int, default=0,
-                       help='Beam size for beam search (only for generation mode) \n For Greedy search set 0')
+                       help='Beam size for beam search ' +
+                       '(only for generation mode) \n For Greedy search set 0')
     agent.add_argument('--max_seq_len', type=int, default=50,
                        help='The maximum sequence length, default = 50')
     agent.add_argument('-lt', '--lookuptable', default='all',
@@ -118,6 +122,9 @@ class HredAgent(Agent):
                        help='pretrained embedding')
     agent.add_argument('--psize', type=int, default=2048,
                        help='projection size before the classifier')
+    agent.add_argument('--pretrained_model_file', type=str, default=None,
+                       help='pretrained model file for' +
+                       ' the encoder and the decoder')
 
   def __init__(self, opt, shared=None):
     """Set up model if shared params not set, otherwise no work to do."""
@@ -182,7 +189,23 @@ class HredAgent(Agent):
       # set up modules
       self.model = Hred(opt, len(self.dict), self.START_IDX,
                         self.NULL_IDX, longest_label=self.longest_label)
-      # self.model = nn.DataParallel(Hred(opt, len(self.dict), self.START_IDX, self.NULL_IDX, longest_label=self.states.get('longest_label', 1)), [0])
+
+      if opt.get('pretrained_model_file'):
+        print('Loading pretrained model params from ' +
+              opt['pretrained_model_file'])
+        _, pretrained_states = self.load(opt['pretrained_model_file'])
+        pretrained_model = Seq2seq(
+            opt, len(self.dict), self.START_IDX,
+            self.NULL_IDX, longest_label=self.longest_label)
+        pretrained_model.load_state_dict(pretrained_states['model'])
+        self.model.lt.load_state_dict(pretrained_model.lt.state_dict())
+        self.model.encoder.load_state_dict(
+            pretrained_model.encoder.state_dict())
+        self.model.decoder.load_state_dict(
+            pretrained_model.decoder.state_dict())
+        if type(self.model.o2e) is nn.Linear:
+          self.model.o2e.load_state_dict(pretrained_model.o2e.state_dict())
+        self.model.e2s.load_state_dict(pretrained_model.e2s.state_dict())
 
       self.zeros_dec = torch.zeros(self.num_layers, 1, hsz)
       self.use_attention = False
@@ -442,8 +465,9 @@ class HredAgent(Agent):
     if random.random() < freq:
       # sometimes output a prediction for debugging
       for xs in xses:
-        print('\n    input:', self.dict.vec2txt(xs[0].data.cpu()).replace(self.dict.null_token + ' ', ''),
-              '\n    pred :', ' '.join(output_lines[0]), '\n')
+        print('\n    input:', self.dict.vec2txt(xs[0].data.cpu()).replace(
+            self.dict.null_token + ' ', ''),
+            '\n    pred :', ' '.join(output_lines[0]), '\n')
       if ys is not None:
         print('    label:', self.dict.vec2txt(ys[0].data.cpu()).replace(
             self.dict.null_token + ' ', ''), '\n')
@@ -558,9 +582,8 @@ class HredAgent(Agent):
       # map the predictions back to non-empty examples in the batch
       # we join with spaces since we produce tokens one at a time
       curr = batch_reply[valid_inds[i]]
-      # curr['text'] = ' '.join(c for c in predictions[i] if c != self.END and c != self.dict.null_token) ## TODO: check!!
       curr['text'] = ''.join(c for c in predictions[i] if c !=
-                             self.END and c != self.dict.null_token)  # # TODO: check!!
+                             self.END and c != self.dict.null_token)
 
     return batch_reply
 
@@ -628,7 +651,7 @@ class HredAgent(Agent):
 
   def set_states(self, states):
     """Set the state dicts of the modules from saved states."""
-    self.model.load_state_dict(self.states['model'])
+    self.model.load_state_dict(states['model'])
 
   def report(self):
     m = {}
@@ -668,13 +691,14 @@ class HredAgent(Agent):
       nparam = weight.size(0) * weight.size(1)
       norm_w = weight.norm(2).pow(2)
       norm_dw = weight.grad.norm(2).pow(2)
-      print('{:30}'.format(module_name) + ' {:5} x{:5}'.format(weight.size(0), weight.size(1))
-            + ' : w {0:.2e} | '.format((norm_w / nparam).sqrt().data[0]) + 'dw {0:.2e}'.format((norm_dw / nparam).sqrt().data[0]))
+      print('{:30}'.format(module_name) + ' {:5} x{:5}'.format(weight.size(0),
+                                                               weight.size(1))
+            + ' : w {0:.2e} | '.format((norm_w / nparam).sqrt().data[0]) +
+            'dw {0:.2e}'.format((norm_dw / nparam).sqrt().data[0]))
 
   def _get_context(self, batchsize, xlen_t, encoder_output):
     " return initial hidden of decoder and encoder context (last_state)"
 
-    # The initial of decoder is the hidden (last states) of encoder --> put zero!
     if self.zeros_dec.size(1) != batchsize:
       self.zeros_dec.resize_(self.model.num_layers,
                              batchsize, self.model.hidden_size).fill_(0)
@@ -682,16 +706,21 @@ class HredAgent(Agent):
 
     last_state = None
     if not self.use_attention:
-      last_state = torch.gather(encoder_output, 1, xlen_t.view(-1, 1,
-                                                               1).expand(encoder_output.size(0), 1, encoder_output.size(2)))
+      last_state = torch.gather(
+          encoder_output,
+          1,
+          xlen_t.view(-1, 1, 1).expand(encoder_output.size(0),
+                                       1,
+                                       encoder_output.size(2)))
       if self.opt['bi_encoder']:
-        # last_state = torch.cat((encoder_output[:,0,:self.hidden_size], last_state[:,0,self.hidden_size:]),1)
         last_state = torch.cat(
-            (encoder_output[:, 0, self.hidden_size:], last_state[:, 0, :self.hidden_size]), 1)
+            (encoder_output[:, 0, self.hidden_size:],
+             last_state[:, 0, :self.hidden_size]), 1)
 
     return hidden, last_state
 
-  def _beam_search(self, batchsize, dec_xes, xlen_t, xs, encoder_output, hidden, n_best=20):
+  def _beam_search(self, batchsize, dec_xes, xlen_t, xs,
+                   encoder_output, hidden, n_best=20):
     # Code borrowed from PyTorch OpenNMT example`
     # https://github.com/MaximumEntropy/Seq2Seq-PyTorch/blob/master/decode.py
 
@@ -740,15 +769,17 @@ class HredAgent(Agent):
         for dec_state in dec_states:  # iterate over h, c
           # layers x beam*sent x dim
           sent_states = dec_state.view(-1, beamsize,
-                                       remaining_sents, dec_state.size(2))[:, :, idx]
+                                       remaining_sents,
+                                       dec_state.size(2))[:, :, idx]
           sent_states.data.copy_(sent_states.data.index_select(
               1, beam[b].get_current_origin()))
 
       if not active:
         break
 
-      input = torch.stack([b.get_current_state()
-                           for b in beam if not b.done]).t().contiguous().view(1, -1)
+      input = torch.stack(
+          [b.get_current_state()
+           for b in beam if not b.done]).t().contiguous().view(1, -1)
       input = self.model.lt(Variable(input))
 
       max_len += 1
