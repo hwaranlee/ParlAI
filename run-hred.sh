@@ -4,7 +4,7 @@ gpuid=0,1,2,3
 model='hred'
 emb=200
 hs=4096
-chs=4096
+chs=2048
 psize=1024
 lr=0.0001
 dr=0.5
@@ -52,7 +52,7 @@ while getopts "e:g:t:m:h:b:l:a:w:z:" opt; do
 done
 shift $((OPTIND -1))
 
-exp=emb${emb}-hs${hs}-lr${lr}
+exp=emb${emb}-hs${hs}-lr${lr}-chs${chs}
 if $attn ; then
   exp=$exp'-a_'${attType}
 fi
