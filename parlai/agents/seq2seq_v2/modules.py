@@ -149,8 +149,8 @@ class Seq2seq(nn.Module):
 
     # first encode context
     xes = self.lt(xs).transpose(0, 1)
-    # if dropout:
-    #    xes = self.dropout(xes)
+    if dropout:
+      xes = self.dropout(xes)
 
     # forward
     if packed:

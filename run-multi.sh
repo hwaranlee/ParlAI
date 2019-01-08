@@ -2,21 +2,21 @@
 exp_dir='exp'
 gpuid=0,1,2
 model='seq2seq_v2'
-emb=200
-hs=4096
+emb=512
+hs=1024
 psize=1024
 lr=0.0001
-dr=0.5
+dr=0.2
 wd=0 #.00002
 attn=false #true # true / fase
 attType=concat  #general concat dot
 enc=gru
 dict_maxexs=0
-dict_maxtokens=100000
+dict_maxtokens=25004
 no_cuda=False
 lt=unique
 bi=False
-embed='data/word2vec_ko/ko.bin'
+embed=''
 dict_dir='exp-ko_multi_20180330'
 dict_class='parlai.tasks.ko_multi.dict:Dictionary'
 context_length=1
@@ -24,7 +24,7 @@ context_length=1
 ############### CUSTOM
 gradClip=-1
 
-tag='psize2_1024'  #'-gc0.5' #'-bs128' #'-bs128'
+tag='dr0.2'  #'-gc0.5' #'-bs128' #'-bs128'
 ############### EVALUATION
 beam_size=5 #set 0 for greedy search
 
