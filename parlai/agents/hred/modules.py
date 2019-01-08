@@ -168,23 +168,19 @@ class Hred(nn.Module):
 
     return ret
 
-  def _encode(self, xs, xlen, hidden, dropout=False):
+  def _encode(self, xs, xlen, dropout=False):
     """Call encoder and return output and hidden states."""
     encoder_device = next(self.encoder.parameters()).get_device()
     batchsize = len(xs)
 
-    if len(self.gpu) > 1 and hidden is not None:
-      hidden = hidden.cuda(encoder_device)
-
     # first encode context
     xes = self.lt(xs).transpose(0, 1)
 
-    if hidden is None:
-      zeros = self.zeros(encoder_device)
-      if list(zeros.size()) != [self.dirs * self.num_layers, batchsize, self.hidden_size]:
-        zeros.resize_(self.dirs * self.num_layers,
-                      batchsize, self.hidden_size).fill_(0)
-      hidden = Variable(zeros, requires_grad=False)
+    zeros = self.zeros(encoder_device)
+    if list(zeros.size()) != [self.dirs * self.num_layers, batchsize, self.hidden_size]:
+      zeros.resize_(self.dirs * self.num_layers,
+                    batchsize, self.hidden_size).fill_(0)
+    hidden = Variable(zeros, requires_grad=False)
 
     xlen, idx = xlen.sort(descending=True)
     zero_len = (xlen == -1).nonzero()
@@ -318,9 +314,8 @@ class Hred(nn.Module):
     batchsize = len(xses[0])
 
     context_hidden = None
-    hidden = None
     for idx in range(0, len(xses)):
-      hidden = self._encode(xses[idx], xlen_ts[idx], hidden, dropout)
+      hidden = self._encode(xses[idx], xlen_ts[idx], dropout)
       hidden, context_hidden = self._context(hidden, context_hidden)
 
     x = Variable(self.START, requires_grad=False)
