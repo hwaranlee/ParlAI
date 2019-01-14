@@ -1,9 +1,9 @@
 #!/bin/bash
 exp_dir='exp'
-gpuid=0,1,2,3
+gpuid=0,1
 model='hred'
 emb=200
-hs=4096
+hs=2048
 chs=2048
 psize=1024
 lr=0.0001
@@ -23,12 +23,12 @@ dict_class='parlai.tasks.ko_multi.dict:Dictionary'
 context_length=2
 include_labels=False
 pretrained_exp=exp-emb200-hs4096-lr0.0001-psize2_1024
-pretrained_model_file=${exp_dir}/${pretrained_exp}/${pretrained_exp}
+pretrained_model_file='' #${exp_dir}/${pretrained_exp}/${pretrained_exp}
 
 ############### CUSTOM
 gradClip=-1
 
-tag='no_hidden'  #'-gc0.5' #'-bs128' #'-bs128'
+tag='new_zeros'  #'-gc0.5' #'-bs128' #'-bs128'
 ############### EVALUATION
 beam_size=5 #set 0 for greedy search
 

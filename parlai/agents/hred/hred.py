@@ -418,6 +418,7 @@ class HredAgent(Agent):
         output_lines[b] = self.v2t(preds.data[b])
 
       loss.backward()
+
       if self.opt['grad_clip'] > 0:
         torch.nn.utils.clip_grad_norm(
             self.model.lt.parameters(), self.opt['grad_clip'])
@@ -643,10 +644,7 @@ class HredAgent(Agent):
   def load(self, path):
     """Return opt and model states."""
     with open(path, 'rb') as read:
-      if(self.use_cuda):
-        model = torch.load(read)
-      else:
-        model = torch.load(read, map_location=lambda storage, loc: storage)
+      model = torch.load(read, map_location=lambda storage, loc: storage)
     return model['opt'], model
 
   def set_states(self, states):

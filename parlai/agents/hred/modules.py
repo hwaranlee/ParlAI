@@ -160,11 +160,11 @@ class Hred(nn.Module):
       super().cuda()
 
   def zeros(self, device_id):
-    if device_id in self.zeros_decs:
-      ret = self.zeros_decs[device_id]
-    else:
-      ret = torch.zeros(1, 1, 1).cuda(device_id)
-      self.zeros_decs[device_id] = ret
+    # if device_id in self.zeros_decs:
+    #   ret = self.zeros_decs[device_id]
+    # else:
+    ret = torch.zeros(1, 1, 1).cuda(device_id)
+    # self.zeros_decs[device_id] = ret
 
     return ret
 
