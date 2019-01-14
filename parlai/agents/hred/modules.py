@@ -97,7 +97,6 @@ class Hred(nn.Module):
     self.ch2h = nn.Linear(
         self.num_layers * opt['contexthiddensize'],
         self.num_layers * opt['hiddensize'])
-    self.tanh = nn.Tanh()
 
     share_output = opt['lookuptable'] in ['dec_out', 'all'] and \
         opt['psize'] == opt['embeddingsize']
@@ -238,8 +237,8 @@ class Hred(nn.Module):
     _, context_hidden = self.context(hidden, context_hidden)
     hidden = context_hidden.transpose(0, 1).contiguous().view(batchsize, -1)
 
-    hidden = self.tanh(self.ch2h(hidden).view(
-        batchsize, self.num_layers, -1).transpose(0, 1))
+    hidden = self.ch2h(hidden).view(
+        batchsize, self.num_layers, -1).transpose(0, 1)
 
     return hidden, context_hidden
 
