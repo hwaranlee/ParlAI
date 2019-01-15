@@ -28,7 +28,7 @@ pretrained_model_file='' #${exp_dir}/${pretrained_exp}/${pretrained_exp}
 ############### CUSTOM
 gradClip=-1
 
-tag='new_zeros'  #'-gc0.5' #'-bs128' #'-bs128'
+tag='one_epoch'  #'-gc0.5' #'-bs128' #'-bs128'
 ############### EVALUATION
 beam_size=5 #set 0 for greedy search
 
@@ -72,7 +72,7 @@ if [ $train -eq 1 ]; then # train
   script='examples/train_model_hred.py'
   script=${script}' --log-file '$exp_dir'/exp-'${exp}'/exp-'${exp}'.log'
   script=${script}' -bs 100' # training option
-  script=${script}' -vparl 30000 -vp 5' #validation option
+  script=${script}' -vparl 18681 -vp 5' #validation option
   script=${script}' -vmt nll -vme -1' #validation measure
   script=${script}' --optimizer adam -lr '${lr}
   script=${script}' --dropout '${dr}
