@@ -1,9 +1,9 @@
 #!/bin/bash
 exp_dir='exp'
-gpuid=0,1
+gpuid=0,1,2,3
 model='hred'
 emb=200
-hs=2048
+hs=4096
 chs=2048
 psize=1024
 lr=0.0001
