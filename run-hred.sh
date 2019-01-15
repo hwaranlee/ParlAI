@@ -1,9 +1,9 @@
 #!/bin/bash
 exp_dir='exp'
-gpuid=0,1
+gpuid=0,1,2,3
 model='hred'
 emb=200
-hs=2048
+hs=4096
 chs=2048
 psize=1024
 lr=0.0001
@@ -28,7 +28,7 @@ pretrained_model_file='' #${exp_dir}/${pretrained_exp}/${pretrained_exp}
 ############### CUSTOM
 gradClip=-1
 
-tag='new_zeros'  #'-gc0.5' #'-bs128' #'-bs128'
+tag='new_zeros1'  #'-gc0.5' #'-bs128' #'-bs128'
 ############### EVALUATION
 beam_size=5 #set 0 for greedy search
 
