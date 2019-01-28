@@ -160,7 +160,7 @@ def flatten(teacher, context_length=-1, include_labels=True):
           if labels is not None:
             context.append(random.choice(labels))
         if append:
-          ex['labels'] = (context[0],)
+          ex['labels'] = (context[1],)
           data.append(ex)
       # reset flags and content
       episode_done = False

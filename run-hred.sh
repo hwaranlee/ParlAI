@@ -28,7 +28,7 @@ pretrained_model_file='' #${exp_dir}/${pretrained_exp}/${pretrained_exp}
 ############### CUSTOM
 gradClip=-1
 
-tag='delayed_nlg'  #'-gc0.5' #'-bs128' #'-bs128'
+tag='not_delayed_nlg'  #'-gc0.5' #'-bs128' #'-bs128'
 ############### EVALUATION
 beam_size=5 #set 0 for greedy search
 
