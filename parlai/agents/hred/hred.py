@@ -509,9 +509,8 @@ class HredAgent(Agent):
 
       if self.use_cuda:
         # copy to gpu
-        if len(self.xses) < len(xses):
-          self.xses += [torch.LongTensor(1, 1).cuda(async=True)] * \
-              (len(xses) - len(self.xses))
+        while len(self.xses) < len(xses):
+          self.xses.append(torch.LongTensor(1, 1).cuda(async=True))
 
         for idx, xs in enumerate(xses):
           self.xses[idx].resize_(xs.size())
