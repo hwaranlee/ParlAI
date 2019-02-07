@@ -20,7 +20,7 @@ bi=False
 embed='data/word2vec_ko/ko.bin'
 dict_dir='exp-ko_multi_20180330'
 dict_class='parlai.tasks.ko_multi.dict:Dictionary'
-context_length=3
+context_length=4
 include_labels=False
 pretrained_exp=exp-emb200-hs4096-lr0.0001-psize2_1024
 pretrained_model_file='' #${exp_dir}/${pretrained_exp}/${pretrained_exp}
@@ -28,7 +28,7 @@ pretrained_model_file='' #${exp_dir}/${pretrained_exp}/${pretrained_exp}
 ############### CUSTOM
 gradClip=-1
 
-tag='fixed_hred1'  #'-gc0.5' #'-bs128' #'-bs128'
+tag='fixed_hred2'  #'-gc0.5' #'-bs128' #'-bs128'
 ############### EVALUATION
 beam_size=5 #set 0 for greedy search
 
