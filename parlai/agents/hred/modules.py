@@ -177,7 +177,8 @@ class Hred(nn.Module):
     xes = self.lt(xs).transpose(0, 1)
 
     zeros = self.zeros(encoder_device)
-    if list(zeros.size()) != [self.dirs * self.num_layers, batchsize, self.hidden_size]:
+    if list(zeros.size()) != [self.dirs * self.num_layers,
+                              batchsize, self.hidden_size]:
       zeros.resize_(self.dirs * self.num_layers,
                     batchsize, self.hidden_size).fill_(0)
     hidden = Variable(zeros, requires_grad=False)

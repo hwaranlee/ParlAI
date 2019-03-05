@@ -27,7 +27,7 @@ def preprocess(sent):
 
 
 def postprocess(sent):
-  sent = sent.replace(' __END__', '')
+  sent = re.sub(' __END__.*', '', sent)
   sent = re.sub('^- ', '', sent)
   sent = re.sub(' (.)$', '\\1', sent)
   wordlist = sent.split()

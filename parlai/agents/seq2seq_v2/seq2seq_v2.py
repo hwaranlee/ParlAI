@@ -847,7 +847,7 @@ class Seq2seqV2Agent(Agent):
       allScores += [scores[:self.beamsize]]
       hyps += [beam[b].get_hyp(k) for k in ks[:self.beamsize]]
 
-      all_preds += [' '.join([self.dict.ind2tok[y] for y in x if not y is 0])
+      all_preds += [' '.join([self.dict.ind2tok[y.item()] for y in x if not y is 0])
                     for x in hyps]  # self.dict.null_token = 0
 
       # if n_best == 1:

@@ -433,14 +433,16 @@ class HredAgent(Agent):
       self.display_predict(xses, ys, output_lines, 0)
     else:
       if self.opt['beam_size'] > 0:
-        encoder_output, hidden = self.model._encode(
-            xses, xlen_ts, self.training)
+        context_hidden = None
+        for idx in range(0, len(xses)):
+          hidden = self.model._encode(xses[idx], xlen_ts[idx], self.training)
+          hidden, context_hidden = self.model._context(hidden, context_hidden)
         x = Variable(self.model.START, requires_grad=False)
         xe = self.model.lt(x).unsqueeze(1)
         dec_xes = xe.expand(xe.size(0), batchsize, xe.size(2))
 
         output_lines, beam_cands = self._beam_search(
-            batchsize, dec_xes, xlen_t, xs, encoder_output, hidden)
+            batchsize, dec_xes, hidden)
       else:
         beam_cands = []
         scores, preds = self.model(xses, self.training, xlen_ts, ys)
@@ -716,8 +718,8 @@ class HredAgent(Agent):
 
     return hidden, last_state
 
-  def _beam_search(self, batchsize, dec_xes, xlen_t, xs,
-                   encoder_output, hidden, n_best=20):
+  def _beam_search(self, batchsize, dec_xes,
+                   hidden, n_best=20):
     # Code borrowed from PyTorch OpenNMT example`
     # https://github.com/MaximumEntropy/Seq2Seq-PyTorch/blob/master/decode.py
 
@@ -741,7 +743,7 @@ class HredAgent(Agent):
     remaining_sents = batchsize
 
     input = Variable(dec_xes.data.repeat(1, beamsize, 1))
-    encoder_output = Variable(encoder_output.data.repeat(beamsize, 1, 1))
+    # encoder_output = Variable(encoder_output.data.repeat(beamsize, 1, 1))
 
     while total_done < batchsize and max_len < self.model.longest_label:
       decoder_gpu = next(self.model.decoder.parameters()).get_device()
@@ -789,7 +791,7 @@ class HredAgent(Agent):
       allScores += [scores[:self.beamsize]]
       hyps += [beam[b].get_hyp(k) for k in ks[:self.beamsize]]
 
-      all_preds += [' '.join([self.dict.ind2tok[y] for y in x if not y is 0])
+      all_preds += [' '.join([self.dict.ind2tok[y.item()] for y in x if not y is 0])
                     for x in hyps]
 
     return [all_preds[0]], all_preds  # 1-best
