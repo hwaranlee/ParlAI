@@ -404,6 +404,13 @@ task_list = [
         "description": "OpenSubtitles and Acryl Korean with history"
     },
     {
+        "id": "ko_history_emo",
+        "display_name": "OpenSubtitles and Acryl Korean with history and emotion",
+        "task": "ko_history_emo",
+        "tags": ["All", "ChitChat"],
+        "description": "OpenSubtitles and Acryl Korean with history and emotion"
+    },
+    {
         "id": "google_opensubtitles",
         "display_name": "OpenSubtitles by Google",
         "task": "google_opensubtitles",
