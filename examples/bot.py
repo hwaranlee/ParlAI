@@ -65,7 +65,6 @@ class Bot:
 
       if len(args) > 1:
         self.histories[id].append(re.sub(' __END__.*', '', response[idx]))
-        print(self.histories)
 
       response = self.agent.postprocess(response[idx])
       self.user_history[message] = idx + 1
