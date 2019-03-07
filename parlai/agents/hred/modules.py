@@ -266,6 +266,9 @@ class Hred(nn.Module):
 
         output = self.lt(pred).unsqueeze(0)
 
+        if len(self.gpu) > 1:
+          output = output.cuda(decoder_device)
+
         max_len += 1
         for b in range(batchsize):
           if not done[b]:
