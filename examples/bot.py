@@ -9,7 +9,6 @@ import random
 import logging
 import sys
 import os
-import time
 import re
 
 
@@ -35,47 +34,16 @@ class Bot:
     self.histories = {}
 
   def reply(self, message, *args):
-    start_time = time.process_time()
-    observation = {}
-    message = self.agent.preprocess(message)
-    observation['episode_done'] = True  # TODO: for history
-    if len(args) > 0:
-      if args[0] == 'Surprise':
-        emotion = 'surprised'
-      else:
-        emotion = args[0]
-
-      if len(args) > 1:
-        id = args[1]
-        if not id in self.histories:
-          self.histories[id] = []
-        self.histories[id].append(message + ' ' + emotion)
-        self.histories[id] = self.histories[id][-5:]
-        observation['text'] = '\n'.join(self.histories[id])
-      else:
-        observation['text'] = message + ' ' + emotion
-
+    if isinstance(message, list):
+      observation = {}
+      message = [self.agent.preprocess(m) for m in message]
+      observation['episode_done'] = True
+      emotion = ['surprised' if e == 'Surprise' else e for e in args[0]]
+      observation['text'] = '\n'.join(
+          [m + ' ' + e for m, e in zip(message, emotion)])
       self.agent.observe(validate(observation))
       response = self.agent.act_beam_cands()
-
-      if(message in self.user_history):
-        idx = self.user_history[message] % 7
-      else:
-        idx = 0
-
-      if len(args) > 1:
-        self.histories[id].append(re.sub(' __END__.*', '', response[idx]))
-
-      response = self.agent.postprocess(response[idx])
-      self.user_history[message] = idx + 1
-    else:
-      observation['text'] = message
-
-      self.agent.observe(validate(observation))
-      response = self.agent.act()
-      response = self.agent.postprocess(response['text'])
-
-    if len(args) > 0 and response != '':
+      response = self.agent.postprocess(response[0])
       splited = response.split()
       emotion = splited[-1]
       if emotion == 'surprised':
@@ -86,11 +54,61 @@ class Bot:
       else:
         emotion = 'Neutral'
 
-      print('time: {}'.format(start_time - time.process_time()))
-
       return response, emotion
     else:
-      return response
+      observation = {}
+      message = self.agent.preprocess(message)
+      observation['episode_done'] = True  # TODO: for history
+      if len(args) > 0:
+        if args[0] == 'Surprise':
+          emotion = 'surprised'
+        else:
+          emotion = args[0]
+
+        if len(args) > 1:
+          id = args[1]
+          if not id in self.histories:
+            self.histories[id] = []
+          self.histories[id].append(message + ' ' + emotion)
+          self.histories[id] = self.histories[id][-5:]
+          observation['text'] = '\n'.join(self.histories[id])
+        else:
+          observation['text'] = message + ' ' + emotion
+
+        self.agent.observe(validate(observation))
+        response = self.agent.act_beam_cands()
+
+        if(message in self.user_history):
+          idx = self.user_history[message] % 7
+        else:
+          idx = 0
+
+        if len(args) > 1:
+          self.histories[id].append(re.sub(' __END__.*', '', response[idx]))
+
+        response = self.agent.postprocess(response[idx])
+        self.user_history[message] = idx + 1
+      else:
+        observation['text'] = message
+
+        self.agent.observe(validate(observation))
+        response = self.agent.act()
+        response = self.agent.postprocess(response['text'])
+
+      if len(args) > 0 and response != '':
+        splited = response.split()
+        emotion = splited[-1]
+        if emotion == 'surprised':
+          emotion = 'Surprise'
+        if emotion in ('Neutral', 'Surprise', 'Anger', 'Sadness', 'Fear',
+                       'Happiness', 'Disgust'):
+          response = ' '.join(splited[:-1])
+        else:
+          emotion = 'Neutral'
+
+        return response, emotion
+      else:
+        return response
 
 
 def get_opt(model_path, cuda=False):
