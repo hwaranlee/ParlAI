@@ -12,6 +12,7 @@ from parlai.core.params import str2class
 from .beam_diverse import Beam
 from .modules import Hred
 from ..seq2seq_v2.modules import Seq2seq
+from datetime import datetime
 
 from torch.autograd import Variable
 import torch.nn as nn
@@ -23,6 +24,7 @@ import importlib
 import os
 import random
 import math
+import re
 
 
 class HredAgent(Agent):
@@ -31,7 +33,6 @@ class HredAgent(Agent):
   For more information, see Sequence to Sequence Learning with Neural
   Networks `(Sutskever et al. 2014) <https://arxiv.org/abs/1409.3215>`_.
   """
-
   ENC_OPTS = {'rnn': nn.RNN, 'gru': nn.GRU, 'lstm': nn.LSTM}
 
   @staticmethod
@@ -127,6 +128,7 @@ class HredAgent(Agent):
                        ' the encoder and the decoder')
 
   def __init__(self, opt, shared=None):
+    print('{}: 대화 모델 로딩 시작'.format(datetime.now()))
     """Set up model if shared params not set, otherwise no work to do."""
     super().__init__(opt, shared)
     if not shared:
@@ -184,7 +186,9 @@ class HredAgent(Agent):
       self.xses = []
       self.ys = torch.LongTensor(1, 1)
 
+      print('NLLLoss 인스턴스 생성 시작.')
       self.criterion = nn.NLLLoss(size_average=False, ignore_index=0)
+      print('NLLLoss 인스턴스 생성 완료.')
 
       # set up modules
       self.model = Hred(opt, len(self.dict), self.START_IDX,
@@ -268,6 +272,7 @@ class HredAgent(Agent):
     else:
       self.max_seq_len = opt['max_seq_len'] = 50
     self.reset()
+    print('{}: 대화 모델 로딩 완료'.format(datetime.now()))
 
     try:
       task_module = importlib.import_module(
@@ -449,9 +454,13 @@ class HredAgent(Agent):
 
         if ys is not None:
           loss = 0
+          losses = []
           for i, score in enumerate(scores):
             y = ys.select(1, i)
-            loss += self.criterion(score, y)
+            print('NLLLoss API 사용 시작')
+            losses.append(self.criterion(score, y))
+            loss += losses[i]
+            print('NLLLoss API 사용 완료')
 
           self.loss_valid += loss.item()
           self.ndata_valid += sum(ylen)
@@ -460,20 +469,42 @@ class HredAgent(Agent):
         for b in range(batchsize):
           # convert the output scores to tokens
           output_lines[b] = self.v2t(preds.data[b])
-        self.display_predict(xses, ys, output_lines, 0)
+        self.display_predict(xses, ys, None, 1, losses, ylen)
 
     return output_lines, beam_cands
 
-  def display_predict(self, xses, ys, output_lines, freq=0.01):
+  def display_predict(self, xses, ys, output_lines, freq=0.01, losses=None,
+                      ylen=None):
     if random.random() < freq:
       # sometimes output a prediction for debugging
-      for xs in xses:
-        print('\n    input:', self.dict.vec2txt(xs[0].data.cpu()).replace(
-            self.dict.null_token + ' ', ''),
-            '\n    pred :', ' '.join(output_lines[0]), '\n')
-      if ys is not None:
-        print('    label:', self.dict.vec2txt(ys[0].data.cpu()).replace(
-            self.dict.null_token + ' ', ''), '\n')
+      for idx in range(len(ys)):
+        inputs = []
+        for xs in xses:
+          x = self.dict.vec2txt(xs[idx].data.cpu()).replace(
+              self.dict.null_token + ' ', '')
+          x = re.sub('__START__ ', '', x)
+          x = re.sub(' __END__.*', '', x)
+          x = re.sub('__NULL__', '', x)
+          if x:
+            inputs.append(x)
+        if output_lines:
+          p = output_lines[idx]
+        else:
+          p = None
+        l = self.dict.vec2txt(ys[idx].data.cpu()).replace(
+            self.dict.null_token + ' ', '')
+        l = re.sub('__START__ ', '', l)
+        l = re.sub(' __END__.*', '', l)
+        l = re.sub('__NULL__', '', l)
+        print('\n    input:', ' __SEP__ '.join(inputs))
+        if ys is not None:
+          print('    label:', l, '\n')
+        if losses is not None:
+          print('    NLLLoss: {}'.format(losses[idx].item()))
+        if ylen is not None:
+          print('    ylen: {}'.format(ylen[idx]))
+        print('{}\t{}\t{}\t{}'.format(
+            ' __SEP__ '.join(inputs), l, sum(losses).item(), ylen[idx]))
 
   def batchify(self, observations):
     """Convert a list of observations into input & target tensors."""
@@ -662,6 +693,9 @@ class HredAgent(Agent):
       else:
         m['nll'] = self.loss_valid / self.ndata_valid
         m['ppl'] = math.exp(self.loss_valid / self.ndata_valid)
+        print(('계산된 NLLLoss({})에 총 출력 단어수({})를 나눠준 후' +
+               ' exponential을 취하여 perplexity 계산.').format(
+            self.loss_valid, self.ndata_valid))
         m['ndata'] = self.ndata_valid
 
       m['lr'] = self.optimizer.param_groups[0]['lr']

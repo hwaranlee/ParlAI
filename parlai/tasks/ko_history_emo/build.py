@@ -10,14 +10,17 @@ import gzip
 import os
 import re
 
+from datetime import datetime
 from konlpy.tag import Komoran
 from examples.bot import Bot
 from openpyxl import load_workbook
 
 
 komoran = Komoran()
+print('{}: 후처리 모델 로딩 시작'.format(datetime.now()))
 nlg = Bot('exp/exp-emb200-hs1024-lr0.0001-oknlg/exp-emb200-hs1024-lr0.0001-oknlg',
           'exp-opensub_ko_nlg/dict_file_100000.dict', True)
+print('{}: 후처리 모델 로딩 완료'.format(datetime.now()))
 
 
 def preprocess(sent):

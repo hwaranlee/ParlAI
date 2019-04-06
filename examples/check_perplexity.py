@@ -48,6 +48,7 @@ def run_eval(agent, opt, datatype, max_exs=-1, write_log=False, valid_world=None
   opt['datatype'] = datatype
   if opt.get('evaltask'):
     opt['task'] = opt['evaltask']
+  opt['batch_sort'] = True
 
   if valid_world is None:
     valid_world = create_task(opt, agent)
@@ -99,7 +100,10 @@ def run_eval(agent, opt, datatype, max_exs=-1, write_log=False, valid_world=None
 
 
 def get_n_batches(world):
-  return len(world.world.get_agents()[0].batches)
+  try:
+    return len(world.world.get_agents()[0].batches)
+  except AttributeError:
+    return world.get_agents()[0].data.num_examples()
 
 
 def main():
@@ -139,7 +143,7 @@ def main():
   train.add_argument('-dbf', '--dict-build-first',
                      type='bool', default=True,
                      help='build dictionary first before training agent')
-  train.add_argument('-logger', '--log-file', default='',
+  train.add_argument('-logger', '--log-file', default='./log',
                      help='log file name')
   train.add_argument('-dn', '--dict-nwords', type=int,
                      default=1000000, help='The number of words for dictionary')
@@ -178,25 +182,25 @@ def main():
     build_dict.build_dict(opt)
 
   # Create model and assign it to the specified task
-  agent = create_agent(opt)
-  world = create_task(opt, agent)
-
-  train_time = Timer()
-  validate_time = Timer()
-  log_time = Timer()
-  logger.info('[ training... ]')
-  parleys = 0
-  total_exs = 0
-  max_parleys = opt['num_epochs'] * get_n_batches(world)
-  impatience = 0
-  saved = False
-  valid_world = None
-  best_loss = 1000000
-  scheduler = ReduceLROnPlateau(
-      agent.optimizer, factor=0.5, patience=1, verbose=True)
-
-  def get_lr():
-    return agent.optimizer.param_groups[0]['lr']
+  # agent = create_agent(opt)
+  # world = create_task(opt, agent)
+  #
+  # train_time = Timer()
+  # validate_time = Timer()
+  # log_time = Timer()
+  # logger.info('[ training... ]')
+  # parleys = 0
+  # total_exs = 0
+  # max_parleys = opt['num_epochs'] * get_n_batches(world)
+  # impatience = 0
+  # saved = False
+  # valid_world = None
+  # best_loss = 1000000
+  # scheduler = ReduceLROnPlateau(
+  #     agent.optimizer, factor=0.5, patience=1, verbose=True)
+  #
+  # def get_lr():
+  #   return agent.optimizer.param_groups[0]['lr']
 
   # while True:
   #   if not agent.training:

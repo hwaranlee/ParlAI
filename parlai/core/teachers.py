@@ -40,6 +40,7 @@ import random
 import sys
 import time
 import os
+import numpy as np
 
 
 class DataLoader(Thread):
@@ -147,7 +148,7 @@ class FixedDialogTeacher(Teacher):
     self.batchindex = opt.get('batchindex', 0)
 
     dt = opt.get('datatype', '').split(':')
-    self.use_batch_act = (opt.get('batch_sort', False) and self.bsz > 1
+    self.use_batch_act = (opt.get('batch_sort', False)
                           and 'stream' not in dt)
 
     if self.use_batch_act:
@@ -162,6 +163,7 @@ class FixedDialogTeacher(Teacher):
         ordered_opt['datatype'] = ':'.join((dt[0], 'ordered'))
         ordered_opt['batchsize'] = 1
         ordered_opt['numthreads'] = 1
+        ordered_opt['batch_sort'] = False
         ordered_teacher = create_task_agent_from_taskname(ordered_opt)[0]
 
         clen = opt.get('context_length', -1)
@@ -179,6 +181,9 @@ class FixedDialogTeacher(Teacher):
                            context_length=clen, include_labels=incl)
         self.sorted_data = sort_data(flatdata)
         self.batches = make_batches(self.sorted_data, self.bsz)
+
+        self.batch_indexes = np.random.choice(
+            len(self.batches), 1000, replace=False)
 
   def _lock(self):
     if hasattr(self.index, 'get_lock'):
@@ -201,6 +206,8 @@ class FixedDialogTeacher(Teacher):
     with self._lock():
       self.index.value = -1
     if self.use_batch_act and self.random and hasattr(self, 'batches'):
+      import pdb
+      pdb.set_trace()
       random.shuffle(self.batches)
 
   def submit_load_request(self):
@@ -285,11 +292,13 @@ class FixedDialogTeacher(Teacher):
         self.epochDone = True
       else:
         self.epochDone = False
+      if batch_idx >= 999:
+        self.epochDone = True
 
     if batch_idx >= len(self.batches):
       return [{'episode_done': True, 'id': self.getID()}] * self.bsz
 
-    return self.batches[batch_idx]
+    return self.batches[self.batch_indexes[batch_idx]]
 
   def num_episodes(self):
     """Get the number of episodes in this dataset."""

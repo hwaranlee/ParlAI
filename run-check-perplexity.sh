@@ -71,9 +71,9 @@ exp=${exp}-${tag}
 ### -mf --model-file : model file name for loading and saving models
 
 if [ $train -eq 1 ]; then # train
-	script='examples/check_time.py'
+	script='examples/check_perplexity.py'
 	script=${script}' --log-file '$exp_dir'/exp-'${exp}'/exp-'${exp}'.log'
-	script=${script}' -bs 100' # training option
+	script=${script}' -bs 1' # training option
 	script=${script}' -vparl 18681 -vp 5' #validation option
 	script=${script}' -vmt nll -vme -1' #validation measure
 	script=${script}' --optimizer adam -lr '${lr}
