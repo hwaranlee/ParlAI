@@ -55,12 +55,12 @@ for root, _subfolder, files in os.walk(inpath):
                     datetime.now(), output[0], output[1]))
                 n += 1
                 total_time += time.time() - start
-              if n >= 1000:
-                print('{}: 총 걸린 시간: {}'.format(datetime.now(), total_time))
-                print('{}: 처리 문장 수: {}'.format(datetime.now(), n))
-                print('{}: 문장당 처리 시간: {}초'.format(
-                    datetime.now(), total_time / n))
-                exit()
+                if n >= 1000:
+                  print('{}: 총 걸린 시간: {}'.format(datetime.now(), total_time))
+                  print('{}: 처리 문장 수: {}'.format(datetime.now(), n))
+                  print('{}: 문장당 처리 시간: {}초'.format(
+                      datetime.now(), total_time / n))
+                  exit()
           conv_id += 1
           dialog = []
           line_id = 1

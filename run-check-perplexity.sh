@@ -13,7 +13,7 @@ attn=false #true # true / fase
 attType=concat  #general concat dot
 enc=gru
 dict_maxexs=0
-dict_maxtokens=100000
+dict_maxtokens=10000
 no_cuda=False
 lt=unique
 bi=False
@@ -29,7 +29,7 @@ pretrained_model_file=''
 ############### CUSTOM
 gradClip=-1
 
-tag="emotional_hred" #'-gc0.5' #'-bs128' #'-bs128'
+tag="small_dict" #'-gc0.5' #'-bs128' #'-bs128'
 #tag="d2018" #'-gc0.5' #'-bs128' #'-bs128'
 ############### EVALUATION
 beam_size=5 #set 0 for greedy search
