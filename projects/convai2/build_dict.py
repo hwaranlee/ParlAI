@@ -1,8 +1,8 @@
-# Copyright (c) 2017-present, Facebook, Inc.
-# All rights reserved.
-# This source code is licensed under the BSD-style license found in the
-# LICENSE file in the root directory of this source tree. An additional grant
-# of patent rights can be found in the PATENTS file in the same directory.
+#!/usr/bin/env python3
+
+# Copyright (c) Facebook, Inc. and its affiliates.
+# This source code is licensed under the MIT license found in the
+# LICENSE file in the root directory of this source tree.
 """Builds the official dictionary for the ConvAI2 competition using the
 training and validation sets for the 'convai2:self' task.
 The dictionary should contain 19304 tokens after building.
@@ -16,20 +16,22 @@ potential unknown words. See the evaluation script for more information.
 """
 
 
-from examples.build_dict import setup_args, build_dict as main_build_dict
+from parlai.scripts.build_dict import setup_args, build_dict as main_build_dict
+
+DICT_FILE = 'models:convai2/dict_self'
+
 
 def build_dict():
-    DICT_FINAL = 'models:convai2/dict_self'
-
     parser = setup_args()
     # first build on standard train and validation
     parser.set_defaults(
         task='convai2:self',
         dict_lower=True,
-        dict_file=DICT_FINAL,
+        dict_file=DICT_FILE,
         dict_include_valid=True,
+        dict_tokenizer='split',
     )
-    opt = parser.parse_args()
+    opt = parser.parse_args(args="")
     return main_build_dict(opt)
 
 
