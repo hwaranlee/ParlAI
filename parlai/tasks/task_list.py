@@ -376,6 +376,13 @@ task_list = [
         "description": "Acryl Korean"
     },
     {
+        "id": "kowiki20190401",
+        "display_name": "Korean Wiki 20190401",
+        "task": "kowiki20190401",
+        "tags": ["All", "ChitChat"],
+        "description": "Korean Wiki 20190401"
+    },
+    {
         "id": "opensubtitles_kemo",
         "display_name": "Korean with Emotion",
         "task": "opensubtitles_kemo",
