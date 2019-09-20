@@ -320,18 +320,18 @@ class HredAgent(Agent):
   def cuda(self):
     """Push parameters to the GPU."""
     self.model.cuda()
-    self.xses = [xs.cuda(async=True) for xs in self.xses]
+    self.xses = [xs.cuda(non_blocking=True) for xs in self.xses]
     if type(self.opt['gpu']) is str and ',' in self.opt['gpu']:
       last_index = int(self.opt['gpu'].split(',')[-1])
       self.criterion.cuda(last_index)
-      self.ys = self.ys.cuda(last_index, async=True)
+      self.ys = self.ys.cuda(last_index, non_blocking=True)
     else:
-      self.ys = self.ys.cuda(async=True)
+      self.ys = self.ys.cuda(non_blocking=True)
       self.criterion.cuda()
-    self.START_TENSOR = self.START_TENSOR.cuda(async=True)
-    self.END_TENSOR = self.END_TENSOR.cuda(async=True)
-    self.START_TENSOR = self.START_TENSOR.cuda(async=True)
-    self.END_TENSOR = self.END_TENSOR.cuda(async=True)
+    self.START_TENSOR = self.START_TENSOR.cuda(non_blocking=True)
+    self.END_TENSOR = self.END_TENSOR.cuda(non_blocking=True)
+    self.START_TENSOR = self.START_TENSOR.cuda(non_blocking=True)
+    self.END_TENSOR = self.END_TENSOR.cuda(non_blocking=True)
 
   def reset(self):
     """Reset observation and episode_done."""
@@ -512,11 +512,11 @@ class HredAgent(Agent):
       if self.use_cuda:
         # copy to gpu
         while len(self.xses) < len(xses):
-          self.xses.append(torch.LongTensor(1, 1).cuda(async=True))
+          self.xses.append(torch.LongTensor(1, 1).cuda(non_blocking=True))
 
         for idx, xs in enumerate(xses):
           self.xses[idx].resize_(xs.size())
-          self.xses[idx].copy_(xs, async=True)
+          self.xses[idx].copy_(xs, non_blocking=True)
         xses = [Variable(self.xses[idx], requires_grad=False)
                 for idx, _ in enumerate(xses)]
       else:
@@ -551,7 +551,7 @@ class HredAgent(Agent):
       if self.use_cuda:
         # copy to gpu
         self.ys.resize_(ys.size())
-        self.ys.copy_(ys, async=True)
+        self.ys.copy_(ys, non_blocking=True)
         ys = Variable(self.ys, requires_grad=False)
       else:
         ys = Variable(ys, requires_grad=False)
