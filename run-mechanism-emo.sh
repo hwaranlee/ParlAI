@@ -3,7 +3,7 @@ exp_dir='exp'
 gpuid=0,1,2,3
 model='hred'
 emb=200
-hs=4096
+hs=2048
 chs=2048
 psize=1024
 lr=0.0001
@@ -71,10 +71,9 @@ exp=${exp}-${tag}
 ### -mf --model-file : model file name for loading and saving models
 
 if [ $train -eq 1 ]; then # train
-	script='examples/train_model_hred.py'
-	script=${script}' --log-file '$exp_dir'/exp-'${exp}'/exp-'${exp}'.log'
+	script='examples/train_model.py'
 	script=${script}' -bs 100' # training option
-	script=${script}' -vparl 18681 -vp 5' #validation option
+	script=${script}' -veps 0.5 -vp 5' #validation option
 	script=${script}' -vmt nll -vme -1' #validation measure
 	script=${script}' --optimizer adam -lr '${lr}
   script=${script}' --dropout '${dr}
@@ -82,8 +81,8 @@ if [ $train -eq 1 ]; then # train
   script=${script}' -lt '${lt}
   script=${script}' -bi '${bi}
   script=${script}' --dict-class '${dict_class}
-  # script=${script}' --context-length '${context_length}
-	# script=${script}' --include-labels '${include_labels}
+  script=${script}' --pytorch-context-length '${context_length}
+	script=${script}' --pytorch-include-labels '${include_labels}
 	script=${script}' --psize '${psize}
   if [ $no_cuda = 'True' ]; then
       script=${script}' --no-cuda'
@@ -118,7 +117,7 @@ if [ ! -d ${exp_dir}/exp-${exp} ]; then
 	mkdir -p ${exp_dir}/exp-${exp}
 fi
 
-script=${script}' -m '${model}' -t ko_history_emo -mf '${exp_dir}/exp-${exp}/exp-${exp}
+script=${script}' -m '${model}' -pyt ko_history_emo -mf '${exp_dir}/exp-${exp}/exp-${exp}
 
 if [ -n "$gpuid" ]; then
 	script=${script}' --gpu '${gpuid}

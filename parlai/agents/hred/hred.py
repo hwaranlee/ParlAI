@@ -632,6 +632,8 @@ class HredAgent(Agent):
       model['optimizer'] = self.optimizer.state_dict()
       model['optimizer_type'] = self.opt['optimizer']
 
+      os.makedirs(os.path.dirname(path), exist_ok=True)
+
       with open(path, 'wb') as write:
         torch.save(model, write)
 
