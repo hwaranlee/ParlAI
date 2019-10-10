@@ -111,7 +111,7 @@ answer, emotion = bot.reply('안녕', 'Neutral') # The second parameter can be o
 ```python
 from examples.bot import Bot
 
-bot = Bot('exp/exp-emb200-hs4096-lr0.0001-emotional_hred/exp-emb200-hs4096-lr0.0001-emotional_hred', 'exp-opensub_kemo_20190226/dict_file_100000.dict', True)
+bot = Bot('exp/exp-emb200-hs2048-lr0.0001-mechanism/exp-emb200-hs2048-lr0.0001-mechanism', 'exp-opensub_kemo_20190226/dict_file_100000.dict', True)
 answer, emotion = bot.reply('안녕', 'Neutral', 'test0') # The second parameter can be one of these: Neutral, Happiness, Anger, Sadness, Surprise, Fear, Disgust.
 ```
 The last parameter of the Bot constructor determines whether to use CUDA or not.  
