@@ -71,7 +71,7 @@ data/word2vec_ko/ko.bin
   - Context-Aware Emotional Bot  
 cc/exp-opensub_kemo_20190226/dict_file_100000.dict  
 cc/exp-opensub_ko_nlg/dict_file_100000.dict  
-cc/exp/exp-emb200-hs4096-lr0.0001-emotional_hred/exp-emb200-hs4096-lr0.0001-emotional_hred  
+cc/exp/exp-emb200-hs2048-lr0.0001-mechanism/exp-emb200-hs2048-lr0.0001-mechanism 
 cc/exp/exp-emb200-hs1024-lr0.0001-oknlg/exp-emb200-hs1024-lr0.0001-oknlg  
 data/word2vec_ko/ko.bin
 
