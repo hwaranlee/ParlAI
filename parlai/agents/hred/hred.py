@@ -125,6 +125,10 @@ class HredAgent(Agent):
     agent.add_argument('--pretrained_model_file', type=str, default=None,
                        help='pretrained model file for' +
                        ' the encoder and the decoder')
+    agent.add_argument('--num_mechanisms', type=int, default=4,
+                       help='The number of mechanisms')
+    agent.add_argument('--mechanism_size', type=int, default=128,
+                       help='projection size before the classifier')
 
   def __init__(self, opt, shared=None):
     """Set up model if shared params not set, otherwise no work to do."""
@@ -484,6 +488,7 @@ class HredAgent(Agent):
 
     # set up the input tensors
     batchsize = len(exs)
+
     # tokenize the text
     if batchsize > 0:
       parsed = [[self.START_IDX +
@@ -521,6 +526,9 @@ class HredAgent(Agent):
                 for idx, _ in enumerate(xses)]
       else:
         xses = [Variable(xs, requires_grad=False) for xs in xses]
+    else:
+      import pdb
+      pdb.set_trace()
 
     # set up the target tensors
     ys = None

@@ -74,7 +74,7 @@ if [ $train -eq 1 ]; then # train
 	script='examples/train_model.py'
 	script=${script}' -bs 100' # training option
 	script=${script}' -veps 0.5 -vp 5' #validation option
-	script=${script}' -vmt nll -vme -1' #validation measure
+	script=${script}' -vmt ppl -vme -1' #validation measure
 	script=${script}' --optimizer adam -lr '${lr}
   script=${script}' --dropout '${dr}
   script=${script}' -enc '${enc}

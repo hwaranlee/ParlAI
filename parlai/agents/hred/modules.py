@@ -17,6 +17,22 @@ from torch.nn.utils.rnn import pad_packed_sequence, pack_padded_sequence
 from torch.autograd import Variable
 
 
+class Maxout(nn.Module):
+  def __init__(self, d_in, d_out, pool_size):
+    super().__init__()
+    self.d_in, self.d_out, self.pool_size = d_in, d_out, pool_size
+    self.lin = nn.Linear(d_in, d_out * pool_size, bias=False)
+
+  def forward(self, inputs):
+    shape = list(inputs.size())
+    shape[-1] = self.d_out
+    shape.append(self.pool_size)
+    max_dim = len(shape) - 1
+    out = self.lin(inputs)
+    m, i = out.view(*shape).max(max_dim)
+    return m
+
+
 class Hred(nn.Module):
   OPTIM_OPTS = {
       'adadelta': optim.Adadelta,
@@ -53,6 +69,23 @@ class Hred(nn.Module):
     self.truncate = opt['truncate']
     self.attention = opt['attention']
     self.dirs = 2 if opt['bi_encoder'] else 1
+
+    # Mechanism-aware
+    self.num_mechanisms = opt['num_mechanisms']
+    self.mechanism_size = opt['mechanism_size']
+
+    self.max_out = Maxout(
+        self.num_layers * opt['contexthiddensize'],
+        self.num_layers * opt['contexthiddensize'], 2)
+    self.w_t = nn.Linear(
+        self.num_layers * opt['contexthiddensize'], self.mechanism_size, bias=False)
+    self.softmax = nn.Softmax(dim=1)
+
+    mechanisms = torch.Tensor(
+        self.mechanism_size, self.num_mechanisms)
+    nn.init.uniform_(mechanisms, a=-0.2, b=0.2)
+    self.mechanisms = Parameter(mechanisms)
+
     if type(opt['gpu']) is str:
       self.gpu = [int(index) for index in opt['gpu'].split(',')]
     else:
@@ -95,7 +128,7 @@ class Hred(nn.Module):
       self.o2e = nn.Linear(opt['hiddensize'], opt['psize'])
 
     self.ch2h = nn.Linear(
-        self.num_layers * opt['contexthiddensize'],
+        self.num_layers * opt['contexthiddensize'] + self.mechanism_size,
         self.num_layers * opt['hiddensize'])
     self.tanh = nn.Tanh()
 
@@ -143,6 +176,9 @@ class Hred(nn.Module):
       if len(self.gpu) == 4:
         self.context.cuda(self.gpu[1])
         self.ch2h.cuda(self.gpu[1])
+        self.max_out.cuda(self.gpu[1])
+        self.w_t.cuda(self.gpu[1])
+        self.mechanisms = Parameter(self.mechanisms.cuda(self.gpu[1]))
         self.decoder.cuda(self.gpu[2])
         self.dropout.cuda(self.gpu[2])
         if type(self.o2e) is nn.Linear:
@@ -151,6 +187,9 @@ class Hred(nn.Module):
       else:
         self.context.cuda(self.gpu[0])
         self.ch2h.cuda(self.gpu[0])
+        self.max_out.cuda(self.gpu[0])
+        self.w_t.cuda(self.gpu[0])
+        self.mechanisms = Parameter(self.mechanisms.cuda(self.gpu[0]))
         self.decoder.cuda(self.gpu[1])
         self.dropout.cuda(self.gpu[1])
         if type(self.o2e) is nn.Linear:
@@ -235,7 +274,13 @@ class Hred(nn.Module):
     _, context_hidden = self.context(hidden, context_hidden)
     hidden = context_hidden.transpose(0, 1).contiguous().view(batchsize, -1)
 
-    hidden = self.tanh(self.ch2h(hidden).view(
+    t = self.max_out(hidden)
+    w = self.w_t(t)
+    g = w @ self.mechanisms
+    p_m = self.softmax(g)
+    m = p_m @ self.mechanisms.t()
+
+    hidden = self.tanh(self.ch2h(torch.cat((hidden, m), dim=1)).view(
         batchsize, self.num_layers, -1).transpose(0, 1))
 
     return hidden, context_hidden
