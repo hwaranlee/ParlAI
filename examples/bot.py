@@ -24,6 +24,11 @@ class Bot:
     opt['batchsize'] = 1
     opt['dict_class'] = 'parlai.tasks.ko_multi.dict:Dictionary'
     opt['beam_size'] = 7
+    try:
+      if opt['task'] is None:
+        opt['task'] = opt['pytorch_teacher_task']
+    except:
+      pass
 
     self.opt = opt
     self.agent = create_agent(opt)
@@ -84,7 +89,7 @@ class Bot:
           idx = 0
 
         if len(args) > 1:
-          self.histories[id].append(re.sub(' __END__.*', '', response[idx]))
+          self.histories[id].append(re.sub(' __end__.*', '', response[idx]))
 
         response = self.agent.postprocess(response[idx])
         self.user_history[message] = idx + 1
