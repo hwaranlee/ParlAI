@@ -382,7 +382,7 @@ class HredAgent(Agent):
     """Do one optimization step."""
     self.optimizer.step()
 
-  def predict(self, xses, xlens, ylen=None, ys=None):
+  def predict(self, xses, xlens, ylen=None, ys=None, m_idx=None):
     """Produce a prediction from our model.
 
     Update the model using the targets if available, otherwise rank
@@ -440,7 +440,12 @@ class HredAgent(Agent):
         context_hidden = None
         for idx in range(0, len(xses)):
           hidden = self.model._encode(xses[idx], xlen_ts[idx], self.training)
-          hidden, context_hidden = self.model._context(hidden, context_hidden)
+          if idx == len(xses) - 1:
+            hidden, context_hidden = self.model._context(
+                hidden, context_hidden, m_idx)
+          else:
+            hidden, context_hidden = self.model._context(
+                hidden, context_hidden)
         x = Variable(self.model.START, requires_grad=False)
         xe = self.model.lt(x).unsqueeze(1)
         dec_xes = xe.expand(xe.size(0), batchsize, xe.size(2))
@@ -615,7 +620,12 @@ class HredAgent(Agent):
 
     # produce predictions either way, but use the targets if available
 
-    predictions, beam_cands = self.predict(xses, xlens, ylen, ys)
+    # mechanism
+    if batchsize and 'mechanism' in observations[0]:
+      m_idx = observations[0]['mechanism']
+      predictions, beam_cands = self.predict(xses, xlens, ylen, ys, m_idx)
+    else:
+      predictions, beam_cands = self.predict(xses, xlens, ylen, ys)
 
     if self.local_human:
       print(self.postprocess(predictions[0]))

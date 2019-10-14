@@ -254,7 +254,7 @@ class Hred(nn.Module):
 
     return hidden
 
-  def _context(self, hidden, context_hidden):
+  def _context(self, hidden, context_hidden, m_idx=None):
     batchsize = hidden.size(1)
     context_device = next(self.context.parameters()).get_device()
 
@@ -274,11 +274,14 @@ class Hred(nn.Module):
     _, context_hidden = self.context(hidden, context_hidden)
     hidden = context_hidden.transpose(0, 1).contiguous().view(batchsize, -1)
 
-    t = self.max_out(hidden)
-    w = self.w_t(t)
-    g = w @ self.mechanisms
-    p_m = self.softmax(g)
-    m = p_m @ self.mechanisms.t()
+    if m_idx is None:
+      t = self.max_out(hidden)
+      w = self.w_t(t)
+      g = w @ self.mechanisms
+      p_m = self.softmax(g)
+      m = p_m @ self.mechanisms.t()
+    else:
+      m = self.mechanisms[:, m_idx, None].t()
 
     hidden = self.tanh(self.ch2h(torch.cat((hidden, m), dim=1)).view(
         batchsize, self.num_layers, -1).transpose(0, 1))

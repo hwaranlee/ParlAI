@@ -80,11 +80,14 @@ class Bot:
         else:
           observation['text'] = message + ' ' + emotion
 
+        if len(args) > 2:  # mechanism
+          observation['mechanism'] = args[2]
+
         self.agent.observe(validate(observation))
         response = self.agent.act_beam_cands()
 
         if(message in self.user_history):
-          idx = self.user_history[message] % 7
+          idx = 0  # self.user_history[message] % 7
         else:
           idx = 0
 
