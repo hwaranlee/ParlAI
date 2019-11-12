@@ -89,6 +89,12 @@ pip install konlpy
 pip install gensim
 ```
 
+9. Install gitpython
+```bash
+pip install gitpython
+```
+
+
 ## Usage
 * Bot  
 
