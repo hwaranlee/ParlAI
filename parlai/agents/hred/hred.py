@@ -32,7 +32,8 @@ class HredAgent(Agent):
   Networks `(Sutskever et al. 2014) <https://arxiv.org/abs/1409.3215>`_.
   """
 
-  ENC_OPTS = {'rnn': nn.RNN, 'gru': nn.GRU, 'lstm': nn.LSTM}
+  ENC_OPTS = {'rnn': nn.RNN, 'gru': nn.GRU,
+              'lstm': nn.LSTM, 'transformer': nn.Transformer}
 
   @staticmethod
   def add_cmdline_args(argparser):
@@ -129,6 +130,8 @@ class HredAgent(Agent):
                        help='The number of mechanisms')
     agent.add_argument('--mechanism_size', type=int, default=128,
                        help='projection size before the classifier')
+    agent.add_argument('--nhead', type=int, default=8,
+                       help='nhead of the transformer')
 
   def __init__(self, opt, shared=None):
     """Set up model if shared params not set, otherwise no work to do."""
@@ -419,7 +422,7 @@ class HredAgent(Agent):
       output_lines = [[] for _ in range(batchsize)]
       for b in range(batchsize):
         # convert the output scores to tokens
-        output_lines[b] = self.v2t(preds.data[b])
+        output_lines[b] = self.v2t(preds.data[:, b])
 
       loss.backward()
 
@@ -518,6 +521,9 @@ class HredAgent(Agent):
         for i, x in enumerate(parsed_x):
           for j, idx in enumerate(x):
             xses[k][i][j] = idx
+          if len(x) == 0:
+            xses[k][i][0] = self.START_IDX[0]
+            xses[k][i][1] = self.dict.parse(self.END)[0]
 
       if self.use_cuda:
         # copy to gpu

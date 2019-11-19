@@ -1,17 +1,17 @@
 #!/bin/bash
 exp_dir='exp'
-gpuid=0,1,2,3
+gpuid=0,1
 model='hred'
 emb=200
-hs=2048
-chs=2048
-psize=1024
+hs=128
+chs=128
+psize=128
 lr=0.0001
-dr=0.5
+dr=0.1
 wd=0 #.00002
 attn=false #true # true / fase
 attType=concat  #general concat dot
-enc=gru
+enc=transformer
 dict_maxexs=0
 dict_maxtokens=100000
 no_cuda=False
@@ -24,12 +24,14 @@ context_length=5
 include_labels=False
 pretrained_exp=exp-emb200-hs4096-lr0.0001-psize2_1024
 pretrained_model_file=''
+mechanism_size=200
+nl=6
 
 
 ############### CUSTOM
 gradClip=-1
 
-tag="mechanism" #'-gc0.5' #'-bs128' #'-bs128'
+tag="transformer" #'-gc0.5' #'-bs128' #'-bs128'
 #tag="d2018" #'-gc0.5' #'-bs128' #'-bs128'
 ############### EVALUATION
 beam_size=5 #set 0 for greedy search
@@ -84,6 +86,8 @@ if [ $train -eq 1 ]; then # train
   script=${script}' --pytorch-context-length '${context_length}
 	script=${script}' --pytorch-include-labels '${include_labels}
 	script=${script}' --psize '${psize}
+	script=${script}' --mechanism-size '${mechanism_size}
+	script=${script}' -nl '${nl}
   if [ $no_cuda = 'True' ]; then
       script=${script}' --no-cuda'
   fi
