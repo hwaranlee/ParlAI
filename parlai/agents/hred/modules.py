@@ -367,12 +367,11 @@ class Hred(nn.Module):
     return self.context(context_hidden, hidden,
                         memory_key_padding_mask=hidden_mask)
 
-  def _decode(self, batchsize, output, ys, hidden, hidden_mask):
+  def _decode(self, batchsize, ys, hidden, hidden_mask):
     decoder_device = next(self.decoder.parameters()).get_device()
     lt_device = next(self.lt.parameters()).get_device()
     # update the model based on the labels
     if len(self.gpu) > 1:
-      output = output.cuda(decoder_device)
       hidden = hidden.cuda(decoder_device)
 
     mask = None
@@ -413,6 +412,7 @@ class Hred(nn.Module):
       if len(self.gpu) > 1:
         ys = ys.cuda(lt_device)
 
+      ys = torch.cat((self.START.expand(ys.size(0), 1), ys[:, :-1]), dim=1)
       yes = self.lt(ys).transpose(0, 1)
       yes = self.pos_encoder(yes)
       tgt_key_padding_mask = Hred.to_mask(ys)
@@ -504,16 +504,12 @@ class Hred(nn.Module):
     #     batchsize, self.num_layers, -1).transpose(0, 1))
 
     hidden = torch.cat((hidden, context_hidden, m), dim=0)
-    mask = torch.cat((mask, torch.BoolTensor(100, 2).new_full(
-        (100, 2), True
+    mask = torch.cat((mask, torch.BoolTensor(batchsize, 2).new_full(
+        (batchsize, 2), True
     ).cuda(mask.get_device())), dim=1)
 
-    x = Variable(self.START, requires_grad=False)
-    xe = self.lt(x).unsqueeze(1)
-    dec_xes = xe.expand(xe.size(0), batchsize, xe.size(2))
-
     scores, preds = self._decode(
-        batchsize, dec_xes, ys, hidden, mask)
+        batchsize, ys, hidden, mask)
 
     return scores, preds
 

@@ -3,9 +3,9 @@ exp_dir='exp'
 gpuid=0,1
 model='hred'
 emb=200
-hs=128
-chs=128
-psize=128
+hs=64
+chs=64
+psize=64
 lr=0.0001
 dr=0.1
 wd=0 #.00002
@@ -25,7 +25,7 @@ include_labels=False
 pretrained_exp=exp-emb200-hs4096-lr0.0001-psize2_1024
 pretrained_model_file=''
 mechanism_size=200
-nl=6
+nl=2
 
 
 ############### CUSTOM
