@@ -439,40 +439,41 @@ class HredAgent(Agent):
 # HEM Start
       self.display_predict(xses, ys, output_lines, 0)
     else:
-      if self.opt['beam_size'] > 0:
-        context_hidden = None
-        for idx in range(0, len(xses)):
-          hidden = self.model._encode(xses[idx], xlen_ts[idx], self.training)
-          if idx == len(xses) - 1:
-            hidden, context_hidden = self.model._context(
-                hidden, context_hidden, m_idx)
-          else:
-            hidden, context_hidden = self.model._context(
-                hidden, context_hidden)
-        x = Variable(self.model.START, requires_grad=False)
-        xe = self.model.lt(x).unsqueeze(1)
-        dec_xes = xe.expand(xe.size(0), batchsize, xe.size(2))
+      with torch.no_grad():
+        if self.opt['beam_size'] > 0:
+          context_hidden = None
+          for idx in range(0, len(xses)):
+            hidden = self.model._encode(xses[idx], xlen_ts[idx], self.training)
+            if idx == len(xses) - 1:
+              hidden, context_hidden = self.model._context(
+                  hidden, context_hidden, m_idx)
+            else:
+              hidden, context_hidden = self.model._context(
+                  hidden, context_hidden)
+          x = Variable(self.model.START, requires_grad=False)
+          xe = self.model.lt(x).unsqueeze(1)
+          dec_xes = xe.expand(xe.size(0), batchsize, xe.size(2))
 
-        output_lines, beam_cands = self._beam_search(
-            batchsize, dec_xes, hidden)
-      else:
-        beam_cands = []
-        scores, preds = self.model(xses, self.training, xlen_ts, ys)
+          output_lines, beam_cands = self._beam_search(
+              batchsize, dec_xes, hidden)
+        else:
+          beam_cands = []
+          scores, preds = self.model(xses, self.training, xlen_ts, ys)
 
-        if ys is not None:
-          loss = 0
-          for i, score in enumerate(scores):
-            y = ys.select(1, i)
-            loss += self.criterion(score, y)
+          if ys is not None:
+            loss = 0
+            for i, score in enumerate(scores):
+              y = ys.select(1, i)
+              loss += self.criterion(score, y)
 
-          self.loss_valid += loss.item()
-          self.ndata_valid += sum(ylen)
+            self.loss_valid += loss.item()
+            self.ndata_valid += sum(ylen)
 
-        output_lines = [[] for _ in range(batchsize)]
-        for b in range(batchsize):
-          # convert the output scores to tokens
-          output_lines[b] = self.v2t(preds.data[b])
-        self.display_predict(xses, ys, output_lines, 0)
+          output_lines = [[] for _ in range(batchsize)]
+          for b in range(batchsize):
+            # convert the output scores to tokens
+            output_lines[b] = self.v2t(preds.data[b])
+          self.display_predict(xses, ys, output_lines, 0)
 
     return output_lines, beam_cands
 

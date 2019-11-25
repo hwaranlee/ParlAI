@@ -3,9 +3,9 @@ exp_dir='exp'
 gpuid=0,1
 model='hred'
 emb=200
-hs=64
-chs=64
-psize=64
+hs=2048
+chs=2048
+psize=200
 lr=0.0001
 dr=0.1
 wd=0 #.00002
@@ -25,7 +25,8 @@ include_labels=False
 pretrained_exp=exp-emb200-hs4096-lr0.0001-psize2_1024
 pretrained_model_file=''
 mechanism_size=200
-nl=2
+nl=6
+max_seq_len=30
 
 
 ############### CUSTOM
@@ -88,6 +89,7 @@ if [ $train -eq 1 ]; then # train
 	script=${script}' --psize '${psize}
 	script=${script}' --mechanism-size '${mechanism_size}
 	script=${script}' -nl '${nl}
+	script=${script}' --max-seq-len '${max_seq_len}
   if [ $no_cuda = 'True' ]; then
       script=${script}' --no-cuda'
   fi

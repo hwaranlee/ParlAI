@@ -278,10 +278,10 @@ class Hred(nn.Module):
         self.max_out.cuda(self.gpu[0])
         self.w_t.cuda(self.gpu[0])
         self.mechanisms = Parameter(self.mechanisms.cuda(self.gpu[0]))
-        self.decoder.cuda(self.gpu[1])
-        self.dropout.cuda(self.gpu[1])
+        self.decoder.cuda(self.gpu[0])
+        self.dropout.cuda(self.gpu[0])
         if type(self.o2e) is nn.Linear:
-          self.o2e.cuda(self.gpu[1])
+          self.o2e.cuda(self.gpu[0])
         self.e2s.cuda(self.gpu[-1])
     else:
       super().cuda()
@@ -463,7 +463,7 @@ class Hred(nn.Module):
     """Convert hidden state vectors into indices into the dictionary."""
     e2s_device = next(self.e2s.parameters()).get_device()
     scores = self.o2e(hidden)  # seq, batch, psize
-    if len(self.gpu) > 2:
+    if len(self.gpu) > 1:
       scores = scores.cuda(e2s_device)
     scores = self.e2s(scores)
     scores = F.log_softmax(scores, 2)
