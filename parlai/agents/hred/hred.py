@@ -439,40 +439,62 @@ class HredAgent(Agent):
 # HEM Start
       self.display_predict(xses, ys, output_lines, 0)
     else:
-      if self.opt['beam_size'] > 0:
-        context_hidden = None
-        for idx in range(0, len(xses)):
-          hidden = self.model._encode(xses[idx], xlen_ts[idx], self.training)
-          if idx == len(xses) - 1:
-            hidden, context_hidden = self.model._context(
-                hidden, context_hidden, m_idx)
+      with torch.no_grad():
+        if self.opt['beam_size'] > 0:
+          context_hidden = None
+          for idx in range(0, len(xses)):
+            hidden = self.model._encode(xses[idx], xlen_ts[idx], self.training)
+            mask = Hred.to_mask(xses[idx])
+            context_hidden = self.model._context(
+                context_hidden, hidden, mask)
+
+          transposed_context_hidden = context_hidden.transpose(0, 1)
+
+          if m_idx is None:
+            alphas = self.model.softmax(
+                self.model.merge(transposed_context_hidden))
+            merged = (alphas.transpose(1, 2) @
+                      transposed_context_hidden).squeeze(1)
+
+            t = self.model.max_out(merged)
+            w = self.model.w_t(t)
+            g = w @ self.model.mechanisms
+            p_m = self.model.softmax(g)
+            m = p_m @ self.model.mechanisms.t()
           else:
-            hidden, context_hidden = self.model._context(
-                hidden, context_hidden)
-        x = Variable(self.model.START, requires_grad=False)
-        xe = self.model.lt(x).unsqueeze(1)
-        dec_xes = xe.expand(xe.size(0), batchsize, xe.size(2))
+            m = self.model.mechanisms[:, m_idx, None].t()
 
-        output_lines, beam_cands = self._beam_search(
-            batchsize, dec_xes, hidden)
-      else:
-        beam_cands = []
-        scores, preds = self.model(xses, self.training, xlen_ts, ys)
+          m = self.model.to_emb(m).unsqueeze(0)
 
-        if ys is not None:
-          loss = 0
-          for i, score in enumerate(scores):
-            y = ys.select(1, i)
-            loss += self.criterion(score, y)
+          hidden = torch.cat((hidden, context_hidden, m), dim=0)
+          mask = torch.cat((mask, torch.BoolTensor(batchsize, 2).new_full(
+              (batchsize, 2), True
+          ).cuda(mask.get_device())), dim=1)
 
-          self.loss_valid += loss.item()
-          self.ndata_valid += sum(ylen)
+          x = Variable(self.model.START, requires_grad=False)
+          xe = self.model.lt(x).unsqueeze(1)
+          dec_xes = xe.expand(xe.size(0), batchsize, xe.size(2))
 
-        output_lines = [[] for _ in range(batchsize)]
-        for b in range(batchsize):
-          # convert the output scores to tokens
-          output_lines[b] = self.v2t(preds.data[b])
-        self.display_predict(xses, ys, output_lines, 0)
+          output_lines, beam_cands = self._beam_search(
+              batchsize, dec_xes, hidden, mask)
+        else:
+          beam_cands = []
+          scores, preds = self.model(xses, self.training, xlen_ts, ys)
+
+          if ys is not None:
+            loss = 0
+            for i, score in enumerate(scores):
+              y = ys.select(1, i)
+              loss += self.criterion(score, y)
+
+            self.loss_valid += loss.item()
+            self.ndata_valid += sum(ylen)
+
+          output_lines = [[] for _ in range(batchsize)]
+          for b in range(batchsize):
+            # convert the output scores to tokens
+            output_lines[b] = self.v2t(preds.data[b])
+          self.display_predict(xses, ys, output_lines, 0)
 
     return output_lines, beam_cands
 
@@ -745,7 +767,7 @@ class HredAgent(Agent):
     return hidden, last_state
 
   def _beam_search(self, batchsize, dec_xes,
-                   hidden, n_best=20):
+                   hidden, hidden_mask, n_best=20):
     # Code borrowed from PyTorch OpenNMT example`
     # https://github.com/MaximumEntropy/Seq2Seq-PyTorch/blob/master/decode.py
 
@@ -759,7 +781,7 @@ class HredAgent(Agent):
     beamsize = self.beamsize
 
     dec_states = [
-        Variable(hidden.data.repeat(1, beamsize, 1))  # 2x3x2048
+        Variable(hidden.data.repeat(1, beamsize, 1))  # seq, beamsize, emb
     ]
 
     beam = [Beam(beamsize, self.dict.tok2ind, cuda=self.use_cuda)
@@ -771,16 +793,32 @@ class HredAgent(Agent):
     input = Variable(dec_xes.data.repeat(1, beamsize, 1))
     # encoder_output = Variable(encoder_output.data.repeat(beamsize, 1, 1))
 
+    decoder_gpu = next(self.model.decoder.parameters()).get_device()
+
+    ys = self.model.START.expand(1, beamsize)
+
+    hidden_mask = hidden_mask.repeat(beamsize, 1)
+    if hidden_mask.get_device() != decoder_gpu:
+      hidden_mask = hidden_mask.cuda(decoder_gpu)
+
     while total_done < batchsize and max_len < self.model.longest_label:
-      decoder_gpu = next(self.model.decoder.parameters()).get_device()
       if decoder_gpu != input.get_device():
         input = input.cuda(decoder_gpu)
-      output, hidden = self.model.decoder(input, dec_states[0])
-      preds, scores = self.model.hidden_to_idx(output, dropout=False)
+      output = self.model.decoder(
+          input, dec_states[0],
+          tgt_mask=self.model.generate_square_subsequent_mask(
+              input.size(0)).cuda(decoder_gpu),
+          tgt_key_padding_mask=Hred.to_mask(
+              ys.transpose(0, 1)).cuda(decoder_gpu),
+          memory_key_padding_mask=hidden_mask)
+      preds, scores = self.model.hiddens_to_idx(
+          output.index_select(
+              0, torch.tensor([output.size(0) - 1]).cuda(decoder_gpu)),
+          dropout=False)
 
-      dec_states = [hidden]
+      # dec_states = [hidden]
       word_lk = scores.view(beamsize, remaining_sents, -
-                            1).transpose(0, 1).contiguous()
+                            1).transpose(0, 1).contiguous()  # 1, beamsize, -1
 
       active = []
       for b in range(batchsize):
@@ -791,21 +829,21 @@ class HredAgent(Agent):
         if not beam[b].advance_diverse(word_lk.data[idx]):
           active += [b]
 
-        for dec_state in dec_states:  # iterate over h, c
-          # layers x beam*sent x dim
-          sent_states = dec_state.view(-1, beamsize,
-                                       remaining_sents,
-                                       dec_state.size(2))[:, :, idx]
-          sent_states.data.copy_(sent_states.data.index_select(
-              1, beam[b].get_current_origin()))
+        # for dec_state in dec_states:  # iterate over h, c
+        #   # layers x beam*sent x dim
+        #   sent_states = dec_state.view(-1, beamsize,
+        #                                remaining_sents,
+        #                                dec_state.size(2))[:, :, idx]
+        #   sent_states.data.copy_(sent_states.data.index_select(
+        #       1, beam[b].get_current_origin()))
 
       if not active:
         break
 
-      input = torch.stack(
+      ys = torch.cat((ys, torch.stack(
           [b.get_current_state()
-           for b in beam if not b.done]).t().contiguous().view(1, -1)
-      input = self.model.lt(Variable(input))
+           for b in beam if not b.done]).t().contiguous().view(1, -1)))
+      input = self.model.lt(Variable(ys))
 
       max_len += 1
 
