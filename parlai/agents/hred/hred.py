@@ -9,7 +9,7 @@
 from parlai.core.agents import Agent
 from parlai.core.dict import DictionaryAgent
 from parlai.core.params import str2class
-from .beam_diverse import Beam
+from .beam import Beam
 from .modules import Hred
 from ..seq2seq_v2.modules import Seq2seq
 
@@ -826,7 +826,7 @@ class HredAgent(Agent):
           continue
 
         idx = batch_idx[b]
-        if not beam[b].advance_diverse(word_lk.data[idx]):
+        if not beam[b].advance(word_lk.data[idx]):
           active += [b]
 
         # for dec_state in dec_states:  # iterate over h, c
@@ -840,10 +840,11 @@ class HredAgent(Agent):
       if not active:
         break
 
-      ys = torch.cat((ys, torch.stack(
+      ys = torch.cat((ys.index_select(1, beam[b].get_current_origin()), torch.stack(
           [b.get_current_state()
            for b in beam if not b.done]).t().contiguous().view(1, -1)))
       input = self.model.lt(Variable(ys))
+      input = self.model.pos_encoder(input)
 
       max_len += 1
 
