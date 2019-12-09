@@ -493,7 +493,7 @@ class HredAgent(Agent):
           output_lines = [[] for _ in range(batchsize)]
           for b in range(batchsize):
             # convert the output scores to tokens
-            output_lines[b] = self.v2t(preds.data[b])
+            output_lines[b] = self.v2t(preds.data[:, b])
           self.display_predict(xses, ys, output_lines, 0)
 
     return output_lines, beam_cands
