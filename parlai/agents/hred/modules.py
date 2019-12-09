@@ -505,7 +505,7 @@ class Hred(nn.Module):
 
     hidden = torch.cat((hidden, context_hidden, m), dim=0)
     mask = torch.cat((mask, torch.BoolTensor(batchsize, 2).new_full(
-        (batchsize, 2), True
+        (batchsize, 2), False
     ).cuda(mask.get_device())), dim=1)
 
     scores, preds = self._decode(

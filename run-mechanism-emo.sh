@@ -6,14 +6,14 @@ emb=200
 hs=2048
 chs=2048
 psize=200
-lr=0.0001
+lr=0.001
 dr=0.1
 wd=0 #.00002
 attn=false #true # true / fase
 attType=concat  #general concat dot
 enc=transformer
 dict_maxexs=0
-dict_maxtokens=100000
+dict_maxtokens=10000
 no_cuda=False
 lt=unique
 bi=False
@@ -32,7 +32,7 @@ max_seq_len=30
 ############### CUSTOM
 gradClip=-1
 
-tag="transformer" #'-gc0.5' #'-bs128' #'-bs128'
+tag="transformer_10000" #'-gc0.5' #'-bs128' #'-bs128'
 #tag="d2018" #'-gc0.5' #'-bs128' #'-bs128'
 ############### EVALUATION
 beam_size=5 #set 0 for greedy search

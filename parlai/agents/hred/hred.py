@@ -468,7 +468,7 @@ class HredAgent(Agent):
 
           hidden = torch.cat((hidden, context_hidden, m), dim=0)
           mask = torch.cat((mask, torch.BoolTensor(batchsize, 2).new_full(
-              (batchsize, 2), True
+              (batchsize, 2), False
           ).cuda(mask.get_device())), dim=1)
 
           x = Variable(self.model.START, requires_grad=False)
@@ -615,7 +615,7 @@ class HredAgent(Agent):
       return batch_reply
 
     # produce predictions either way, but use the targets if available
-
+    self.training = any('labels' in obs for obs in observations)
     predictions, beam_cands = self.predict(xses, xlens, ylen, ys)
 
     if self.local_human:
