@@ -235,6 +235,7 @@ class Hred(nn.Module):
   def load_pretrained(self):
     model = gensim.models.word2vec.Word2Vec.load(self.opt['embed']).wv
     std = model.vectors.std().item()
+    word2vec_size = model.vectors.shape[1]
     n_unk = 0
     for i in range(len(self.lt.weight)):
       if i == 0:
@@ -243,7 +244,9 @@ class Hred(nn.Module):
         word = self.opt['dict'].vec2txt([i])
 
         try:
-          self.lt.weight.data[i] = torch.from_numpy(model[word])
+          self.lt.weight.data[i][:word2vec_size] = torch.from_numpy(
+              model[word])
+          self.lt.weight.data[i][word2vec_size:].normal_(0, std)
         except KeyError:
           n_unk += 1
           self.lt.weight.data[i].normal_(0, std)
