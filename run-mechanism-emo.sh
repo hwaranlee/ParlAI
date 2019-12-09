@@ -2,10 +2,10 @@
 exp_dir='exp'
 gpuid=0,1
 model='hred'
-emb=200
+emb=400
 hs=2048
 chs=2048
-psize=200
+psize=400
 lr=0.001
 dr=0.1
 wd=0 #.00002
