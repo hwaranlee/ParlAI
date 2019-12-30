@@ -1,14 +1,15 @@
-# Copyright (c) 2017-present, Facebook, Inc.
-# All rights reserved.
-# This source code is licensed under the BSD-style license found in the
-# LICENSE file in the root directory of this source tree. An additional grant
-# of patent rights can be found in the PATENTS file in the same directory.
+#!/usr/bin/env python3
+
+# Copyright (c) Facebook, Inc. and its affiliates.
+# This source code is licensed under the MIT license found in the
+# LICENSE file in the root directory of this source tree.
 from parlai.core.params import ParlaiParser
 from parlai.mturk.core.mturk_manager import MTurkManager
 from worlds import RephrasePersonaWorld, PersonasGenerator
 from task_config import task_config
 
 import os
+
 
 def main():
     """This task consists of one agent, model or MTurk worker, talking to an
@@ -17,19 +18,32 @@ def main():
     argparser = ParlaiParser(False, False)
     argparser.add_parlai_data_path()
     argparser.add_mturk_args()
-    argparser.add_argument('-min_t', '--min_turns', default=5, type=int,
-                           help='minimum number of turns')
-    argparser.add_argument('-mt', '--max_turns', default=10, type=int,
-                           help='maximal number of chat turns')
-    argparser.add_argument('-mx_rsp_time', '--max_resp_time', default=150,
-                           type=int,
-                           help='time limit for entering a dialog message')
-    argparser.add_argument('--ag_shutdown_time', default=120,
-                           type=int,
-                           help='time limit for entering a dialog message')
-    argparser.add_argument('--persona-type', default='both', type=str,
-                           choices=['both', 'self', 'other'],
-                           help='Which personas to load from personachat')
+    argparser.add_argument(
+        '-min_t', '--min_turns', default=5, type=int, help='minimum number of turns'
+    )
+    argparser.add_argument(
+        '-mt', '--max_turns', default=10, type=int, help='maximal number of chat turns'
+    )
+    argparser.add_argument(
+        '-mx_rsp_time',
+        '--max_resp_time',
+        default=150,
+        type=int,
+        help='time limit for entering a dialog message',
+    )
+    argparser.add_argument(
+        '--ag_shutdown_time',
+        default=120,
+        type=int,
+        help='time limit for entering a dialog message',
+    )
+    argparser.add_argument(
+        '--persona-type',
+        default='both',
+        type=str,
+        choices=['both', 'self', 'other'],
+        help='Which personas to load from personachat',
+    )
     opt = argparser.parse_args()
 
     directory_path = os.path.dirname(os.path.abspath(__file__))
@@ -40,10 +54,7 @@ def main():
 
     mturk_agent_ids = ['PERSON_1']
 
-    mturk_manager = MTurkManager(
-        opt=opt,
-        mturk_agent_ids=mturk_agent_ids
-    )
+    mturk_manager = MTurkManager(opt=opt, mturk_agent_ids=mturk_agent_ids)
 
     mturk_manager.setup_server(task_directory_path=directory_path)
 
@@ -58,7 +69,11 @@ def main():
             # ADD BLOCKED WORKERS HERE
             blocked_worker_list = []
             for w in blocked_worker_list:
-                mturk_manager.block_worker(w, 'We found that you have unexpected behaviors in our previous HITs. For more questions please email us.')
+                mturk_manager.block_worker(
+                    w,
+                    'We found that you have unexpected behaviors in our '
+                    'previous HITs. For more questions please email us.',
+                )
 
         def run_onboard(worker):
             pass
@@ -85,7 +100,7 @@ def main():
         mturk_manager.start_task(
             eligibility_function=check_worker_eligibility,
             assign_role_function=assign_worker_roles,
-            task_function=run_conversation
+            task_function=run_conversation,
         )
 
     except BaseException:

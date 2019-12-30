@@ -1,89 +1,17 @@
-# Copyright (c) 2017-present, Facebook, Inc.
-# All rights reserved.
-# This source code is licensed under the BSD-style license found in the
-# LICENSE file in the root directory of this source tree. An additional grant
-# of patent rights can be found in the PATENTS file in the same directory.
+#!/usr/bin/env python3
+
+# Copyright (c) Facebook, Inc. and its affiliates.
+# This source code is licensed under the MIT license found in the
+# LICENSE file in the root directory of this source tree.
 """Basic example which iterates through the tasks specified and
 evaluates the given model on them.
 
-For example:
-`python examples/eval_model.py -t "babi:Task1k:2" -m "repeat_label"`
-or
-`python examples/eval_model.py -t "#CornellMovie" -m "ir_baseline" -mp "-lp 0.5"`
+For more documentation, see parlai.scripts.eval_model.
 """
+from parlai.scripts.eval_model import setup_args, eval_model
 
-import torch
-
-from parlai.core.agents import create_agent
-from parlai.core.worlds import create_task
-from parlai.core.params import ParlaiParser
-from parlai.core.utils import Timer
-
-import random
-import os
-
-def setup_args(parser=None):
-    if parser is None:
-        parser = ParlaiParser(True, True)
-    # Get command line arguments
-    parser.add_argument('-ne', '--num-examples', type=int, default=-1)
-    parser.add_argument('-d', '--display-examples', type='bool', default=False)
-    parser.add_argument('-ltim', '--log-every-n-secs', type=float, default=2)
-    parser.set_defaults(datatype='valid')
-    return parser
-
-def eval_model(parser, printargs=True):
-    random.seed(42)
-    opt = parser.parse_args(print_args=False)
-
-    nomodel = False
-    # check to make sure the model file exists
-    if opt.get('model_file') is None:
-        nomodel = True
-    elif not os.path.isfile(opt['model_file']):
-        raise RuntimeError('WARNING: Model file does not exist, check to make '
-                           'sure it is correct: {}'.format(opt['model_file']))
-
-    # Create model and assign it to the specified task
-    agent = create_agent(opt)
-    if nomodel and hasattr(agent, 'load'):
-        # double check that we didn't forget to set model_file on loadable model
-        raise RuntimeError('Stopping evaluation because model_file unset but '
-                           'model has a `load` function.')
-    world = create_task(opt, agent)
-    # Show arguments after loading model
-    parser.opt = agent.opt
-    if (printargs):
-        parser.print_args()
-    log_every_n_secs = opt.get('log_every_n_secs', -1)
-    if log_every_n_secs <= 0:
-        log_every_n_secs = float('inf')
-    log_time = Timer()
-    tot_time = 0
-
-    # Show some example dialogs:
-    cnt = 0
-    while not world.epoch_done():
-        cnt += 1
-        world.parley()
-        if opt['display_examples']:
-            print("---")
-            print(world.display() + "\n~~")
-        if log_time.time() > log_every_n_secs:
-            tot_time += log_time.time()
-            print(str(int(tot_time)) + "s elapsed: " + str(world.report()))
-            log_time.reset()
-        if opt['num_examples'] > 0 and cnt >= opt['num_examples']:
-            break
-    if world.epoch_done():
-        print("EPOCH DONE")
-    report = world.report()
-    print(report)
-    return report
-
-
-def main():
-    eval_model(setup_args())
 
 if __name__ == '__main__':
-    main()
+    parser = setup_args()
+    opt = parser.parse_args(print_args=False)
+    eval_model(opt, print_parser=parser)

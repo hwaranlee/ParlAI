@@ -186,13 +186,13 @@ class Seq2seqV2Agent(Agent):
                 for module in {'encoder', 'decoder'}:
                     for weight in getattr(self, module).parameters():
                         weight.data.normal_(0, 0.05)
-                    #for bias in getattr(self, module).parameters():
+                    # for bias in getattr(self, module).parameters():
                     #    bias.data.fill_(0)
 
                 for module in {'h2o', 'attn'}:
                     if hasattr(self, module):
                         getattr(self, module).weight.data.normal_(0, 0.01)
-                        #getattr(self, module).bias.data.fill_(0)
+                        # getattr(self, module).bias.data.fill_(0)
             """
 
       # set up optims for each module
@@ -290,18 +290,18 @@ class Seq2seqV2Agent(Agent):
   def cuda(self):
     """Push parameters to the GPU."""
     self.model.cuda()
-    self.xs = self.xs.cuda(async=True)
+    self.xs = self.xs.cuda(non_blocking=True)
     if type(self.opt['gpu']) is str and ',' in self.opt['gpu']:
       last_index = int(self.opt['gpu'].split(',')[-1])
       self.criterion.cuda(last_index)
-      self.ys = self.ys.cuda(last_index, async=True)
+      self.ys = self.ys.cuda(last_index, non_blocking=True)
     else:
-      self.ys = self.ys.cuda(async=True)
+      self.ys = self.ys.cuda(non_blocking=True)
       self.criterion.cuda()
-    self.START_TENSOR = self.START_TENSOR.cuda(async=True)
-    self.END_TENSOR = self.END_TENSOR.cuda(async=True)
-    self.START_TENSOR = self.START_TENSOR.cuda(async=True)
-    self.END_TENSOR = self.END_TENSOR.cuda(async=True)
+    self.START_TENSOR = self.START_TENSOR.cuda(non_blocking=True)
+    self.END_TENSOR = self.END_TENSOR.cuda(non_blocking=True)
+    self.START_TENSOR = self.START_TENSOR.cuda(non_blocking=True)
+    self.END_TENSOR = self.END_TENSOR.cuda(non_blocking=True)
 
   def reset(self):
     """Reset observation and episode_done."""
@@ -384,7 +384,7 @@ class Seq2seqV2Agent(Agent):
     #        self.loss_valid += loss.item()
     #        self.ndata_valid += sum(ylen)
 
-    #output_lines = [[] for _ in range(batchsize)]
+    # output_lines = [[] for _ in range(batchsize)]
     # for b in range(batchsize):
     # convert the output scores to tokens
     #    output_lines[b] = self.v2t(preds.data[b])
@@ -458,7 +458,7 @@ class Seq2seqV2Agent(Agent):
 #        except ValueError:
 #            print(len(output_lines[0].split()))
 
-    #self.display_predict(xs, ys, output_lines, 0)
+    # self.display_predict(xs, ys, output_lines, 0)
 
     return output_lines, text_cand_inds, beam_cands
 
@@ -510,7 +510,7 @@ class Seq2seqV2Agent(Agent):
       if self.use_cuda:
         # copy to gpu
         self.xs.resize_(xs.size())
-        self.xs.copy_(xs, async=True)
+        self.xs.copy_(xs, non_blocking=True)
         xs = Variable(self.xs)
       else:
         xs = Variable(xs)
@@ -548,7 +548,7 @@ class Seq2seqV2Agent(Agent):
       if self.use_cuda:
         # copy to gpu
         self.ys.resize_(ys.size())
-        self.ys.copy_(ys, async=True)
+        self.ys.copy_(ys, non_blocking=True)
         ys = Variable(self.ys)
       else:
         ys = Variable(ys)
@@ -581,7 +581,7 @@ class Seq2seqV2Agent(Agent):
         if self.use_cuda:
           # copy to gpu
           self.cands.resize_(cands.size())
-          self.cands.copy_(cands, async=True)
+          self.cands.copy_(cands, non_blocking=True)
           cands = Variable(self.cands)
         else:
           cands = Variable(cands)
@@ -764,7 +764,7 @@ class Seq2seqV2Agent(Agent):
     # Code borrowed from PyTorch OpenNMT example`
     # https://github.com/MaximumEntropy/Seq2Seq-PyTorch/blob/master/decode.py
 
-    #print('(beam search {})'.format(self.beamsize))
+    # print('(beam search {})'.format(self.beamsize))
 
     # just produce a prediction without training the model
     done = [False for _ in range(batchsize)]
@@ -799,15 +799,15 @@ class Seq2seqV2Agent(Agent):
       # if self.model.use_attention:
       #    output = self._apply_attention(input, encoder_output, dec_states[0][-1], xs)
       # else:
-      #output = torch.cat((input, context), 2)
+      # output = torch.cat((input, context), 2)
 
       decoder_gpu = next(self.model.decoder.parameters()).get_device()
       if decoder_gpu != input.get_device():
         input = input.cuda(decoder_gpu)
       output, hidden = self.model.decoder(input, dec_states[0])
       preds, scores = self.model.hidden_to_idx(output, dropout=False)
-      #output, hidden = self.model.decoder(dec_xes, hidden)
-      #preds, scores = self.model.hidden_to_idx(output, dropout=False)
+      # output, hidden = self.model.decoder(dec_xes, hidden)
+      # preds, scores = self.model.hidden_to_idx(output, dropout=False)
 
       dec_states = [hidden]
       word_lk = scores.view(beamsize, remaining_sents, -
@@ -842,7 +842,7 @@ class Seq2seqV2Agent(Agent):
     for b in range(batchsize):  # TODO :: does it provide batchsize > 1 ?
       hyps = []
       scores, ks = beam[b].sort_best()
-      #scores, ks = beam[b].sort_best_normlen()
+      # scores, ks = beam[b].sort_best_normlen()
 
       allScores += [scores[:self.beamsize]]
       hyps += [beam[b].get_hyp(k) for k in ks[:self.beamsize]]
@@ -858,6 +858,6 @@ class Seq2seqV2Agent(Agent):
       #    for hyps in range(len(hyps)):
       #        print('   {:3f} '.format(scores[hyps]), ''.join(all_preds[hyps]))
 
-      #print('the first: '+ ' '.join([self.dict.ind2tok[y] for y in beam[0].nextYs[1]]))
+      # print('the first: '+ ' '.join([self.dict.ind2tok[y] for y in beam[0].nextYs[1]]))
 
     return [all_preds[0]], all_preds  # 1-best

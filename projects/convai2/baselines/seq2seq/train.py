@@ -1,28 +1,27 @@
-# Copyright (c) 2017-present, Facebook, Inc.
-# All rights reserved.
-# This source code is licensed under the BSD-style license found in the
-# LICENSE file in the root directory of this source tree. An additional grant
-# of patent rights can be found in the PATENTS file in the same directory.
+#!/usr/bin/env python3
+
+# Copyright (c) Facebook, Inc. and its affiliates.
+# This source code is licensed under the MIT license found in the
+# LICENSE file in the root directory of this source tree.
 """Train model for ppl metric with pre-selected parameters.
-These parameters have some variance in their final perplexity, but a run with
-these parameters was able to reach 29.54 ppl.
+These parameters have some variance in their final perplexity, but they were
+used to achieve the pre-trained model.
 """
 
-from examples.train_model import setup_args, TrainLoop
+from parlai.scripts.train_model import setup_args, TrainLoop
 
 
 if __name__ == '__main__':
     parser = setup_args()
     parser.set_defaults(
         task='convai2:self',
-        model='seq2seq',
+        model='legacy:seq2seq:0',
         model_file='/tmp/convai2_self_seq2seq_model',
-        dict_file='/tmp/dict_convai2_self',
         dict_lower=True,
-        dict_include_valid=True,
+        dict_include_valid=False,
         dict_maxexs=-1,
         datatype='train',
-        batchsize=128,
+        batchsize=64,
         hiddensize=1024,
         embeddingsize=256,
         attention='general',
@@ -42,5 +41,6 @@ if __name__ == '__main__':
         validation_metric_mode='min',
         validation_patience=12,
         log_every_n_secs=10,
+        dict_tokenizer='split',
     )
     TrainLoop(parser).train()

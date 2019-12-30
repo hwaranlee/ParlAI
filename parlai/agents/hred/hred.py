@@ -9,7 +9,7 @@
 from parlai.core.agents import Agent
 from parlai.core.dict import DictionaryAgent
 from parlai.core.params import str2class
-from .beam_diverse import Beam
+from .beam import Beam
 from .modules import Hred
 from ..seq2seq_v2.modules import Seq2seq
 from datetime import datetime
@@ -33,7 +33,8 @@ class HredAgent(Agent):
   For more information, see Sequence to Sequence Learning with Neural
   Networks `(Sutskever et al. 2014) <https://arxiv.org/abs/1409.3215>`_.
   """
-  ENC_OPTS = {'rnn': nn.RNN, 'gru': nn.GRU, 'lstm': nn.LSTM}
+  ENC_OPTS = {'rnn': nn.RNN, 'gru': nn.GRU,
+              'lstm': nn.LSTM, 'transformer': nn.Transformer}
 
   @staticmethod
   def add_cmdline_args(argparser):
@@ -126,6 +127,12 @@ class HredAgent(Agent):
     agent.add_argument('--pretrained_model_file', type=str, default=None,
                        help='pretrained model file for' +
                        ' the encoder and the decoder')
+    agent.add_argument('--num_mechanisms', type=int, default=4,
+                       help='The number of mechanisms')
+    agent.add_argument('--mechanism_size', type=int, default=128,
+                       help='projection size before the classifier')
+    agent.add_argument('--nhead', type=int, default=8,
+                       help='nhead of the transformer')
 
   def __init__(self, opt, shared=None):
     print('{}: 대화 모델 로딩 시작'.format(datetime.now()))
@@ -325,18 +332,18 @@ class HredAgent(Agent):
   def cuda(self):
     """Push parameters to the GPU."""
     self.model.cuda()
-    self.xses = [xs.cuda(async=True) for xs in self.xses]
+    self.xses = [xs.cuda(non_blocking=True) for xs in self.xses]
     if type(self.opt['gpu']) is str and ',' in self.opt['gpu']:
       last_index = int(self.opt['gpu'].split(',')[-1])
       self.criterion.cuda(last_index)
-      self.ys = self.ys.cuda(last_index, async=True)
+      self.ys = self.ys.cuda(last_index, non_blocking=True)
     else:
-      self.ys = self.ys.cuda(async=True)
+      self.ys = self.ys.cuda(non_blocking=True)
       self.criterion.cuda()
-    self.START_TENSOR = self.START_TENSOR.cuda(async=True)
-    self.END_TENSOR = self.END_TENSOR.cuda(async=True)
-    self.START_TENSOR = self.START_TENSOR.cuda(async=True)
-    self.END_TENSOR = self.END_TENSOR.cuda(async=True)
+    self.START_TENSOR = self.START_TENSOR.cuda(non_blocking=True)
+    self.END_TENSOR = self.END_TENSOR.cuda(non_blocking=True)
+    self.START_TENSOR = self.START_TENSOR.cuda(non_blocking=True)
+    self.END_TENSOR = self.END_TENSOR.cuda(non_blocking=True)
 
   def reset(self):
     """Reset observation and episode_done."""
@@ -383,7 +390,7 @@ class HredAgent(Agent):
     """Do one optimization step."""
     self.optimizer.step()
 
-  def predict(self, xses, xlens, ylen=None, ys=None):
+  def predict(self, xses, xlens, ylen=None, ys=None, m_idx=None):
     """Produce a prediction from our model.
 
     Update the model using the targets if available, otherwise rank
@@ -420,7 +427,7 @@ class HredAgent(Agent):
       output_lines = [[] for _ in range(batchsize)]
       for b in range(batchsize):
         # convert the output scores to tokens
-        output_lines[b] = self.v2t(preds.data[b])
+        output_lines[b] = self.v2t(preds.data[:, b])
 
       loss.backward()
 
@@ -437,20 +444,47 @@ class HredAgent(Agent):
 # HEM Start
       self.display_predict(xses, ys, output_lines, 0)
     else:
-      if self.opt['beam_size'] > 0:
-        context_hidden = None
-        for idx in range(0, len(xses)):
-          hidden = self.model._encode(xses[idx], xlen_ts[idx], self.training)
-          hidden, context_hidden = self.model._context(hidden, context_hidden)
-        x = Variable(self.model.START, requires_grad=False)
-        xe = self.model.lt(x).unsqueeze(1)
-        dec_xes = xe.expand(xe.size(0), batchsize, xe.size(2))
+      with torch.no_grad():
+        if self.opt['beam_size'] > 0:
+          context_hidden = None
+          for idx in range(0, len(xses)):
+            hidden = self.model._encode(xses[idx], xlen_ts[idx], self.training)
+            mask = Hred.to_mask(xses[idx])
+            context_hidden = self.model._context(
+                context_hidden, hidden, mask)
 
-        output_lines, beam_cands = self._beam_search(
-            batchsize, dec_xes, hidden)
-      else:
-        beam_cands = []
-        scores, preds = self.model(xses, self.training, xlen_ts, ys)
+          transposed_context_hidden = context_hidden.transpose(0, 1)
+
+          if m_idx is None:
+            alphas = self.model.softmax(
+                self.model.merge(transposed_context_hidden))
+            merged = (alphas.transpose(1, 2) @
+                      transposed_context_hidden).squeeze(1)
+
+            t = self.model.max_out(merged)
+            w = self.model.w_t(t)
+            g = w @ self.model.mechanisms
+            p_m = self.model.softmax(g)
+            m = p_m @ self.model.mechanisms.t()
+          else:
+            m = self.model.mechanisms[:, m_idx, None].t()
+
+          m = self.model.to_emb(m).unsqueeze(0)
+
+          hidden = torch.cat((hidden, context_hidden, m), dim=0)
+          mask = torch.cat((mask, torch.BoolTensor(batchsize, 2).new_full(
+              (batchsize, 2), False
+          ).cuda(mask.get_device())), dim=1)
+
+          x = Variable(self.model.START, requires_grad=False)
+          xe = self.model.lt(x).unsqueeze(1)
+          dec_xes = xe.expand(xe.size(0), batchsize, xe.size(2))
+
+          output_lines, beam_cands = self._beam_search(
+              batchsize, dec_xes, hidden, mask)
+        else:
+          beam_cands = []
+          scores, preds = self.model(xses, self.training, xlen_ts, ys)
 
         if ys is not None:
           loss = 0
@@ -462,13 +496,13 @@ class HredAgent(Agent):
             loss += losses[i]
             print('NLLLoss API 사용 완료')
 
-          self.loss_valid += loss.item()
-          self.ndata_valid += sum(ylen)
+            self.loss_valid += loss.item()
+            self.ndata_valid += sum(ylen)
 
         output_lines = [[] for _ in range(batchsize)]
         for b in range(batchsize):
           # convert the output scores to tokens
-          output_lines[b] = self.v2t(preds.data[b])
+          output_lines[b] = self.v2t(preds.data[:, b])
         self.display_predict(xses, ys, None, 1, losses, ylen)
 
     return output_lines, beam_cands
@@ -515,6 +549,7 @@ class HredAgent(Agent):
 
     # set up the input tensors
     batchsize = len(exs)
+
     # tokenize the text
     if batchsize > 0:
       parsed = [[self.START_IDX +
@@ -539,19 +574,25 @@ class HredAgent(Agent):
         for i, x in enumerate(parsed_x):
           for j, idx in enumerate(x):
             xses[k][i][j] = idx
+          if len(x) == 0:
+            xses[k][i][0] = self.START_IDX[0]
+            xses[k][i][1] = self.dict.parse(self.END)[0]
 
       if self.use_cuda:
         # copy to gpu
         while len(self.xses) < len(xses):
-          self.xses.append(torch.LongTensor(1, 1).cuda(async=True))
+          self.xses.append(torch.LongTensor(1, 1).cuda(non_blocking=True))
 
         for idx, xs in enumerate(xses):
           self.xses[idx].resize_(xs.size())
-          self.xses[idx].copy_(xs, async=True)
+          self.xses[idx].copy_(xs, non_blocking=True)
         xses = [Variable(self.xses[idx], requires_grad=False)
                 for idx, _ in enumerate(xses)]
       else:
         xses = [Variable(xs, requires_grad=False) for xs in xses]
+    else:
+      import pdb
+      pdb.set_trace()
 
     # set up the target tensors
     ys = None
@@ -582,7 +623,7 @@ class HredAgent(Agent):
       if self.use_cuda:
         # copy to gpu
         self.ys.resize_(ys.size())
-        self.ys.copy_(ys, async=True)
+        self.ys.copy_(ys, non_blocking=True)
         ys = Variable(self.ys, requires_grad=False)
       else:
         ys = Variable(ys, requires_grad=False)
@@ -605,7 +646,7 @@ class HredAgent(Agent):
       return batch_reply
 
     # produce predictions either way, but use the targets if available
-
+    self.training = any('labels' in obs for obs in observations)
     predictions, beam_cands = self.predict(xses, xlens, ylen, ys)
 
     if self.local_human:
@@ -638,7 +679,12 @@ class HredAgent(Agent):
 
     # produce predictions either way, but use the targets if available
 
-    predictions, beam_cands = self.predict(xses, xlens, ylen, ys)
+    # mechanism
+    if batchsize and 'mechanism' in observations[0]:
+      m_idx = observations[0]['mechanism']
+      predictions, beam_cands = self.predict(xses, xlens, ylen, ys, m_idx)
+    else:
+      predictions, beam_cands = self.predict(xses, xlens, ylen, ys)
 
     if self.local_human:
       print(self.postprocess(predictions[0]))
@@ -662,6 +708,8 @@ class HredAgent(Agent):
       model['opt'] = self.opt
       model['optimizer'] = self.optimizer.state_dict()
       model['optimizer_type'] = self.opt['optimizer']
+
+      os.makedirs(os.path.dirname(path), exist_ok=True)
 
       with open(path, 'wb') as write:
         torch.save(model, write)
@@ -753,7 +801,7 @@ class HredAgent(Agent):
     return hidden, last_state
 
   def _beam_search(self, batchsize, dec_xes,
-                   hidden, n_best=20):
+                   hidden, hidden_mask, n_best=20):
     # Code borrowed from PyTorch OpenNMT example`
     # https://github.com/MaximumEntropy/Seq2Seq-PyTorch/blob/master/decode.py
 
@@ -767,7 +815,7 @@ class HredAgent(Agent):
     beamsize = self.beamsize
 
     dec_states = [
-        Variable(hidden.data.repeat(1, beamsize, 1))  # 2x3x2048
+        Variable(hidden.data.repeat(1, beamsize, 1))  # seq, beamsize, emb
     ]
 
     beam = [Beam(beamsize, self.dict.tok2ind, cuda=self.use_cuda)
@@ -779,16 +827,32 @@ class HredAgent(Agent):
     input = Variable(dec_xes.data.repeat(1, beamsize, 1))
     # encoder_output = Variable(encoder_output.data.repeat(beamsize, 1, 1))
 
+    decoder_gpu = next(self.model.decoder.parameters()).get_device()
+
+    ys = self.model.START.expand(1, beamsize)
+
+    hidden_mask = hidden_mask.repeat(beamsize, 1)
+    if hidden_mask.get_device() != decoder_gpu:
+      hidden_mask = hidden_mask.cuda(decoder_gpu)
+
     while total_done < batchsize and max_len < self.model.longest_label:
-      decoder_gpu = next(self.model.decoder.parameters()).get_device()
       if decoder_gpu != input.get_device():
         input = input.cuda(decoder_gpu)
-      output, hidden = self.model.decoder(input, dec_states[0])
-      preds, scores = self.model.hidden_to_idx(output, dropout=False)
+      output = self.model.decoder(
+          input, dec_states[0],
+          tgt_mask=self.model.generate_square_subsequent_mask(
+              input.size(0)).cuda(decoder_gpu),
+          tgt_key_padding_mask=Hred.to_mask(
+              ys.transpose(0, 1)).cuda(decoder_gpu),
+          memory_key_padding_mask=hidden_mask)
+      preds, scores = self.model.hiddens_to_idx(
+          output.index_select(
+              0, torch.tensor([output.size(0) - 1]).cuda(decoder_gpu)),
+          dropout=False)
 
-      dec_states = [hidden]
+      # dec_states = [hidden]
       word_lk = scores.view(beamsize, remaining_sents, -
-                            1).transpose(0, 1).contiguous()
+                            1).transpose(0, 1).contiguous()  # 1, beamsize, -1
 
       active = []
       for b in range(batchsize):
@@ -796,24 +860,25 @@ class HredAgent(Agent):
           continue
 
         idx = batch_idx[b]
-        if not beam[b].advance_diverse(word_lk.data[idx]):
+        if not beam[b].advance(word_lk.data[idx]):
           active += [b]
 
-        for dec_state in dec_states:  # iterate over h, c
-          # layers x beam*sent x dim
-          sent_states = dec_state.view(-1, beamsize,
-                                       remaining_sents,
-                                       dec_state.size(2))[:, :, idx]
-          sent_states.data.copy_(sent_states.data.index_select(
-              1, beam[b].get_current_origin()))
+        # for dec_state in dec_states:  # iterate over h, c
+        #   # layers x beam*sent x dim
+        #   sent_states = dec_state.view(-1, beamsize,
+        #                                remaining_sents,
+        #                                dec_state.size(2))[:, :, idx]
+        #   sent_states.data.copy_(sent_states.data.index_select(
+        #       1, beam[b].get_current_origin()))
 
       if not active:
         break
 
-      input = torch.stack(
+      ys = torch.cat((ys.index_select(1, beam[b].get_current_origin()), torch.stack(
           [b.get_current_state()
-           for b in beam if not b.done]).t().contiguous().view(1, -1)
-      input = self.model.lt(Variable(input))
+           for b in beam if not b.done]).t().contiguous().view(1, -1)))
+      input = self.model.lt(Variable(ys))
+      input = self.model.pos_encoder(input)
 
       max_len += 1
 
