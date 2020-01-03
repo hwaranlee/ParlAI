@@ -386,6 +386,9 @@ class HredAgent(Agent):
 
     return observation
 
+  def batch_observe(self, observations):
+    self.observations = observations.copy()
+
   def update_params(self):
     """Do one optimization step."""
     self.optimizer.step()
@@ -486,24 +489,24 @@ class HredAgent(Agent):
           beam_cands = []
           scores, preds = self.model(xses, self.training, xlen_ts, ys)
 
-        if ys is not None:
-          loss = 0
-          losses = []
-          for i, score in enumerate(scores):
-            y = ys.select(1, i)
-            print('NLLLoss API 사용 시작')
-            losses.append(self.criterion(score, y))
-            loss += losses[i]
-            print('NLLLoss API 사용 완료')
+          if ys is not None:
+            loss = 0
+            losses = []
+            for i, score in enumerate(scores):
+              y = ys.select(1, i)
+              print('NLLLoss API 사용 시작')
+              losses.append(self.criterion(score, y))
+              loss += losses[i]
+              print('NLLLoss API 사용 완료')
 
-            self.loss_valid += loss.item()
-            self.ndata_valid += sum(ylen)
+              self.loss_valid += loss.item()
+              self.ndata_valid += sum(ylen)
 
-        output_lines = [[] for _ in range(batchsize)]
-        for b in range(batchsize):
-          # convert the output scores to tokens
-          output_lines[b] = self.v2t(preds.data[:, b])
-        self.display_predict(xses, ys, None, 1, losses, ylen)
+          output_lines = [[] for _ in range(batchsize)]
+          for b in range(batchsize):
+            # convert the output scores to tokens
+            output_lines[b] = self.v2t(preds.data[:, b])
+          self.display_predict(xses, ys, None, 1, losses, ylen)
 
     return output_lines, beam_cands
 
@@ -689,7 +692,7 @@ class HredAgent(Agent):
     if self.local_human:
       print(self.postprocess(predictions[0]))
 
-    return beam_cands
+    return predictions
 
   def act(self):
     # call batch_act with this batch of one
@@ -697,6 +700,9 @@ class HredAgent(Agent):
 
   def act_beam_cands(self):
     return self.batch_beam_act([self.observation])
+
+  def batch_act_beam_cands(self):
+    return self.batch_beam_act(self.observations)
 
   def save(self, path=None):
     path = self.opt.get('model_file', None) if path is None else path
@@ -724,7 +730,7 @@ class HredAgent(Agent):
   def load(self, path):
     """Return opt and model states."""
     with open(path, 'rb') as read:
-      model = torch.load(read, map_location=lambda storage, loc: storage)
+      model = torch.load(read, map_location={'cuda:1': 'cuda:0'})
     return model['opt'], model
 
   def set_states(self, states):
@@ -801,7 +807,7 @@ class HredAgent(Agent):
     return hidden, last_state
 
   def _beam_search(self, batchsize, dec_xes,
-                   hidden, hidden_mask, n_best=20):
+                   hidden, all_hidden_mask, n_best=20):
     # Code borrowed from PyTorch OpenNMT example`
     # https://github.com/MaximumEntropy/Seq2Seq-PyTorch/blob/master/decode.py
 
@@ -821,7 +827,6 @@ class HredAgent(Agent):
     beam = [Beam(beamsize, self.dict.tok2ind, cuda=self.use_cuda)
             for k in range(batchsize)]
 
-    batch_idx = list(range(batchsize))
     remaining_sents = batchsize
 
     input = Variable(dec_xes.data.repeat(1, beamsize, 1))
@@ -829,17 +834,25 @@ class HredAgent(Agent):
 
     decoder_gpu = next(self.model.decoder.parameters()).get_device()
 
-    ys = self.model.START.expand(1, beamsize)
+    ys = self.model.START.expand(1, beamsize * batchsize)
 
-    hidden_mask = hidden_mask.repeat(beamsize, 1)
-    if hidden_mask.get_device() != decoder_gpu:
-      hidden_mask = hidden_mask.cuda(decoder_gpu)
+    all_hidden_mask = all_hidden_mask.repeat(beamsize, 1)
+    if all_hidden_mask.get_device() != decoder_gpu:
+      all_hidden_mask = all_hidden_mask.cuda(decoder_gpu)
 
     while total_done < batchsize and max_len < self.model.longest_label:
+      not_done_beams = [b for b in beam if not b.done]
+      remaining_sents = len(not_done_beams)
+
+      h = torch.cat([dec_states[0][:, i * beamsize:(i + 1) * beamsize, :]
+                     for i, b in enumerate(beam)if not b.done], 1)
+      hidden_mask = torch.cat([
+          all_hidden_mask[i * beamsize:(i + 1) * beamsize, :]
+          for i, b in enumerate(beam) if not b.done])
       if decoder_gpu != input.get_device():
         input = input.cuda(decoder_gpu)
       output = self.model.decoder(
-          input, dec_states[0],
+          input, h,
           tgt_mask=self.model.generate_square_subsequent_mask(
               input.size(0)).cuda(decoder_gpu),
           tgt_key_padding_mask=Hred.to_mask(
@@ -854,29 +867,24 @@ class HredAgent(Agent):
       word_lk = scores.view(beamsize, remaining_sents, -
                             1).transpose(0, 1).contiguous()  # 1, beamsize, -1
 
-      active = []
-      for b in range(batchsize):
-        if beam[b].done:
-          continue
-
-        idx = batch_idx[b]
-        if not beam[b].advance(word_lk.data[idx]):
-          active += [b]
-
-        # for dec_state in dec_states:  # iterate over h, c
-        #   # layers x beam*sent x dim
-        #   sent_states = dec_state.view(-1, beamsize,
-        #                                remaining_sents,
-        #                                dec_state.size(2))[:, :, idx]
-        #   sent_states.data.copy_(sent_states.data.index_select(
-        #       1, beam[b].get_current_origin()))
+      active = False
+      for i, b in enumerate(not_done_beams):
+        if not b.advance(word_lk.data[i]):
+          active = True
 
       if not active:
         break
 
-      ys = torch.cat((ys.index_select(1, beam[b].get_current_origin()), torch.stack(
-          [b.get_current_state()
-           for b in beam if not b.done]).t().contiguous().view(1, -1)))
+      ys = torch.cat(
+          [ys.index_select(
+              1, b.get_current_origin() + i * beamsize
+          ) for i, b in enumerate(not_done_beams) if not b.done], 1)
+      ys = torch.cat(
+          (ys,
+           torch.stack(
+               [b.get_current_state()
+                for b in not_done_beams
+                if not b.done]).t().contiguous().view(1, -1)))
       input = self.model.lt(Variable(ys))
       input = self.model.pos_encoder(input)
 
@@ -893,4 +901,4 @@ class HredAgent(Agent):
       all_preds += [' '.join([self.dict.ind2tok[y.item()] for y in x if not y is 0])
                     for x in hyps]
 
-    return [all_preds[0]], all_preds  # 1-best
+    return all_preds[0::beamsize], all_preds  # 1-best

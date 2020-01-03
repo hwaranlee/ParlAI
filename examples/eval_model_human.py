@@ -23,50 +23,52 @@ from parlai.core.params import ParlaiParser
 
 import random
 import pdb
-import logging, sys
+import logging
+import sys
 
 from examples.train_model_seq2seq_ldecay import run_eval
 
+
 def main():
-    # Get command line arguments
-    parser = ParlaiParser(True, True)
-    parser.set_defaults(datatype='valid')
-    parser.add_argument('-logger', '--log-file', default='', help='log file name')
-    parser.add_argument('--local-human', default=True, type='bool', help='log file name')   
-    parser.add_argument('--display-examples', default=False, type='bool', help='')
-    parser.add_argument('--split-gpus', type=bool, default=False, help='Split gpus for a large model.')
-    opt = parser.parse_args()
-    
-    # Set logging
-    if opt['log_file'] is not '':
-        logger = logging.getLogger('Evaluation: Seq2seq')
-        logger.setLevel(logging.INFO)
-        fmt = logging.Formatter('%(asctime)s: %(message)s', '%m/%d/%Y %I:%M:%S %p')
-        console = logging.StreamHandler()
-        console.setFormatter(fmt)
-        logger.addHandler(console)
-        if 'log_file' in opt:
-            logfile = logging.FileHandler(opt['log_file'], 'w')
-            logfile.setFormatter(fmt)
-            logger.addHandler(logfile)
-        logger.info('[ COMMAND: %s ]' % ' '.join(sys.argv))
-        
-    # Possibly build a dictionary (not all models do this).
-    
-    #assert opt['dict_file'] is None, '[ Put dict file ]'
-            
-    # Create model and assign it to the specified task
-    agent = create_agent(opt)
-    world = create_task(opt, agent)
-    
-    run_eval(agent, opt, 'valid', write_log=True, logger=logger, generate=True, local_human=opt['local_human'])
-    world.shutdown()
-        
-    
+  # Get command line arguments
+  parser = ParlaiParser(True, True)
+  parser.set_defaults(datatype='valid')
+  parser.add_argument('-logger', '--log-file',
+                      default='', help='log file name')
+  parser.add_argument('--local-human', default=True,
+                      type='bool', help='log file name')
+  parser.add_argument('--display-examples',
+                      default=False, type='bool', help='')
+  parser.add_argument('--split-gpus', type=bool, default=False,
+                      help='Split gpus for a large model.')
+  opt = parser.parse_args()
+
+  # Set logging
+  if opt['log_file'] is not '':
+    logger = logging.getLogger('Evaluation: Seq2seq')
+    logger.setLevel(logging.INFO)
+    fmt = logging.Formatter('%(asctime)s: %(message)s', '%m/%d/%Y %I:%M:%S %p')
+    console = logging.StreamHandler()
+    console.setFormatter(fmt)
+    logger.addHandler(console)
+    if 'log_file' in opt:
+      logfile = logging.FileHandler(opt['log_file'], 'w')
+      logfile.setFormatter(fmt)
+      logger.addHandler(logfile)
+    logger.info('[ COMMAND: %s ]' % ' '.join(sys.argv))
+
+  # Possibly build a dictionary (not all models do this).
+
+  #assert opt['dict_file'] is None, '[ Put dict file ]'
+
+  # Create model and assign it to the specified task
+  agent = create_agent(opt)
+  world = create_task(opt, agent)
+
+  run_eval(agent, opt, 'valid', write_log=True, logger=logger,
+           generate=True, local_human=opt['local_human'])
+  world.shutdown()
+
+
 if __name__ == '__main__':
-    main()
-
-
-
-
-
+  main()

@@ -1,17 +1,17 @@
 #!/bin/bash
 exp_dir='exp'
-gpuid=0,1,2,3
+gpuid=0,1
 model='hred'
-emb=200
-hs=4096
+emb=400
+hs=2048
 chs=2048
-psize=1024
+psize=400
 lr=0.0001
-dr=0.5
+dr=0.1
 wd=0 #.00002
 attn=false #true # true / fase
 attType=concat  #general concat dot
-enc=gru
+enc=transformer
 dict_maxexs=0
 dict_maxtokens=10000
 no_cuda=False
@@ -24,12 +24,15 @@ context_length=5
 include_labels=False
 pretrained_exp=exp-emb200-hs4096-lr0.0001-psize2_1024
 pretrained_model_file=''
+mechanism_size=200
+nl=6
+max_seq_len=30
 
 
 ############### CUSTOM
 gradClip=-1
 
-tag="small_dict" #'-gc0.5' #'-bs128' #'-bs128'
+tag="transformer_10000" #'-gc0.5' #'-bs128' #'-bs128'
 #tag="d2018" #'-gc0.5' #'-bs128' #'-bs128'
 ############### EVALUATION
 beam_size=5 #set 0 for greedy search
@@ -74,17 +77,20 @@ if [ $train -eq 1 ]; then # train
 	script='examples/check_perplexity.py'
 	script=${script}' --log-file '$exp_dir'/exp-'${exp}'/exp-'${exp}'.log'
 	script=${script}' -bs 1' # training option
-	script=${script}' -vparl 18681 -vp 5' #validation option
-	script=${script}' -vmt nll -vme -1' #validation measure
+	script=${script}' -veps 0.5 -vp 5' #validation option
+	script=${script}' -vmt ppl -vme -1' #validation measure
 	script=${script}' --optimizer adam -lr '${lr}
   script=${script}' --dropout '${dr}
   script=${script}' -enc '${enc}
   script=${script}' -lt '${lt}
   script=${script}' -bi '${bi}
   script=${script}' --dict-class '${dict_class}
-  script=${script}' --context-length '${context_length}
-	script=${script}' --include-labels '${include_labels}
+  script=${script}' --pytorch-context-length '${context_length}
+	script=${script}' --pytorch-include-labels '${include_labels}
 	script=${script}' --psize '${psize}
+	script=${script}' --mechanism-size '${mechanism_size}
+	script=${script}' -nl '${nl}
+	script=${script}' --max-seq-len '${max_seq_len}
   if [ $no_cuda = 'True' ]; then
       script=${script}' --no-cuda'
   fi
@@ -118,7 +124,7 @@ if [ ! -d ${exp_dir}/exp-${exp} ]; then
 	mkdir -p ${exp_dir}/exp-${exp}
 fi
 
-script=${script}' -m '${model}' -t ko_history_emo -mf '${exp_dir}/exp-${exp}/exp-${exp}
+script=${script}' -m '${model}' -pyt ko_history_emo -mf '${exp_dir}/exp-${exp}/exp-${exp}
 
 if [ -n "$gpuid" ]; then
 	script=${script}' --gpu '${gpuid}

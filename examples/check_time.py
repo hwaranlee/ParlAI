@@ -6,8 +6,8 @@ import os
 import time
 
 print('{}: 학습 기반 대화 시스템 로딩 시작'.format(datetime.now()))
-bot = Bot('exp/exp-emb200-hs4096-lr0.0001-emotional_hred/exp-emb200-hs4096-lr0.0001-emotional_hred',
-          'exp-opensub_kemo_20190226/dict_file_100000.dict', True)
+bot = Bot('exp/exp-emb400-hs2048-lr0.0001-transformer_40/exp-emb400-hs2048-lr0.0001-transformer_40',
+          'exp-opensub_kemo_20190226/dict_file_10000.dict', True)
 print('{}: 학습 기반 대화 시스템 로딩 완료'.format(datetime.now()))
 
 inpath = 'data/KoMultiEmo20190226'
@@ -30,14 +30,16 @@ emotion_map = {
 total_time = 0
 n = 0
 
+batch_size = 4
+
 for root, _subfolder, files in os.walk(inpath):
   for f in files:
     if f.endswith('.xlsx'):
       turn_id = None
       wb = load_workbook(os.path.join(root, f))
       ws = wb.active
+      ds = []
       for row_idx, row in enumerate(ws.rows):
-        preSentence = ''
         if row_idx == 0:
           continue
 
@@ -48,11 +50,21 @@ for root, _subfolder, files in os.walk(inpath):
                 start = time.time()
                 if d[1] == 'surprised':
                   d = (d[0], 'Surprise')
-                print('{}: {}, {} 입력'.format(datetime.now(), d[0], d[1]))
-                output = bot.reply(d[0], d[1], str(
-                    conv_id) + '-' + str(idx % 2))
-                print('{}: {}, {} 출력'.format(
-                    datetime.now(), output[0], output[1]))
+
+                d = (d[0], d[1], str(conv_id) + '-' + str(idx % 2))
+
+                ds.append(d)
+
+                if len(ds) == batch_size:
+                  for d in ds:
+                    print('{}: {}, {} 입력'.format(datetime.now(), d[0], d[1]))
+                  outputs = bot.batch_reply(ds)
+                  for output in outputs:
+                    print('{}: {}, {} 출력'.format(
+                        datetime.now(), output[0], output[1]))
+
+                  ds = []
+
                 n += 1
                 total_time += time.time() - start
                 if n >= 1000:
@@ -63,7 +75,6 @@ for root, _subfolder, files in os.walk(inpath):
                   exit()
           conv_id += 1
           dialog = []
-          line_id = 1
           turn_id = 0
 
         if not turn_id is None:
@@ -73,15 +84,7 @@ for root, _subfolder, files in os.walk(inpath):
           except:
             pass
           value = (row[1].value, row2_value)
-          # value = row[2].value + ' ' + preprocess(row[1].value)
-          if turn_id % 2 == 0:
-            preSentence = row[1].value
-            dialogtemp = value
-            turn_id += 1
-          else:
-            if(preSentence != row[1].value):
-              line_id += 1
-              turn_id += 1
-              dialog.append(dialogtemp)
+          turn_id += 1
+          dialog.append(value)
 
 print(total_time / n)

@@ -119,6 +119,68 @@ class Bot:
       else:
         return response
 
+  def batch_reply(self, messages):
+    # Assume that ids are all different!!!
+    batch_size = len(messages)
+
+    sentences = [self.agent.preprocess(m[0]) for m in messages]
+    emotions = ['surprised' if m[1] == 'Surprise' else m[1] for m in messages]
+    ids = [m[2] for m in messages]
+
+    responses = [None] * batch_size
+    id_lists = []
+    idx_lists = []
+    for i, id in enumerate(ids):
+      appended = False
+      for j, id_list in enumerate(id_lists):
+        if not id in id_list:
+          id_list.append(id)
+          idx_lists[j].append(i)
+          appended = True
+
+      if not appended:
+        id_lists.append([id])
+        idx_lists.append([i])
+
+    for i, id_list in enumerate(id_lists):
+      observations = []
+      for j, id in enumerate(id_list):
+        idx = idx_lists[i][j]
+        if not id in self.histories:
+          self.histories[id] = []
+        self.histories[id].append(sentences[idx] + ' ' + emotions[idx])
+        self.histories[id] = self.histories[id][-5:]
+        observations.append(
+            {'episode_done': True, 'text': '\n'.join(self.histories[id])})
+
+      self.agent.batch_observe(observations)
+      r = self.agent.batch_act_beam_cands()
+
+      for j, idx in enumerate(idx_lists[i]):
+        responses[idx] = r[j]
+
+      for j, id in enumerate(id_list):
+        self.histories[id].append(re.sub(' __end__.*', '', r[j]))
+
+    responses = [self.agent.postprocess(r) for r in responses]
+
+    ret = []
+
+    for response in responses:
+      splited = response.split()
+      emotion = splited[-1]
+      if emotion == 'surprised':
+        emotion = 'Surprise'
+      if emotion in ('Neutral', 'Surprise', 'Anger', 'Sadness', 'Fear',
+                     'Happiness', 'Disgust'):
+        response = ' '.join(splited[:-1])
+      else:
+        emotion = 'Neutral'
+
+      ret.append((response, emotion))
+
+    return ret
+
 
 def get_opt(model_path, cuda=False):
   if cuda:

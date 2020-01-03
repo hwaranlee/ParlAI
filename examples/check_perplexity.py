@@ -128,8 +128,14 @@ def main():
                      type=int, default=100)
   train.add_argument('-vtim', '--validation-every-n-secs',
                      type=float, default=-1)
-  train.add_argument('-vparl', '--validation-every-n-parleys',
-                     type=int, default=-1)
+  train.add_argument(
+      '-veps',
+      '--validation-every-n-epochs',
+      type=float,
+      default=-1,
+      help='Validate every n epochs. Saves model to model_file '
+      '(if set) whenever best val metric is found',
+  )
   train.add_argument('-vme', '--validation-max-exs',
                      type=int, default=-1,
                      help='max examples to use during validation (default ' +
